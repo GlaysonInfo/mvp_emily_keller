@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Motor_001 OPC UA Simulator",
+      "type": "python",
+      "request": "launch",
+      "module": "simulator.opcua_server",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Edge Bridge OPC UA to MQTT",
+      "type": "python",
+      "request": "launch",
+      "module": "edge_bridge.main",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "console": "integratedTerminal"
+    }
+  ]
+}

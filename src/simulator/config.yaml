@@ -1,0 +1,15 @@
+opcua:
+  endpoint: opc.tcp://0.0.0.0:4840/lab/opcua/
+  namespace_uri: urn:condition-monitoring-lab:mvp
+
+asset:
+  tenant_id: cliente_demo
+  plant_id: lab_virtual
+  asset_id: motor_001
+  display_name: Motor_001
+
+simulation:
+  sample_interval_seconds: 1.0
+  scenario_duration_seconds: 60.0
+  random_seed: 42
+  source: opcua_lab_simulator

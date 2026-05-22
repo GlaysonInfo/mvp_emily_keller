@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local runtime data
+.env
+logs/
+data/
+*.db
+
+# Raw reference inputs kept outside version control by default
+*.pdf
+mermaid-diagram.png
+arqutetura de bancada do MVP.png
+mvp_bancada_virtual_monitoramento_condicao_documentacao_md.md
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db

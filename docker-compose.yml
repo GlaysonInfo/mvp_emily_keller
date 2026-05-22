@@ -1,0 +1,14 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: lab-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./infra/docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -p 1883 -t lab/healthcheck -m ok || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
