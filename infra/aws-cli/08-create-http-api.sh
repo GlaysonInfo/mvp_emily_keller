@@ -21,6 +21,8 @@ API_ID="$(aws apigatewayv2 create-api \
   --query ApiId \
   --output text)"
 
+echo "$API_ID" > build/aws/http-api-id.txt
+
 INTEGRATION_ID="$(aws apigatewayv2 create-integration \
   --api-id "$API_ID" \
   --integration-type AWS_PROXY \

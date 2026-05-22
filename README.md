@@ -316,6 +316,7 @@ Sprint 3B segue esta ordem:
 Scripts da Sprint 3B:
 
 ```powershell
+bash infra/aws-cli/00-preflight.sh
 bash infra/aws-cli/01-create-s3.sh
 bash infra/aws-cli/02-create-dynamodb.sh
 bash infra/aws-cli/03-create-timestream.sh
@@ -326,6 +327,14 @@ bash infra/aws-cli/07-invoke-lambda-direct.sh
 bash infra/aws-cli/08-create-http-api.sh
 bash infra/aws-cli/09-test-http-api.sh
 ```
+
+Limpeza dev:
+
+```powershell
+bash infra/aws-cli/99-destroy-dev.sh
+```
+
+O script de limpeza exige confirmação explícita digitando `DESTROY`.
 
 ## Status do projeto
 

@@ -30,6 +30,7 @@ export STAGE="dev"
 
 ## Ordem de execucao
 
+0. `./infra/aws-cli/00-preflight.sh`
 1. `./infra/aws-cli/01-create-s3.sh`
 2. `./infra/aws-cli/02-create-dynamodb.sh`
 3. `./infra/aws-cli/03-create-timestream.sh`
@@ -57,4 +58,24 @@ Depois confira:
 - Item `LATEST` no DynamoDB.
 - Registros no Timestream.
 - Evento `TelemetryNormalized` no EventBridge/CloudWatch conforme configuracao.
+
+## Limpeza dev
+
+Para remover os recursos dev criados por estes scripts:
+
+```bash
+./infra/aws-cli/99-destroy-dev.sh
+```
+
+O script exige confirmacao digitando `DESTROY`.
+
+Ordem de remocao:
+
+1. API Gateway HTTP API.
+2. Lambda.
+3. IAM inline/managed policies e role.
+4. Timestream table/database.
+5. DynamoDB table.
+6. S3 objects.
+7. S3 bucket.
 
