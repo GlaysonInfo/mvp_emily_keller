@@ -248,8 +248,8 @@ Objects > Lab > Motor_001
 
 Divisão de trabalho:
 
-- Sprint 3A: Lambda full-flow local com mocks/fakes.
-- Sprint 3B: Deploy AWS dev com S3, DynamoDB, Timestream, Lambda e API Gateway.
+- Sprint 3A: fechada; Lambda full-flow local com mocks/fakes.
+- Sprint 3B: em andamento; deploy AWS dev com S3, DynamoDB, Timestream, Lambda e API Gateway HTTP API.
 
 Fluxo-alvo:
 
@@ -267,10 +267,10 @@ Variáveis de ambiente da Lambda:
 
 | Variável | Valor inicial |
 |---|---|
-| `RAW_BUCKET` | `mvp-condition-monitoring-raw` |
-| `TIMESTREAM_DB` | `condition_monitoring_lab` |
+| `RAW_BUCKET` | `${PROJECT}-raw-${STAGE}-${AWS_ACCOUNT_ID}` |
+| `TIMESTREAM_DB` | `condition_monitoring_lab_dev` |
 | `TIMESTREAM_TABLE` | `telemetry` |
-| `DYNAMODB_TABLE` | `mvp_asset_state` |
+| `DYNAMODB_TABLE` | `mvp_asset_state_dev` |
 | `EVENT_BUS` | `default` |
 
 Componentes iniciais:
@@ -299,13 +299,42 @@ python -m compileall src tests
 
 Resultado esperado: todos OK, com apenas o teste opcional do Mosquitto pulado quando Docker Desktop não estiver ativo.
 
+Sprint 3B segue esta ordem:
+
+1. Criar variáveis padrão em `infra/aws-cli/env.sh`.
+2. Criar bucket S3 raw.
+3. Criar tabela DynamoDB `mvp_asset_state_dev`.
+4. Criar Timestream database/table.
+5. Criar IAM role e policy da Lambda.
+6. Empacotar Lambda em `.zip`.
+7. Criar ou atualizar Lambda real.
+8. Testar Lambda por invoke direto.
+9. Criar API Gateway HTTP API `POST /telemetry`.
+10. Testar `curl -> API Gateway -> Lambda -> S3/DynamoDB/Timestream`.
+11. Configurar `HTTPS_INGEST_URL` na bridge.
+
+Scripts da Sprint 3B:
+
+```powershell
+bash infra/aws-cli/01-create-s3.sh
+bash infra/aws-cli/02-create-dynamodb.sh
+bash infra/aws-cli/03-create-timestream.sh
+bash infra/aws-cli/04-create-lambda-role.sh
+bash infra/aws-cli/05-package-lambda.sh
+bash infra/aws-cli/06-deploy-lambda.sh
+bash infra/aws-cli/07-invoke-lambda-direct.sh
+bash infra/aws-cli/08-create-http-api.sh
+bash infra/aws-cli/09-test-http-api.sh
+```
+
 ## Status do projeto
 
-Sprint 2: code-ready.
+- Sprint 1: fechada.
+- Sprint 2: code-ready; pendente apenas aceite operacional Mosquitto com Docker Desktop ativo.
+- Sprint 3A: fechada; Lambda validada com fake clients.
+- Sprint 3B: em andamento; deploy AWS dev real via HTTPS.
 
 PENDENTE OPERACIONAL:
 
 Validar fluxo real OPC UA -> Bridge -> Mosquitto quando Docker Desktop estiver ativo.
-
-Sprint 3: aberta. Foco atual: ingestão AWS via HTTPS antes de AWS IoT Core MQTT.
 

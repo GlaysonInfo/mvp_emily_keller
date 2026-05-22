@@ -1,19 +1,20 @@
 # API Gateway HTTPS Ingest
 
-Sprint 3 deve expor uma rota HTTPS simples:
+Sprint 3B deve expor uma rota HTTPS simples:
 
 ```text
 POST /telemetry
 ```
 
-Integração:
+Integracao:
 
+- API type: HTTP API
 - Lambda: `src/aws_lambdas/ingest_lambda.py`
 - Handler: `aws_lambdas.ingest_lambda.lambda_handler`
-- Entrada: payload canônico produzido pela bridge
-- Saída esperada: HTTP `202` com `event_id`, `raw_s3_key` e `metrics_received`
+- Entrada: payload canonico produzido pela bridge
+- Saida esperada: HTTP `202` com `event_id`, `raw_s3_key` e `metrics_received`
 
-Variáveis de ambiente da Lambda:
+Variaveis de ambiente da Lambda:
 
 ```text
 RAW_BUCKET=mvp-condition-monitoring-raw
@@ -28,5 +29,11 @@ Quando a rota estiver publicada, configurar na bridge:
 ```text
 BRIDGE_PUBLISH_MODE=https
 HTTPS_INGEST_URL=https://{api-id}.execute-api.{region}.amazonaws.com/{stage}/telemetry
+```
+
+Validacao:
+
+```bash
+infra/aws-cli/09-test-http-api.sh
 ```
 

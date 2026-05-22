@@ -1,0 +1,14 @@
+{
+  "tenant_id": "cliente_demo",
+  "plant_id": "lab_virtual",
+  "asset_id": "motor_001",
+  "source": "opcua_edge_bridge",
+  "timestamp": "2026-05-22T13:00:00Z",
+  "failure_mode_simulated": "normal",
+  "metrics": [
+    {"name": "rpm", "value": 1780.0, "unit": "rpm"},
+    {"name": "vibration_rms_mm_s", "value": 2.2, "unit": "mm/s"},
+    {"name": "temperature_c", "value": 61.5, "unit": "C"}
+  ]
+}
+

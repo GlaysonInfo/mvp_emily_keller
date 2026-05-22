@@ -10,6 +10,7 @@ htmlcov/
 
 # Local runtime data
 .env
+build/
 logs/
 data/
 *.db

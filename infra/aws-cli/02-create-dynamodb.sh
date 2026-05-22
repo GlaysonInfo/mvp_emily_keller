@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
+source "$(dirname "$0")/env.sh"
 
-: "${AWS_REGION:=us-east-1}"
-: "${DYNAMODB_TABLE:=mvp_asset_state}"
-
-aws dynamodb create-table \
+if aws dynamodb describe-table \
+  --table-name "$DDB_TABLE" \
   --region "$AWS_REGION" \
-  --table-name "$DYNAMODB_TABLE" \
-  --billing-mode PAY_PER_REQUEST \
-  --attribute-definitions \
-    AttributeName=pk,AttributeType=S \
-    AttributeName=sk,AttributeType=S \
-  --key-schema \
-    AttributeName=pk,KeyType=HASH \
-    AttributeName=sk,KeyType=RANGE
+  --profile "$AWS_PROFILE" >/dev/null 2>&1; then
+  echo "DynamoDB table already exists: $DDB_TABLE"
+else
+  aws dynamodb create-table \
+    --table-name "$DDB_TABLE" \
+    --attribute-definitions \
+      AttributeName=pk,AttributeType=S \
+      AttributeName=sk,AttributeType=S \
+    --key-schema \
+      AttributeName=pk,KeyType=HASH \
+      AttributeName=sk,KeyType=RANGE \
+    --billing-mode PAY_PER_REQUEST \
+    --region "$AWS_REGION" \
+    --profile "$AWS_PROFILE"
 
-echo "DynamoDB table ready: $DYNAMODB_TABLE"
+  aws dynamodb wait table-exists \
+    --table-name "$DDB_TABLE" \
+    --region "$AWS_REGION" \
+    --profile "$AWS_PROFILE"
+
+  echo "DynamoDB table created: $DDB_TABLE"
+fi
 

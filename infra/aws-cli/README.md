@@ -1,29 +1,60 @@
-# AWS CLI - Sprint 3
+# AWS CLI - Sprint 3B
 
-Scripts e notas para criar os recursos mínimos da ingestão HTTPS do MVP.
+Scripts para provisionar o ambiente AWS dev da ingestao HTTPS do MVP.
 
 Fluxo-alvo:
 
 ```text
-Bridge HTTPS -> API Gateway -> Lambda -> S3 + DynamoDB + Timestream + EventBridge
+Bridge HTTPS -> API Gateway HTTP API -> Lambda -> S3 + DynamoDB + Timestream + EventBridge
 ```
 
-Variáveis sugeridas:
+## Pre-requisitos
+
+- AWS CLI autenticado.
+- Perfil local configurado em `AWS_PROFILE`.
+- Permissoes para criar S3, DynamoDB, Timestream, IAM, Lambda, EventBridge e API Gateway.
+- Bash com `zip` e `curl` disponiveis.
+
+## Variaveis
+
+Edite ou sobrescreva variaveis em `env.sh`:
 
 ```bash
-export AWS_REGION=us-east-1
-export RAW_BUCKET=mvp-condition-monitoring-raw
-export TIMESTREAM_DB=condition_monitoring_lab
-export TIMESTREAM_TABLE=telemetry
-export DYNAMODB_TABLE=mvp_asset_state
-export EVENT_BUS=default
+export AWS_REGION="us-east-1"
+export AWS_PROFILE="default"
+export PROJECT="condition-monitoring-lab"
+export STAGE="dev"
 ```
 
-Ordem de execução planejada:
+`RAW_BUCKET` inclui o Account ID para manter o nome globalmente unico.
 
-1. `01-create-s3.sh`
-2. `02-create-dynamodb.sh`
-3. `03-create-timestream.sh`
-4. `04-package-lambda.sh`
-5. Ler `05-api-gateway-notes.md`
+## Ordem de execucao
+
+1. `./infra/aws-cli/01-create-s3.sh`
+2. `./infra/aws-cli/02-create-dynamodb.sh`
+3. `./infra/aws-cli/03-create-timestream.sh`
+4. `./infra/aws-cli/04-create-lambda-role.sh`
+5. `./infra/aws-cli/05-package-lambda.sh`
+6. `./infra/aws-cli/06-deploy-lambda.sh`
+7. `./infra/aws-cli/07-invoke-lambda-direct.sh`
+8. `./infra/aws-cli/08-create-http-api.sh`
+9. `./infra/aws-cli/09-test-http-api.sh`
+10. Ler `10-api-gateway-notes.md`
+
+## Teste direto da Lambda
+
+Antes da API Gateway, valide:
+
+```bash
+./infra/aws-cli/07-invoke-lambda-direct.sh
+```
+
+Resultado esperado: `statusCode` 202 no arquivo `build/aws/lambda-response.json`.
+
+Depois confira:
+
+- Objeto raw no S3.
+- Item `LATEST` no DynamoDB.
+- Registros no Timestream.
+- Evento `TelemetryNormalized` no EventBridge/CloudWatch conforme configuracao.
 
