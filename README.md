@@ -246,6 +246,11 @@ Objects > Lab > Motor_001
 
 ## Sprint 3 - Ingestão AWS via HTTPS
 
+Divisão de trabalho:
+
+- Sprint 3A: Lambda full-flow local com mocks/fakes.
+- Sprint 3B: Deploy AWS dev com S3, DynamoDB, Timestream, Lambda e API Gateway.
+
 Fluxo-alvo:
 
 ```text
@@ -284,6 +289,15 @@ Definition of Done da Sprint 3:
 - API Gateway recebe `POST /telemetry`.
 - Bridge envia HTTPS usando `HTTPS_INGEST_URL`.
 - CloudWatch mostra logs sem erro.
+
+Sprint 3A está pronta quando:
+
+```powershell
+python -m unittest discover -s tests -v
+python -m compileall src tests
+```
+
+Resultado esperado: todos OK, com apenas o teste opcional do Mosquitto pulado quando Docker Desktop não estiver ativo.
 
 ## Status do projeto
 

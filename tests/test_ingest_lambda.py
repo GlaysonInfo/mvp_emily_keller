@@ -40,24 +40,27 @@ class FakeS3Client:
     def __init__(self) -> None:
         self.objects: list[dict] = []
 
-    def put_object(self, **kwargs) -> None:
+    def put_object(self, **kwargs) -> dict:
         self.objects.append(kwargs)
+        return {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
 
 class FakeTimestreamClient:
     def __init__(self) -> None:
         self.writes: list[dict] = []
 
-    def write_records(self, **kwargs) -> None:
+    def write_records(self, **kwargs) -> dict:
         self.writes.append(kwargs)
+        return {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
 
 class FakeDynamoTable:
     def __init__(self) -> None:
         self.items: list[dict] = []
 
-    def put_item(self, **kwargs) -> None:
+    def put_item(self, **kwargs) -> dict:
         self.items.append(kwargs["Item"])
+        return {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
 
 class FakeDynamoResource:
@@ -74,8 +77,9 @@ class FakeEventBridgeClient:
     def __init__(self) -> None:
         self.events: list[dict] = []
 
-    def put_events(self, **kwargs) -> None:
+    def put_events(self, **kwargs) -> dict:
         self.events.extend(kwargs["Entries"])
+        return {"FailedEntryCount": 0, "Entries": [{"EventId": "fake-event-id"}]}
 
 
 class TestIngestLambda(unittest.TestCase):
@@ -182,6 +186,47 @@ class TestIngestLambda(unittest.TestCase):
         self.assertEqual(fake_table.items[0]["asset_id"], "motor_001")
         self.assertEqual(fake_eventbridge.events[0]["DetailType"], "TelemetryNormalized")
 
+    def test_lambda_handler_returns_500_when_eventbridge_reports_failure(self) -> None:
+        class FailingEventBridgeClient(FakeEventBridgeClient):
+            def put_events(self, **kwargs) -> dict:
+                self.events.extend(kwargs["Entries"])
+                return {
+                    "FailedEntryCount": 1,
+                    "Entries": [
+                        {
+                            "ErrorCode": "InternalFailure",
+                            "ErrorMessage": "fake failure",
+                        }
+                    ],
+                }
+
+        fake_table = FakeDynamoTable()
+        clients = {
+            "s3": FakeS3Client(),
+            "timestream": FakeTimestreamClient(),
+            "dynamodb": FakeDynamoResource(fake_table),
+            "eventbridge": FailingEventBridgeClient(),
+        }
+
+        env = {
+            "RAW_BUCKET": "mvp-condition-monitoring-raw",
+            "TIMESTREAM_DB": "condition_monitoring_lab",
+            "TIMESTREAM_TABLE": "telemetry",
+            "DYNAMODB_TABLE": "mvp_asset_state",
+            "EVENT_BUS": "default",
+        }
+
+        event = {"body": json.dumps(sample_payload())}
+        with patch.dict(os.environ, env, clear=False):
+            with patch("aws_lambdas.ingest_lambda.get_boto3_clients", return_value=clients):
+                result = lambda_handler(event, None)
+
+        body = json.loads(result["body"])
+
+        self.assertEqual(result["statusCode"], 500)
+        self.assertEqual(body["status"], "internal_error")
+        self.assertIn("EventBridge", body["error"])
+
     def test_lambda_handler_rejects_invalid_payload(self) -> None:
         invalid_payload = sample_payload()
         invalid_payload["metrics"] = []
@@ -195,4 +240,3 @@ class TestIngestLambda(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -206,7 +206,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         table = clients["dynamodb"].Table(dynamodb_table)
         table.put_item(Item=dynamodb_item)
 
-        clients["eventbridge"].put_events(
+        event_result = clients["eventbridge"].put_events(
             Entries=[
                 {
                     "Source": "condition-monitoring.ingestion",
@@ -227,6 +227,9 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             ]
         )
 
+        if event_result.get("FailedEntryCount", 0) > 0:
+            raise RuntimeError(f"Falha ao publicar evento no EventBridge: {event_result}")
+
         return response(
             202,
             {
@@ -242,4 +245,3 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     except Exception as exc:
         return response(500, {"status": "internal_error", "error": str(exc)})
-
