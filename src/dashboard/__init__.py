@@ -1,2 +1,1 @@
-"""Dashboard package placeholder for Sprint 5."""
-
+"""Streamlit dashboard for the condition-monitoring MVP."""

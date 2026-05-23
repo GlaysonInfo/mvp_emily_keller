@@ -512,3 +512,59 @@ Regra EventBridge:
 }
 ```
 
+## Sprint 5 - Dashboard MVP
+
+Objetivo: criar uma interface demonstrativa local lendo diretamente:
+
+```text
+DynamoDB mvp_asset_state_dev
+        +
+DynamoDB mvp_alerts_dev
+        ->
+Dashboard Streamlit local
+```
+
+Uso no MVP:
+
+- Estado atual do `Motor_001`.
+- Metricas atuais.
+- Health score.
+- Modo de falha simulado.
+- Alertas ativos.
+- Causa provavel, evidencias e acao recomendada.
+
+Para demonstracao local, o dashboard le DynamoDB diretamente com `boto3`. Em
+producao futura, o caminho recomendado sera `Dashboard Web -> API Backend ->
+DynamoDB/S3/historico`.
+
+Variaveis de ambiente:
+
+```powershell
+$env:AWS_PROFILE="Glayson"
+$env:AWS_REGION="us-east-1"
+$env:TENANT_ID="cliente_demo"
+$env:PLANT_ID="lab_virtual"
+$env:ASSET_ID="motor_001"
+$env:DYNAMODB_TABLE="mvp_asset_state_dev"
+$env:ALERTS_TABLE="mvp_alerts_dev"
+$env:DASHBOARD_REFRESH_SECONDS="5"
+```
+
+Como rodar:
+
+```powershell
+pip install -r requirements.txt
+streamlit run src/dashboard/app.py
+```
+
+Definition of Done Sprint 5A:
+
+- Dashboard abre localmente.
+- Le `mvp_asset_state_dev`.
+- Mostra `Motor_001` e metricas atuais.
+- Le `mvp_alerts_dev`.
+- Mostra alerta ativo de `lubrication_degradation`.
+- Mostra causa provavel, evidencias e acao recomendada.
+- Atualiza sem reiniciar a aplicacao.
+- Testes locais continuam OK.
+
