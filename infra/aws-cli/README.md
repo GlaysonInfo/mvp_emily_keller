@@ -5,14 +5,18 @@ Scripts para provisionar o ambiente AWS dev da ingestao HTTPS do MVP.
 Fluxo-alvo:
 
 ```text
-Bridge HTTPS -> API Gateway HTTP API -> Lambda -> S3 + DynamoDB + Timestream + EventBridge
+Bridge HTTPS -> API Gateway HTTP API -> Lambda -> S3 + DynamoDB + EventBridge
 ```
+
+Timestream for LiveAnalytics e opcional neste MVP. Em contas AWS sem acesso ao servico,
+use `ENABLE_TIMESTREAM=false` e siga a validacao com S3 + DynamoDB.
 
 ## Pre-requisitos
 
 - AWS CLI autenticado.
 - Perfil local configurado em `AWS_PROFILE`.
-- Permissoes para criar S3, DynamoDB, Timestream, IAM, Lambda, EventBridge e API Gateway.
+- Permissoes para criar S3, DynamoDB, IAM, Lambda, EventBridge e API Gateway.
+- Permissoes de Timestream apenas se `ENABLE_TIMESTREAM=true`.
 - Bash com `zip` e `curl` disponiveis.
 
 ## Variaveis
@@ -28,12 +32,15 @@ export STAGE="dev"
 
 `RAW_BUCKET` inclui o Account ID para manter o nome globalmente unico.
 
+`ENABLE_TIMESTREAM=false` e o padrao para contas novas, pois o acesso novo ao
+Timestream for LiveAnalytics pode estar indisponivel.
+
 ## Ordem de execucao
 
 0. `./infra/aws-cli/00-preflight.sh`
 1. `./infra/aws-cli/01-create-s3.sh`
 2. `./infra/aws-cli/02-create-dynamodb.sh`
-3. `./infra/aws-cli/03-create-timestream.sh`
+3. `./infra/aws-cli/03-create-timestream.sh` (pula quando `ENABLE_TIMESTREAM=false`)
 4. `./infra/aws-cli/04-create-lambda-role.sh`
 5. `./infra/aws-cli/05-package-lambda.sh`
 6. `./infra/aws-cli/06-deploy-lambda.sh`
@@ -56,7 +63,7 @@ Depois confira:
 
 - Objeto raw no S3.
 - Item `LATEST` no DynamoDB.
-- Registros no Timestream.
+- Registros no Timestream, se `ENABLE_TIMESTREAM=true`.
 - Evento `TelemetryNormalized` no EventBridge/CloudWatch conforme configuracao.
 
 ## Limpeza dev
@@ -78,4 +85,3 @@ Ordem de remocao:
 5. DynamoDB table.
 6. S3 objects.
 7. S3 bucket.
-

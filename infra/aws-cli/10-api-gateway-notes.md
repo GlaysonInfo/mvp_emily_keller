@@ -18,11 +18,16 @@ Variaveis de ambiente da Lambda:
 
 ```text
 RAW_BUCKET=mvp-condition-monitoring-raw
+ENABLE_TIMESTREAM=false
+TIMESTREAM_ENABLED=false
 TIMESTREAM_DB=condition_monitoring_lab
 TIMESTREAM_TABLE=telemetry
 DYNAMODB_TABLE=mvp_asset_state
 EVENT_BUS=default
 ```
+
+Use `ENABLE_TIMESTREAM=true` apenas em contas com acesso ao Timestream for
+LiveAnalytics.
 
 Quando a rota estiver publicada, configurar na bridge:
 
@@ -36,4 +41,3 @@ Validacao:
 ```bash
 infra/aws-cli/09-test-http-api.sh
 ```
-

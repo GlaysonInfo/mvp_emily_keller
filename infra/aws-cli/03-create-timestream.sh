@@ -2,6 +2,13 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
+if [[ "$TIMESTREAM_ENABLED" != "true" ]]; then
+  echo "Timestream disabled for this environment."
+  echo "Reason: new AWS customer access to Timestream for LiveAnalytics can be unavailable."
+  echo "To force provisioning in an eligible account, run with ENABLE_TIMESTREAM=true."
+  exit 0
+fi
+
 if aws timestream-write describe-database \
   --database-name "$TIMESTREAM_DB" \
   --region "$AWS_REGION" \
@@ -32,4 +39,3 @@ else
 
   echo "Timestream table created: $TIMESTREAM_DB/$TIMESTREAM_TABLE"
 fi
-

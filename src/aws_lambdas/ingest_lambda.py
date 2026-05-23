@@ -9,6 +9,7 @@ from typing import Any, Iterator
 
 
 NUMERIC_TYPES = (int, float)
+TRUE_VALUES = {"1", "true", "yes", "y", "on"}
 
 
 def utc_now() -> str:
@@ -159,6 +160,11 @@ def chunked(items: list[dict[str, Any]], size: int = 100) -> Iterator[list[dict[
         yield items[index : index + size]
 
 
+def is_timestream_enabled() -> bool:
+    value = os.environ.get("ENABLE_TIMESTREAM", os.environ.get("TIMESTREAM_ENABLED", "true"))
+    return value.strip().lower() in TRUE_VALUES
+
+
 def get_boto3_clients() -> dict[str, Any]:
     import boto3
 
@@ -178,13 +184,12 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         event_id = payload.get("event_id") or str(uuid.uuid4())
 
         raw_bucket = os.environ["RAW_BUCKET"]
-        timestream_db = os.environ["TIMESTREAM_DB"]
-        timestream_table = os.environ["TIMESTREAM_TABLE"]
         dynamodb_table = os.environ["DYNAMODB_TABLE"]
         event_bus = os.environ.get("EVENT_BUS", "default")
+        timestream_enabled = is_timestream_enabled()
 
         raw_s3_key = build_raw_s3_key(payload, event_id)
-        timestream_records = build_timestream_records(payload)
+        timestream_records = build_timestream_records(payload) if timestream_enabled else []
         dynamodb_item = build_dynamodb_latest_item(payload, event_id, raw_s3_key)
 
         clients = get_boto3_clients()
@@ -196,12 +201,16 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             ContentType="application/json",
         )
 
-        for batch in chunked(timestream_records, size=100):
-            clients["timestream"].write_records(
-                DatabaseName=timestream_db,
-                TableName=timestream_table,
-                Records=batch,
-            )
+        if timestream_enabled:
+            timestream_db = os.environ["TIMESTREAM_DB"]
+            timestream_table = os.environ["TIMESTREAM_TABLE"]
+
+            for batch in chunked(timestream_records, size=100):
+                clients["timestream"].write_records(
+                    DatabaseName=timestream_db,
+                    TableName=timestream_table,
+                    Records=batch,
+                )
 
         table = clients["dynamodb"].Table(dynamodb_table)
         table.put_item(Item=dynamodb_item)
@@ -237,6 +246,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 "event_id": event_id,
                 "raw_s3_key": raw_s3_key,
                 "metrics_received": len(payload["metrics"]),
+                "timestream_enabled": timestream_enabled,
             },
         )
 

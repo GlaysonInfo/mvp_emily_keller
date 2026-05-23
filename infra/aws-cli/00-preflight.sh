@@ -19,6 +19,8 @@ echo
 echo "Recursos que serao usados/criados:"
 echo "RAW_BUCKET=${RAW_BUCKET}"
 echo "DDB_TABLE=${DDB_TABLE}"
+echo "ENABLE_TIMESTREAM=${ENABLE_TIMESTREAM}"
+echo "TIMESTREAM_ENABLED=${TIMESTREAM_ENABLED}"
 echo "TIMESTREAM_DB=${TIMESTREAM_DB}"
 echo "TIMESTREAM_TABLE=${TIMESTREAM_TABLE}"
 echo "LAMBDA_NAME=${LAMBDA_NAME}"
@@ -33,4 +35,3 @@ if [[ "$CONFIRM" != "YES" ]]; then
 fi
 
 echo "Preflight OK."
-

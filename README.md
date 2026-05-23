@@ -66,7 +66,7 @@ Nota técnica: a Sprint 2 usa `opcua` como dependência OPC UA. A biblioteca `as
 - API Gateway para entrada HTTPS
 - Lambda para normalização
 - S3 para histórico bruto
-- Amazon Timestream para séries temporais
+- Amazon Timestream para séries temporais, se a conta AWS tiver acesso ao servico
 - DynamoDB para estado atual e alertas
 - EventBridge para eventos
 - SNS ou SES para notificação futura
@@ -249,7 +249,7 @@ Objects > Lab > Motor_001
 Divisão de trabalho:
 
 - Sprint 3A: fechada; Lambda full-flow local com mocks/fakes.
-- Sprint 3B: em andamento; deploy AWS dev com S3, DynamoDB, Timestream, Lambda e API Gateway HTTP API.
+- Sprint 3B: em andamento; deploy AWS dev com S3, DynamoDB, Lambda e API Gateway HTTP API. Timestream fica opcional porque contas novas podem nao ter acesso ao Timestream for LiveAnalytics.
 
 Fluxo-alvo:
 
@@ -259,7 +259,7 @@ Bridge HTTPS
   -> Lambda normalizadora
   -> S3 raw
   -> DynamoDB latest state
-  -> Timestream telemetry
+  -> Timestream telemetry opcional
   -> EventBridge TelemetryNormalized
 ```
 
@@ -268,6 +268,8 @@ Variáveis de ambiente da Lambda:
 | Variável | Valor inicial |
 |---|---|
 | `RAW_BUCKET` | `${PROJECT}-raw-${STAGE}-${AWS_ACCOUNT_ID}` |
+| `ENABLE_TIMESTREAM` | `false` |
+| `TIMESTREAM_ENABLED` | `false` |
 | `TIMESTREAM_DB` | `condition_monitoring_lab_dev` |
 | `TIMESTREAM_TABLE` | `telemetry` |
 | `DYNAMODB_TABLE` | `mvp_asset_state_dev` |
@@ -284,7 +286,7 @@ Definition of Done da Sprint 3:
 - Lambda valida payload válido.
 - Lambda rejeita payload inválido.
 - Payload bruto é salvo no S3.
-- Métricas são gravadas no Timestream.
+- Métricas são gravadas no Timestream quando `ENABLE_TIMESTREAM=true`.
 - Último estado é atualizado no DynamoDB.
 - API Gateway recebe `POST /telemetry`.
 - Bridge envia HTTPS usando `HTTPS_INGEST_URL`.
@@ -304,14 +306,23 @@ Sprint 3B segue esta ordem:
 1. Criar variáveis padrão em `infra/aws-cli/env.sh`.
 2. Criar bucket S3 raw.
 3. Criar tabela DynamoDB `mvp_asset_state_dev`.
-4. Criar Timestream database/table.
+4. Criar Timestream database/table somente se `ENABLE_TIMESTREAM=true`.
 5. Criar IAM role e policy da Lambda.
 6. Empacotar Lambda em `.zip`.
 7. Criar ou atualizar Lambda real.
 8. Testar Lambda por invoke direto.
 9. Criar API Gateway HTTP API `POST /telemetry`.
-10. Testar `curl -> API Gateway -> Lambda -> S3/DynamoDB/Timestream`.
+10. Testar `curl -> API Gateway -> Lambda -> S3/DynamoDB` e Timestream, se habilitado.
 11. Configurar `HTTPS_INGEST_URL` na bridge.
+
+Status Sprint 3B:
+
+- Validado: `curl -> API Gateway /dev/telemetry -> Lambda real -> S3 raw + DynamoDB latest state`.
+- Validado: `OPC UA Server -> Bridge HTTPS -> API Gateway /dev/telemetry -> Lambda real -> S3 raw + DynamoDB latest state`.
+- DynamoDB: tabela `mvp_asset_state_dev`.
+- S3 raw: objetos em `raw/tenant=cliente_demo/plant=lab_virtual/asset=motor_001/`.
+- Timestream: opcional/pendente por limitacao de acesso da conta AWS ao Timestream for LiveAnalytics.
+- Pendente operacional final: confirmar CloudWatch da Lambda sem stack trace.
 
 Scripts da Sprint 3B:
 
@@ -319,7 +330,7 @@ Scripts da Sprint 3B:
 bash infra/aws-cli/00-preflight.sh
 bash infra/aws-cli/01-create-s3.sh
 bash infra/aws-cli/02-create-dynamodb.sh
-bash infra/aws-cli/03-create-timestream.sh
+bash infra/aws-cli/03-create-timestream.sh  # pula quando ENABLE_TIMESTREAM=false
 bash infra/aws-cli/04-create-lambda-role.sh
 bash infra/aws-cli/05-package-lambda.sh
 bash infra/aws-cli/06-deploy-lambda.sh
@@ -341,7 +352,7 @@ O script de limpeza exige confirmação explícita digitando `DESTROY`.
 - Sprint 1: fechada.
 - Sprint 2: code-ready; pendente apenas aceite operacional Mosquitto com Docker Desktop ativo.
 - Sprint 3A: fechada; Lambda validada com fake clients.
-- Sprint 3B: em andamento; deploy AWS dev real via HTTPS.
+- Sprint 3B: validada via HTTPS com S3 raw + DynamoDB latest state; pendente apenas checagem CloudWatch sem erro.
 
 PENDENTE OPERACIONAL:
 

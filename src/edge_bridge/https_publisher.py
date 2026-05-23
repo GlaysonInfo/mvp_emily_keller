@@ -14,7 +14,7 @@ class HttpsPublisher:
         self.endpoint = endpoint
         self.timeout_seconds = timeout_seconds
 
-    def publish(self, payload: dict[str, Any]) -> None:
+    def publish(self, payload: dict[str, Any]) -> int:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         request = Request(
             self.endpoint,
@@ -34,3 +34,4 @@ class HttpsPublisher:
         if status >= 400:
             raise RuntimeError(f"Falha ao publicar HTTPS. status={status}")
 
+        return status

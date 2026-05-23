@@ -52,7 +52,12 @@ cat > build/aws/lambda-inline-policy.json <<JSON
         "dynamodb:PutItem"
       ],
       "Resource": "arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/${DDB_TABLE}"
-    },
+    }
+JSON
+
+if [[ "$TIMESTREAM_ENABLED" == "true" ]]; then
+  cat >> build/aws/lambda-inline-policy.json <<JSON
+    ,
     {
       "Effect": "Allow",
       "Action": [
@@ -66,7 +71,12 @@ cat > build/aws/lambda-inline-policy.json <<JSON
         "timestream:DescribeEndpoints"
       ],
       "Resource": "*"
-    },
+    }
+JSON
+fi
+
+cat >> build/aws/lambda-inline-policy.json <<JSON
+    ,
     {
       "Effect": "Allow",
       "Action": [
@@ -85,4 +95,3 @@ aws iam put-role-policy \
   --profile "$AWS_PROFILE"
 
 echo "IAM role policy ready: $LAMBDA_ROLE_NAME"
-

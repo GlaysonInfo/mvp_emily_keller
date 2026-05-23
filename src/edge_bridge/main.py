@@ -14,6 +14,7 @@ from .payload_builder import build_telemetry_payload
 async def main() -> None:
     load_env_file(Path(".env"))
     logging.basicConfig(level=os.getenv("BRIDGE_LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
+    logging.getLogger("opcua").setLevel(os.getenv("OPCUA_LOG_LEVEL", "WARNING"))
 
     tenant_id = os.getenv("TENANT_ID", "cliente_demo")
     plant_id = os.getenv("PLANT_ID", "lab_virtual")
@@ -58,7 +59,9 @@ async def main() -> None:
             )
 
             for publisher in publishers:
-                publisher.publish(payload)
+                publish_result = publisher.publish(payload)
+                if publish_result is not None:
+                    logging.info("%s status=%s", publisher.__class__.__name__, publish_result)
 
             logging.info(
                 "publicado asset=%s failure_mode=%s metrics=%s",

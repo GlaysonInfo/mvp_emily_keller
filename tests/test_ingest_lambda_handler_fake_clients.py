@@ -73,8 +73,10 @@ class FakeEventBridgeClient:
 class TestIngestLambdaHandlerWithFakeClients(unittest.TestCase):
     def setUp(self) -> None:
         os.environ["RAW_BUCKET"] = "test-raw-bucket"
+        os.environ.pop("ENABLE_TIMESTREAM", None)
         os.environ["TIMESTREAM_DB"] = "condition_monitoring_lab"
         os.environ["TIMESTREAM_TABLE"] = "telemetry"
+        os.environ["TIMESTREAM_ENABLED"] = "true"
         os.environ["DYNAMODB_TABLE"] = "mvp_asset_state"
         os.environ["EVENT_BUS"] = "default"
 
@@ -120,6 +122,36 @@ class TestIngestLambdaHandlerWithFakeClients(unittest.TestCase):
         self.assertEqual(len(self.fake_eventbridge.events), 1)
         event_entry = self.fake_eventbridge.events[0]["Entries"][0]
         self.assertEqual(event_entry["DetailType"], "TelemetryNormalized")
+
+    def test_lambda_handler_skips_timestream_when_disabled(self) -> None:
+        os.environ["TIMESTREAM_ENABLED"] = "false"
+        event = {"body": json.dumps(sample_payload())}
+
+        with patch.object(ingest_lambda, "get_boto3_clients", self.fake_clients):
+            result = ingest_lambda.lambda_handler(event, context=None)
+
+        body = json.loads(result["body"])
+
+        self.assertEqual(result["statusCode"], 202)
+        self.assertFalse(body["timestream_enabled"])
+        self.assertEqual(len(self.fake_s3.objects), 1)
+        self.assertEqual(len(self.fake_timestream.writes), 0)
+        self.assertEqual(len(self.fake_dynamodb.table.items), 1)
+        self.assertEqual(len(self.fake_eventbridge.events), 1)
+
+    def test_lambda_handler_uses_enable_timestream_flag(self) -> None:
+        os.environ["ENABLE_TIMESTREAM"] = "false"
+        os.environ["TIMESTREAM_ENABLED"] = "true"
+        event = {"body": json.dumps(sample_payload())}
+
+        with patch.object(ingest_lambda, "get_boto3_clients", self.fake_clients):
+            result = ingest_lambda.lambda_handler(event, context=None)
+
+        body = json.loads(result["body"])
+
+        self.assertEqual(result["statusCode"], 202)
+        self.assertFalse(body["timestream_enabled"])
+        self.assertEqual(len(self.fake_timestream.writes), 0)
 
     def test_lambda_handler_rejects_invalid_payload_without_writing(self) -> None:
         invalid_payload = sample_payload()

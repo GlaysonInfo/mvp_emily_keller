@@ -163,6 +163,8 @@ class TestIngestLambda(unittest.TestCase):
 
         env = {
             "RAW_BUCKET": "mvp-condition-monitoring-raw",
+            "ENABLE_TIMESTREAM": "true",
+            "TIMESTREAM_ENABLED": "true",
             "TIMESTREAM_DB": "condition_monitoring_lab",
             "TIMESTREAM_TABLE": "telemetry",
             "DYNAMODB_TABLE": "mvp_asset_state",
@@ -185,6 +187,71 @@ class TestIngestLambda(unittest.TestCase):
         self.assertEqual(fake_dynamodb.requested_table_name, "mvp_asset_state")
         self.assertEqual(fake_table.items[0]["asset_id"], "motor_001")
         self.assertEqual(fake_eventbridge.events[0]["DetailType"], "TelemetryNormalized")
+
+    def test_lambda_handler_skips_timestream_when_disabled(self) -> None:
+        fake_s3 = FakeS3Client()
+        fake_timestream = FakeTimestreamClient()
+        fake_table = FakeDynamoTable()
+        fake_dynamodb = FakeDynamoResource(fake_table)
+        fake_eventbridge = FakeEventBridgeClient()
+
+        clients = {
+            "s3": fake_s3,
+            "timestream": fake_timestream,
+            "dynamodb": fake_dynamodb,
+            "eventbridge": fake_eventbridge,
+        }
+
+        env = {
+            "RAW_BUCKET": "mvp-condition-monitoring-raw",
+            "ENABLE_TIMESTREAM": "false",
+            "TIMESTREAM_ENABLED": "false",
+            "DYNAMODB_TABLE": "mvp_asset_state",
+            "EVENT_BUS": "default",
+        }
+
+        event = {"body": json.dumps(sample_payload())}
+        with patch.dict(os.environ, env, clear=False):
+            with patch("aws_lambdas.ingest_lambda.get_boto3_clients", return_value=clients):
+                result = lambda_handler(event, None)
+
+        body = json.loads(result["body"])
+
+        self.assertEqual(result["statusCode"], 202)
+        self.assertFalse(body["timestream_enabled"])
+        self.assertEqual(len(fake_s3.objects), 1)
+        self.assertEqual(len(fake_timestream.writes), 0)
+        self.assertEqual(len(fake_table.items), 1)
+        self.assertEqual(len(fake_eventbridge.events), 1)
+
+    def test_lambda_handler_prefers_enable_timestream_flag(self) -> None:
+        fake_timestream = FakeTimestreamClient()
+        fake_table = FakeDynamoTable()
+        clients = {
+            "s3": FakeS3Client(),
+            "timestream": fake_timestream,
+            "dynamodb": FakeDynamoResource(fake_table),
+            "eventbridge": FakeEventBridgeClient(),
+        }
+
+        env = {
+            "RAW_BUCKET": "mvp-condition-monitoring-raw",
+            "ENABLE_TIMESTREAM": "false",
+            "TIMESTREAM_ENABLED": "true",
+            "DYNAMODB_TABLE": "mvp_asset_state",
+            "EVENT_BUS": "default",
+        }
+
+        event = {"body": json.dumps(sample_payload())}
+        with patch.dict(os.environ, env, clear=False):
+            with patch("aws_lambdas.ingest_lambda.get_boto3_clients", return_value=clients):
+                result = lambda_handler(event, None)
+
+        body = json.loads(result["body"])
+
+        self.assertEqual(result["statusCode"], 202)
+        self.assertFalse(body["timestream_enabled"])
+        self.assertEqual(len(fake_timestream.writes), 0)
 
     def test_lambda_handler_returns_500_when_eventbridge_reports_failure(self) -> None:
         class FailingEventBridgeClient(FakeEventBridgeClient):
@@ -210,6 +277,8 @@ class TestIngestLambda(unittest.TestCase):
 
         env = {
             "RAW_BUCKET": "mvp-condition-monitoring-raw",
+            "ENABLE_TIMESTREAM": "true",
+            "TIMESTREAM_ENABLED": "true",
             "TIMESTREAM_DB": "condition_monitoring_lab",
             "TIMESTREAM_TABLE": "telemetry",
             "DYNAMODB_TABLE": "mvp_asset_state",
