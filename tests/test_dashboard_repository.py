@@ -12,6 +12,8 @@ class FakeTable:
         self.items = items or []
         self.get_requests: list[dict] = []
         self.query_requests: list[dict] = []
+        self.put_items: list[dict] = []
+        self.delete_requests: list[dict] = []
 
     def get_item(self, **kwargs) -> dict:
         self.get_requests.append(kwargs)
@@ -22,6 +24,14 @@ class FakeTable:
     def query(self, **kwargs) -> dict:
         self.query_requests.append(kwargs)
         return {"Items": self.items}
+
+    def put_item(self, **kwargs) -> dict:
+        self.put_items.append(kwargs["Item"])
+        return {}
+
+    def delete_item(self, **kwargs) -> dict:
+        self.delete_requests.append(kwargs)
+        return {}
 
 
 class FakeDynamoResource:
@@ -115,6 +125,50 @@ class DashboardRepositoryTest(unittest.TestCase):
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0]["confidence"], 0.76)
         self.assertEqual(len(alerts_table.query_requests), 1)
+
+    def test_put_latest_state_writes_item(self) -> None:
+        state_table = FakeTable()
+        repo = DashboardRepository(
+            state_table_name="mvp_asset_state_dev",
+            alerts_table_name="mvp_alerts_dev",
+            region_name="us-east-1",
+            dynamodb_resource=FakeDynamoResource(state_table, FakeTable()),
+        )
+        item = {"pk": "TENANT#cliente_demo#ASSET#motor_001", "sk": "LATEST"}
+
+        repo.put_latest_state(item)
+
+        self.assertEqual(state_table.put_items, [item])
+
+    def test_clear_demo_alerts_deletes_only_demo_alerts(self) -> None:
+        alerts_table = FakeTable(
+            items=[
+                {
+                    "pk": "TENANT#cliente_demo#ASSET#motor_001",
+                    "sk": "ALERT#ACTIVE#demo",
+                    "is_demo_case": True,
+                },
+                {
+                    "pk": "TENANT#cliente_demo#ASSET#motor_001",
+                    "sk": "ALERT#ACTIVE#real",
+                    "is_demo_case": False,
+                },
+            ]
+        )
+        repo = DashboardRepository(
+            state_table_name="mvp_asset_state_dev",
+            alerts_table_name="mvp_alerts_dev",
+            region_name="us-east-1",
+            dynamodb_resource=FakeDynamoResource(FakeTable(), alerts_table),
+        )
+
+        deleted = repo.clear_demo_alerts("cliente_demo", "motor_001")
+
+        self.assertEqual(deleted, 1)
+        self.assertEqual(
+            alerts_table.delete_requests,
+            [{"Key": {"pk": "TENANT#cliente_demo#ASSET#motor_001", "sk": "ALERT#ACTIVE#demo"}}],
+        )
 
 
 if __name__ == "__main__":

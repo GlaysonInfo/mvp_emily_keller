@@ -557,14 +557,132 @@ pip install -r requirements.txt
 streamlit run src/dashboard/app.py
 ```
 
+### Cenários de demonstração
+
+O dashboard inclui um `Modo Apresentação`, na barra lateral. Ele percorre os
+pacotes simulados na ordem comercial da demo e carrega cada cenário diretamente
+nas tabelas DynamoDB do MVP, sem esperar a falha evoluir em tempo real.
+
+Pacotes disponíveis:
+
+1. Operação Normal do Motor.
+2. Degradação de Lubrificação.
+3. Desbalanceamento ou Desalinhamento Mecânico.
+4. Aquecimento Anormal.
+5. Falha Inicial em Rolamento.
+6. Risco Crítico de Parada.
+7. Pós-Manutenção e Recuperação do Ativo.
+8. Perda de Comunicação ou Sensor Offline.
+
+O seletor grava o estado atual com `pk=TENANT#{tenant_id}#ASSET#{asset_id}` e
+`sk=LATEST`, no mesmo formato usado pela Lambda de ingestão. Nos casos com
+diagnóstico ativo, também grava um alerta em `ALERT#ACTIVE#{case_id}`. Ao trocar
+de cenário, o app limpa apenas alertas marcados como demonstração
+(`is_demo_case=true`), preservando alertas reais que estejam na tabela.
+
+Controles do modo apresentação:
+
+- `⬅ Cenário anterior`.
+- `Aplicar cenário`.
+- `Próximo cenário ➡`.
+
+Também é possível carregar os cenários por linha de comando:
+
+```powershell
+$env:AWS_PROFILE="Glayson"
+$env:AWS_REGION="us-east-1"
+$env:TENANT_ID="cliente_demo"
+$env:PLANT_ID="lab_virtual"
+$env:ASSET_ID="motor_001"
+$env:DYNAMODB_TABLE="mvp_asset_state_dev"
+$env:ALERTS_TABLE="mvp_alerts_dev"
+
+python seed_demo_cases.py --list
+python seed_demo_cases.py --case lubrication_degradation
+```
+
+### Painel visual de variação
+
+O dashboard também renderiza um painel de relógios industriais com Apache
+ECharts, logo abaixo das métricas atuais. Os gauges mostram ponteiro, valor
+central, animação e faixa visual de condição para:
+
+- RPM.
+- Vibração RMS.
+- Temperatura.
+- Ultrassom.
+- Kurtosis.
+- Crest Factor.
+- Pico de vibração.
+- Health Score.
+- Severity Score.
+
+Os limites atuais são limiares simulados para demonstração comercial. Em uma
+evolução de produto, esses limites devem virar configuração por tipo de ativo,
+criticidade, rotação nominal, histórico, norma adotada e baseline real do
+cliente.
+
+### Histórico operacional exportável
+
+O dashboard grava um snapshot técnico por minuto em uma tabela DynamoDB separada
+do estado atual. Isso preserva o `LATEST` leve para a tela principal e cria uma
+trilha auditável para exportação.
+
+Tabela sugerida:
+
+```text
+condition_history
+```
+
+Chaves:
+
+| Campo | Tipo | Uso |
+|---|---|---|
+| `tenant_asset` | String | Partition key, no formato `tenant_id#asset_id` |
+| `ts_utc_minute` | String | Sort key, minuto UTC no formato ISO |
+| `ttl_epoch` | Number | TTL opcional para retenção automática |
+
+Variáveis de ambiente:
+
+```powershell
+$env:CONDITION_HISTORY_TABLE="condition_history"
+$env:HISTORY_RETENTION_DAYS="365"
+```
+
+Para criar a tabela de histórico no DynamoDB pelo PowerShell:
+
+```powershell
+$env:AWS_PROFILE="automacaoapi"
+$env:AWS_REGION="us-east-1"
+$env:CONDITION_HISTORY_TABLE="condition_history"
+.\infra\aws-cli\16-create-condition-history-dynamodb.ps1
+```
+
+Na tela, o botão `Histórico` abre:
+
+- Período: última 1h, 6h, 12h, 24h ou 7 dias.
+- Formato: minuto a minuto, resumo 1h, resumo 6h, resumo 12h ou resumo 24h.
+- Exportação em CSV.
+- Exportação em TXT.
+
+O resumo técnico trata cada variável conforme sua natureza:
+
+- RPM: valor final e média.
+- Vibração RMS, temperatura, ultrassom, kurtosis e crest factor: média e máximo.
+- Pico de vibração: máximo.
+- Health Score: final, média e mínimo.
+- Severity Score: final, média e máximo.
+- Horímetro: inicial, final e diferença.
+- Alertas: minutos em alerta e minutos críticos.
+
 Definition of Done Sprint 5A:
 
 - Dashboard abre localmente.
-- Le `mvp_asset_state_dev`.
-- Mostra `Motor_001` e metricas atuais.
-- Le `mvp_alerts_dev`.
+- Lê `mvp_asset_state_dev`.
+- Mostra `Motor_001` e métricas atuais.
+- Lê `mvp_alerts_dev`.
 - Mostra alerta ativo de `lubrication_degradation`.
-- Mostra causa provavel, evidencias e acao recomendada.
-- Atualiza sem reiniciar a aplicacao.
+- Mostra causa provável, evidências e ação recomendada.
+- Atualiza sem reiniciar a aplicação.
 - Testes locais continuam OK.
 

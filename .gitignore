@@ -10,6 +10,8 @@ htmlcov/
 
 # Local runtime data
 .env
+*_credentials.csv
+*credentials*.csv
 build/
 logs/
 data/

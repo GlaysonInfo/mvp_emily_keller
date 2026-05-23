@@ -68,11 +68,30 @@ class DashboardRepository:
         items = result.get("Items", [])
         return [decimal_to_native(item) for item in items]
 
+    def put_latest_state(self, item: dict[str, Any]) -> None:
+        self.state_table.put_item(Item=item)
+
+    def put_active_alert(self, item: dict[str, Any]) -> None:
+        self.alerts_table.put_item(Item=item)
+
+    def clear_demo_alerts(self, tenant_id: str, asset_id: str) -> int:
+        active_alerts = self.get_active_alerts(tenant_id=tenant_id, asset_id=asset_id)
+        deleted = 0
+
+        for alert in active_alerts:
+            if not alert.get("is_demo_case"):
+                continue
+
+            self.alerts_table.delete_item(Key={"pk": alert["pk"], "sk": alert["sk"]})
+            deleted += 1
+
+        return deleted
+
 
 def create_repository_from_env() -> DashboardRepository:
     return DashboardRepository(
         state_table_name=os.getenv("DYNAMODB_TABLE", "mvp_asset_state_dev"),
         alerts_table_name=os.getenv("ALERTS_TABLE", "mvp_alerts_dev"),
-        region_name=os.getenv("AWS_REGION", "us-east-1"),
+        region_name=os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1")),
         profile_name=os.getenv("AWS_PROFILE") or None,
     )

@@ -1,0 +1,297 @@
+[
+  {
+    "case_id": "normal_operation",
+    "case_name": "Operação Normal do Motor",
+    "presentation_order": 1,
+    "mode": "normal_operation",
+    "status_label": "NORMAL",
+    "source": "opcua_edge_bridge",
+    "simulated_source": "opcua_edge_bridge",
+    "health_score": 93.8,
+    "severity_score": 6.2,
+    "metrics": {
+      "rpm": 1782.4,
+      "vibration_rms_mm_s": 1.42,
+      "temperature_c": 52.3,
+      "ultrasound_db": 29.8,
+      "kurtosis": 2.35,
+      "crest_factor": 2.1,
+      "vibration_peak_g": 0.28,
+      "horimeter_h": 1284.1
+    },
+    "symptom_simulated": "Motor estável, sem indícios de falha.",
+    "diagnosis": "Ativo em condição operacional normal, sem evidência de anomalia relevante.",
+    "recommended_action": "Manter rotina de monitoramento e histórico de linha-base.",
+    "client_question_answered": "O sistema acompanha o ativo saudável e cria referência operacional?",
+    "expected_result": "Linha-base operacional criada para comparar desvios futuros.",
+    "demo_message": "Comportamento saudável do motor usado como referência para identificar desvios futuros.",
+    "evidence": [
+      "RPM estável na faixa esperada.",
+      "Vibração, temperatura e ultrassom dentro da linha-base.",
+      "Health Score acima de 85."
+    ],
+    "alert": null
+  },
+  {
+    "case_id": "lubrication_degradation",
+    "case_name": "Degradação de Lubrificação",
+    "presentation_order": 2,
+    "mode": "lubrication_degradation",
+    "status_label": "ATENÇÃO",
+    "source": "opcua_edge_bridge",
+    "simulated_source": "opcua_edge_bridge",
+    "health_score": 71.9,
+    "severity_score": 28.1,
+    "metrics": {
+      "rpm": 1779.57,
+      "vibration_rms_mm_s": 2.96,
+      "temperature_c": 67.91,
+      "ultrasound_db": 41.54,
+      "kurtosis": 3.59,
+      "crest_factor": 3.42,
+      "vibration_peak_g": 0.69,
+      "horimeter_h": 1284.03
+    },
+    "symptom_simulated": "Aumento progressivo de atrito por lubrificação inadequada.",
+    "diagnosis": "Indícios de aumento de atrito compatíveis com degradação de lubrificação.",
+    "recommended_action": "Verificar lubrificação, contaminação, periodicidade de graxa/óleo e condição dos mancais.",
+    "client_question_answered": "O sistema percebe falha antes de ocorrer parada?",
+    "expected_result": "Falha progressiva identificada ainda em fase controlavel.",
+    "demo_message": "Falha progressiva detectada antes da quebra, com ultrassom subindo antes da condição crítica.",
+    "evidence": [
+      "Ultrassom acima de 38 dB.",
+      "Temperatura acima de 65 °C.",
+      "Vibração RMS subiu, mas ainda não chegou à faixa crítica."
+    ],
+    "alert": {
+      "alert_type": "lubrication_degradation",
+      "severity": "warning",
+      "confidence": 0.78,
+      "probable_cause": "Suspeita de degradação de lubrificação"
+    }
+  },
+  {
+    "case_id": "mechanical_unbalance",
+    "case_name": "Desbalanceamento ou Desalinhamento Mecânico",
+    "presentation_order": 3,
+    "mode": "mechanical_unbalance",
+    "status_label": "ATENÇÃO",
+    "source": "opcua_edge_bridge",
+    "simulated_source": "opcua_edge_bridge",
+    "health_score": 64.4,
+    "severity_score": 35.6,
+    "metrics": {
+      "rpm": 1788.2,
+      "vibration_rms_mm_s": 4.18,
+      "temperature_c": 58.4,
+      "ultrasound_db": 34.6,
+      "kurtosis": 2.88,
+      "crest_factor": 2.95,
+      "vibration_peak_g": 1.18,
+      "horimeter_h": 1284.2
+    },
+    "symptom_simulated": "Vibração elevada com temperatura moderada.",
+    "diagnosis": "Vibração elevada com temperatura moderada sugere desbalanceamento, desalinhamento ou fixação inadequada.",
+    "recommended_action": "Inspecionar base, parafusos, acoplamento, alinhamento de eixo e balanceamento do conjunto.",
+    "client_question_answered": "O sistema diferencia problema mecânico de problema térmico?",
+    "expected_result": "Diagnóstico orienta inspeção mecânica em vez de tratar apenas temperatura.",
+    "demo_message": "Interpretação combinada das métricas, não apenas leitura isolada de temperatura.",
+    "evidence": [
+      "Vibração RMS acima de 4 mm/s.",
+      "Pico de vibração elevado.",
+      "Temperatura ainda em faixa moderada."
+    ],
+    "alert": {
+      "alert_type": "mechanical_unbalance",
+      "severity": "warning",
+      "confidence": 0.74,
+      "probable_cause": "Suspeita de desbalanceamento ou desalinhamento mecânico"
+    }
+  },
+  {
+    "case_id": "thermal_stress",
+    "case_name": "Aquecimento Anormal",
+    "presentation_order": 4,
+    "mode": "thermal_stress",
+    "status_label": "ATENÇÃO ALTA",
+    "source": "opcua_edge_bridge",
+    "simulated_source": "opcua_edge_bridge",
+    "health_score": 58.7,
+    "severity_score": 41.3,
+    "metrics": {
+      "rpm": 1768.9,
+      "vibration_rms_mm_s": 2.12,
+      "temperature_c": 86.4,
+      "ultrasound_db": 36.3,
+      "kurtosis": 2.7,
+      "crest_factor": 2.48,
+      "vibration_peak_g": 0.52,
+      "horimeter_h": 1284.35
+    },
+    "symptom_simulated": "Temperatura elevada com vibração ainda moderada.",
+    "diagnosis": "Temperatura elevada indica possível sobrecarga, ventilação deficiente, atrito ou ambiente severo.",
+    "recommended_action": "Verificar carga, ventilação, sujeira, rolamentos, corrente elétrica e condição de lubrificação.",
+    "client_question_answered": "O sistema ajuda a evitar queima ou perda térmica do motor?",
+    "expected_result": "Risco térmico traduzido em ação operacional antes da falha.",
+    "demo_message": "Risco térmico fácil de explicar ao cliente e diretamente ligado à prevenção de queima.",
+    "evidence": [
+      "Temperatura acima de 75 °C.",
+      "Vibração não acompanha a severidade térmica.",
+      "Health Score caiu para faixa de atenção."
+    ],
+    "alert": {
+      "alert_type": "thermal_stress",
+      "severity": "warning",
+      "confidence": 0.72,
+      "probable_cause": "Suspeita de aquecimento anormal"
+    }
+  },
+  {
+    "case_id": "bearing_fault_initial",
+    "case_name": "Falha Inicial em Rolamento",
+    "presentation_order": 5,
+    "mode": "bearing_fault_initial",
+    "status_label": "ALERTA",
+    "source": "opcua_edge_bridge",
+    "simulated_source": "opcua_edge_bridge",
+    "health_score": 49.5,
+    "severity_score": 50.5,
+    "metrics": {
+      "rpm": 1780.1,
+      "vibration_rms_mm_s": 5.25,
+      "temperature_c": 72.8,
+      "ultrasound_db": 53.9,
+      "kurtosis": 6.45,
+      "crest_factor": 5.8,
+      "vibration_peak_g": 1.95,
+      "horimeter_h": 1284.5
+    },
+    "symptom_simulated": "Indicadores de impacto e irregularidade no rolamento.",
+    "diagnosis": "Kurtosis, crest factor, ultrassom e pico de vibração elevados sugerem falha inicial em rolamento.",
+    "recommended_action": "Programar inspeção de rolamento, análise de vibração detalhada e substituição preventiva se confirmado.",
+    "client_question_answered": "O sistema identifica desgaste de rolamento antes da quebra?",
+    "expected_result": "Falha incipiente priorizada antes de evoluir para parada.",
+    "demo_message": "Demonstra maturidade analítica com métricas de impacto, pico e crest factor.",
+    "evidence": [
+      "Kurtosis acima de 5.",
+      "Crest factor acima de 4.5.",
+      "Ultrassom e pico de vibração elevados."
+    ],
+    "alert": {
+      "alert_type": "bearing_fault_initial",
+      "severity": "critical",
+      "confidence": 0.82,
+      "probable_cause": "Suspeita de falha inicial em rolamento"
+    }
+  },
+  {
+    "case_id": "critical_failure_risk",
+    "case_name": "Risco Crítico de Parada",
+    "presentation_order": 6,
+    "mode": "critical_failure_risk",
+    "status_label": "CRÍTICO",
+    "source": "opcua_edge_bridge",
+    "simulated_source": "opcua_edge_bridge",
+    "health_score": 31.6,
+    "severity_score": 68.4,
+    "metrics": {
+      "rpm": 1735.6,
+      "vibration_rms_mm_s": 8.7,
+      "temperature_c": 96.2,
+      "ultrasound_db": 68.1,
+      "kurtosis": 8.9,
+      "crest_factor": 7.4,
+      "vibration_peak_g": 3.2,
+      "horimeter_h": 1284.7
+    },
+    "symptom_simulated": "Múltiplas variáveis em condição severa ao mesmo tempo.",
+    "diagnosis": "Múltiplas variáveis em condição severa indicam risco elevado de falha funcional ou parada não programada.",
+    "recommended_action": "Avaliar parada controlada, inspeção imediata e abertura de ordem de manutenção emergencial.",
+    "client_question_answered": "O sistema prioriza o que é urgente?",
+    "expected_result": "Priorização operacional para evitar parada descontrolada.",
+    "demo_message": "Gestão de criticidade e suporte à decisão rápida em condição grave.",
+    "evidence": [
+      "Vibração RMS muito alta.",
+      "Temperatura e ultrassom em faixa severa.",
+      "Health Score abaixo de 40 e Severity Score acima de 60."
+    ],
+    "alert": {
+      "alert_type": "critical_failure_risk",
+      "severity": "critical",
+      "confidence": 0.9,
+      "probable_cause": "Risco crítico de parada"
+    }
+  },
+  {
+    "case_id": "post_maintenance_recovery",
+    "case_name": "Pós-Manutenção e Recuperação do Ativo",
+    "presentation_order": 7,
+    "mode": "post_maintenance_recovery",
+    "status_label": "RECUPERADO",
+    "source": "opcua_edge_bridge",
+    "simulated_source": "opcua_edge_bridge",
+    "health_score": 91.2,
+    "severity_score": 8.8,
+    "metrics": {
+      "rpm": 1781.85,
+      "vibration_rms_mm_s": 1.76,
+      "temperature_c": 55.9,
+      "ultrasound_db": 31.2,
+      "kurtosis": 2.42,
+      "crest_factor": 2.28,
+      "vibration_peak_g": 0.34,
+      "horimeter_h": 1285.0
+    },
+    "symptom_simulated": "Indicadores retornam à faixa saudável após intervenção.",
+    "diagnosis": "Indicadores retornaram à faixa saudável após intervenção de manutenção.",
+    "recommended_action": "Registrar intervenção, manter acompanhamento e comparar evolução antes/depois.",
+    "client_question_answered": "O sistema comprova que a manutenção resolveu?",
+    "expected_result": "Rastreabilidade técnica do antes/depois da manutenção.",
+    "demo_message": "Fecha a história comercial: problema identificado, ação tomada e ativo recuperado.",
+    "evidence": [
+      "Vibração retornou para faixa baixa.",
+      "Temperatura voltou para faixa normal.",
+      "Health Score voltou acima de 90."
+    ],
+    "alert": null
+  },
+  {
+    "case_id": "communication_lost",
+    "case_name": "Perda de Comunicação ou Sensor Offline",
+    "presentation_order": 8,
+    "mode": "communication_lost",
+    "status_label": "SEM COMUNICAÇÃO",
+    "source": "opcua_edge_bridge",
+    "simulated_source": "opcua_edge_bridge",
+    "health_score": null,
+    "severity_score": null,
+    "stale_minutes": 25,
+    "metrics": {
+      "rpm": null,
+      "vibration_rms_mm_s": null,
+      "temperature_c": null,
+      "ultrasound_db": null,
+      "kurtosis": null,
+      "crest_factor": null,
+      "vibration_peak_g": null,
+      "horimeter_h": 1285.1
+    },
+    "symptom_simulated": "Ativo deixa de enviar dados ou timestamp fica defasado.",
+    "diagnosis": "Sem atualização recente do ativo ou falha de comunicação com a fonte de dados.",
+    "recommended_action": "Verificar sensor, rede, bridge OPC UA/HTTPS, credenciais e conectividade com a AWS.",
+    "client_question_answered": "O sistema percebe quando o ativo deixa de enviar dados?",
+    "expected_result": "Robustez operacional para diferenciar falha de ativo e falha de comunicação.",
+    "demo_message": "Mostra robustez operacional quando o sensor ou a rede deixam de atualizar o ativo.",
+    "evidence": [
+      "Última atualização intencionalmente antiga.",
+      "Métricas congeladas ou indisponíveis.",
+      "Status operacional indica perda de comunicação."
+    ],
+    "alert": {
+      "alert_type": "communication_lost",
+      "severity": "warning",
+      "confidence": 0.86,
+      "probable_cause": "Perda de comunicação ou sensor offline"
+    }
+  }
+]
