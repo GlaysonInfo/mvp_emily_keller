@@ -460,7 +460,20 @@ Sprint 4B local validada por fakes:
 - `imbalance` grava alerta `critical`.
 - Alerta ativo preserva `first_detected_at`.
 
-Integracao AWS planejada:
+Sprint 4B AWS fechada:
+
+- Tabela `mvp_alerts_dev` criada.
+- Lambda `mvp-alert-processor-dev` criada e acionada pelo EventBridge.
+- Regra `mvp-telemetry-normalized-alerts-dev` criada para eventos `TelemetryNormalized`.
+- Fluxo validado: `OPC UA Server -> Bridge HTTPS -> API Gateway -> ingest_lambda -> DynamoDB latest state -> EventBridge -> alert_processor_lambda -> mvp_alerts_dev`.
+- Alerta ativo gravado: `sk=ALERT#ACTIVE#lubrication_degradation`.
+- `alert_id=cliente_demo#motor_001#lubrication_degradation#active`.
+- `severity=warning`, `status=open`, `confidence=0.76`.
+- `failure_mode_simulated=lubrication_degradation`.
+- `first_detected_at=2026-05-23T03:55:17.808940Z`.
+- CloudWatch da Lambda de alertas validado sem `ERROR` ou `Traceback`.
+
+Integracao AWS executada:
 
 1. Criar tabela `mvp_alerts_dev`.
 2. Criar IAM role da `alert_processor_lambda`.
