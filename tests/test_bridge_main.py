@@ -9,7 +9,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from edge_bridge.main import build_publishers, load_env_file
+from edge_bridge.https_publisher import HttpsPublisher
+from edge_bridge.main import build_publishers, load_env_file, publisher_log_name
 from edge_bridge.mqtt_publisher import MqttPublisher
 
 
@@ -49,6 +50,9 @@ class BridgeMainTest(unittest.TestCase):
 
         self.assertEqual(len(publishers), 1)
         self.assertIsInstance(publishers[0], MqttPublisher)
+
+    def test_publisher_log_name_uses_protocol_names(self) -> None:
+        self.assertEqual(publisher_log_name(HttpsPublisher(endpoint="https://example.test")), "HTTPS")
 
 
 if __name__ == "__main__":

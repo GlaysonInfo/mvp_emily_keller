@@ -11,10 +11,12 @@ from .opcua_reader import OpcUaReader
 from .payload_builder import build_telemetry_payload
 
 
+logger = logging.getLogger("edge_bridge")
+
+
 async def main() -> None:
     load_env_file(Path(".env"))
-    logging.basicConfig(level=os.getenv("BRIDGE_LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
-    logging.getLogger("opcua").setLevel(os.getenv("OPCUA_LOG_LEVEL", "WARNING"))
+    configure_logging()
 
     tenant_id = os.getenv("TENANT_ID", "cliente_demo")
     plant_id = os.getenv("PLANT_ID", "lab_virtual")
@@ -40,16 +42,18 @@ async def main() -> None:
         https_endpoint=https_endpoint,
     )
 
-    logging.info("Bridge Edge iniciada")
-    logging.info("OPC UA endpoint: %s", opcua_endpoint)
-    logging.info("Modo de publicacao: %s", publish_mode)
-    logging.info("MQTT destino: %s:%s | topico=%s", mqtt_host, mqtt_port, mqtt_topic)
+    logger.info("Bridge Edge iniciada")
+    logger.info("OPC UA endpoint: %s", opcua_endpoint)
+    logger.info("Modo de publicacao: %s", publish_mode)
+    logger.info("MQTT destino: %s:%s | topico=%s", mqtt_host, mqtt_port, mqtt_topic)
     if https_endpoint:
-        logging.info("HTTPS endpoint: %s", https_endpoint)
+        logger.info("HTTPS endpoint: %s", https_endpoint)
 
     while True:
         try:
             values = await reader.read_motor_tags()
+            logger.info("OPC UA tags lidas com sucesso: %s tags", len(values))
+
             payload = build_telemetry_payload(
                 tenant_id=tenant_id,
                 plant_id=plant_id,
@@ -57,22 +61,54 @@ async def main() -> None:
                 source="opcua_edge_bridge",
                 values=values,
             )
+            logger.info(
+                "Payload montado: asset=%s failure_mode=%s metrics=%s",
+                asset_id,
+                payload.get("failure_mode_simulated"),
+                len(payload.get("metrics", [])),
+            )
 
             for publisher in publishers:
                 publish_result = publisher.publish(payload)
                 if publish_result is not None:
-                    logging.info("%s status=%s", publisher.__class__.__name__, publish_result)
+                    logger.info("%s enviado com sucesso: status_code=%s", publisher_log_name(publisher), publish_result)
 
-            logging.info(
+            logger.info(
                 "publicado asset=%s failure_mode=%s metrics=%s",
                 asset_id,
                 payload.get("failure_mode_simulated"),
                 len(payload["metrics"]),
             )
         except Exception:
-            logging.exception("Erro na bridge")
+            logger.exception("Erro na bridge")
 
         await asyncio.sleep(interval_seconds)
+
+
+def configure_logging() -> None:
+    logging.basicConfig(
+        level=os.getenv("BRIDGE_LOG_LEVEL", "INFO"),
+        format="%(asctime)s %(levelname)s %(name)s | %(message)s",
+    )
+
+    opcua_log_level = os.getenv("OPCUA_LOG_LEVEL", "WARNING")
+    for logger_name in [
+        "opcua",
+        "opcua.client",
+        "opcua.common",
+        "opcua.uaprotocol",
+    ]:
+        logging.getLogger(logger_name).setLevel(opcua_log_level)
+
+
+def publisher_log_name(publisher: object) -> str:
+    if isinstance(publisher, HttpsPublisher):
+        return "HTTPS"
+
+    if isinstance(publisher, MqttPublisher):
+        return "MQTT"
+
+    return publisher.__class__.__name__
 
 
 def build_publishers(
