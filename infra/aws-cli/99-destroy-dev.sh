@@ -16,22 +16,84 @@ echo "TIMESTREAM_DB=${TIMESTREAM_DB}"
 echo "TIMESTREAM_TABLE=${TIMESTREAM_TABLE}"
 echo "LAMBDA_NAME=${LAMBDA_NAME}"
 echo "LAMBDA_ROLE_NAME=${LAMBDA_ROLE_NAME}"
+echo "ALERT_LAMBDA_NAME=${ALERT_LAMBDA_NAME}"
+echo "ALERT_LAMBDA_ROLE_NAME=${ALERT_LAMBDA_ROLE_NAME}"
+echo "ALERT_EVENT_RULE_NAME=${ALERT_EVENT_RULE_NAME}"
 echo
 echo "Ordem de remocao:"
-echo "1. API Gateway HTTP API"
-echo "2. Lambda"
-echo "3. IAM inline/managed policies e role"
-echo "4. Timestream table/database"
-echo "5. DynamoDB alerts table"
-echo "6. DynamoDB latest-state table"
-echo "7. S3 objects"
-echo "8. S3 bucket"
+echo "1. EventBridge alert rule target/rule"
+echo "2. Alert Lambda"
+echo "3. Alert IAM inline/managed policies e role"
+echo "4. API Gateway HTTP API"
+echo "5. Ingest Lambda"
+echo "6. Ingest IAM inline/managed policies e role"
+echo "7. Timestream table/database"
+echo "8. DynamoDB alerts table"
+echo "9. DynamoDB latest-state table"
+echo "10. S3 objects"
+echo "11. S3 bucket"
 echo
 read -r -p "Isto remove recursos AWS dev. Digite DESTROY para continuar: " CONFIRM
 
 if [[ "$CONFIRM" != "DESTROY" ]]; then
   echo "Abortado pelo usuario."
   exit 1
+fi
+
+if aws events describe-rule \
+  --name "$ALERT_EVENT_RULE_NAME" \
+  --event-bus-name "$EVENT_BUS" \
+  --region "$AWS_REGION" \
+  --profile "$AWS_PROFILE" >/dev/null 2>&1; then
+  aws events remove-targets \
+    --rule "$ALERT_EVENT_RULE_NAME" \
+    --event-bus-name "$EVENT_BUS" \
+    --ids "$ALERT_LAMBDA_NAME" \
+    --region "$AWS_REGION" \
+    --profile "$AWS_PROFILE" >/dev/null || true
+
+  aws events delete-rule \
+    --name "$ALERT_EVENT_RULE_NAME" \
+    --event-bus-name "$EVENT_BUS" \
+    --region "$AWS_REGION" \
+    --profile "$AWS_PROFILE"
+
+  echo "Deleted EventBridge alert rule: $ALERT_EVENT_RULE_NAME"
+else
+  echo "EventBridge alert rule not found, skipping."
+fi
+
+if aws lambda get-function \
+  --function-name "$ALERT_LAMBDA_NAME" \
+  --region "$AWS_REGION" \
+  --profile "$AWS_PROFILE" >/dev/null 2>&1; then
+  aws lambda delete-function \
+    --function-name "$ALERT_LAMBDA_NAME" \
+    --region "$AWS_REGION" \
+    --profile "$AWS_PROFILE"
+  echo "Deleted Alert Lambda: $ALERT_LAMBDA_NAME"
+else
+  echo "Alert Lambda not found, skipping."
+fi
+
+if aws iam get-role --role-name "$ALERT_LAMBDA_ROLE_NAME" --profile "$AWS_PROFILE" >/dev/null 2>&1; then
+  aws iam detach-role-policy \
+    --role-name "$ALERT_LAMBDA_ROLE_NAME" \
+    --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole \
+    --profile "$AWS_PROFILE" || true
+
+  aws iam delete-role-policy \
+    --role-name "$ALERT_LAMBDA_ROLE_NAME" \
+    --policy-name "${ALERT_LAMBDA_ROLE_NAME}-inline" \
+    --profile "$AWS_PROFILE" || true
+
+  aws iam delete-role \
+    --role-name "$ALERT_LAMBDA_ROLE_NAME" \
+    --profile "$AWS_PROFILE"
+
+  echo "Deleted Alert IAM role: $ALERT_LAMBDA_ROLE_NAME"
+else
+  echo "Alert IAM role not found, skipping."
 fi
 
 API_ID=""

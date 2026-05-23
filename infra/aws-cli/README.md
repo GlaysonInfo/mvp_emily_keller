@@ -49,7 +49,13 @@ Timestream for LiveAnalytics pode estar indisponivel.
 8. `./infra/aws-cli/08-create-http-api.sh`
 9. `./infra/aws-cli/09-test-http-api.sh`
 10. `./infra/aws-cli/10-create-alerts-dynamodb.sh`
-11. Ler `10-api-gateway-notes.md`
+11. `./infra/aws-cli/11-create-alert-lambda-role.sh`
+12. `./infra/aws-cli/05-package-lambda.sh`
+13. `./infra/aws-cli/12-deploy-alert-processor-lambda.sh`
+14. `./infra/aws-cli/14-invoke-alert-processor-direct.sh`
+15. `./infra/aws-cli/13-create-alert-eventbridge-rule.sh`
+16. `./infra/aws-cli/15-verify-alerts.sh`
+17. Ler `10-api-gateway-notes.md`
 
 ## Teste direto da Lambda
 

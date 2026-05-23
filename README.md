@@ -466,8 +466,36 @@ Integracao AWS planejada:
 2. Criar IAM role da `alert_processor_lambda`.
 3. Empacotar Lambda incluindo `aws_lambdas` e `rules_engine`.
 4. Criar Lambda alert processor.
-5. Criar regra EventBridge para `TelemetryNormalized`.
-6. Permitir EventBridge invocar a Lambda.
-7. Rodar bridge ate gerar `imbalance` ou `bearing_fault`.
-8. Verificar item ativo em `mvp_alerts_dev`.
+5. Invocar alert processor diretamente com evento fake do EventBridge.
+6. Criar regra EventBridge para `TelemetryNormalized`.
+7. Permitir EventBridge invocar a Lambda.
+8. Rodar bridge ate gerar `imbalance` ou `bearing_fault`.
+9. Verificar item ativo em `mvp_alerts_dev`.
+
+Scripts AWS Sprint 4B:
+
+```powershell
+bash infra/aws-cli/10-create-alerts-dynamodb.sh
+bash infra/aws-cli/11-create-alert-lambda-role.sh
+bash infra/aws-cli/05-package-lambda.sh
+bash infra/aws-cli/12-deploy-alert-processor-lambda.sh
+bash infra/aws-cli/14-invoke-alert-processor-direct.sh
+bash infra/aws-cli/13-create-alert-eventbridge-rule.sh
+bash infra/aws-cli/15-verify-alerts.sh
+```
+
+Handler da Lambda de alertas no pacote `.zip`:
+
+```text
+aws_lambdas.alert_processor_lambda.lambda_handler
+```
+
+Regra EventBridge:
+
+```json
+{
+  "source": ["condition-monitoring.ingestion"],
+  "detail-type": ["TelemetryNormalized"]
+}
+```
 

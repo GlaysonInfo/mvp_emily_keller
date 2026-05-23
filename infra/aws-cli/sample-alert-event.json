@@ -1,0 +1,11 @@
+{
+  "source": "condition-monitoring.ingestion",
+  "detail-type": "TelemetryNormalized",
+  "detail": {
+    "tenant_id": "cliente_demo",
+    "plant_id": "lab_virtual",
+    "asset_id": "motor_001",
+    "timestamp": "2026-05-23T03:02:29Z",
+    "raw_s3_key": "raw/test.json"
+  }
+}
