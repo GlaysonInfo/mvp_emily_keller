@@ -4,6 +4,13 @@ from decimal import Decimal
 from typing import Any, Mapping
 
 
+def evaluate_payload(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Evaluate a canonical telemetry payload and return alert dictionaries."""
+    from .rules import evaluate_payload as evaluate_rules_payload
+
+    return [alert.to_dict() for alert in evaluate_rules_payload(payload)]
+
+
 def extract_metric_values(payload: Mapping[str, Any]) -> dict[str, float]:
     metrics = payload.get("metrics", {})
 

@@ -421,3 +421,53 @@ Definition of Done Sprint 4A:
 - Todo alerta tem causa provavel, severidade, evidencias e acao recomendada.
 - Testes unitarios passam.
 
+## Sprint 4B - Alert Processor Lambda
+
+Decisao de arquitetura: o motor de alertas fica fora da Lambda de ingestao. A
+`ingest_lambda` permanece responsavel por normalizar e persistir telemetria; a
+`alert_processor_lambda` processa eventos `TelemetryNormalized` publicados no
+EventBridge.
+
+Fluxo-alvo:
+
+```text
+API Gateway
+  -> ingest_lambda
+  -> S3 raw
+  -> DynamoDB mvp_asset_state_dev
+  -> EventBridge TelemetryNormalized
+  -> alert_processor_lambda
+  -> DynamoDB mvp_alerts_dev
+```
+
+Modelo de alerta ativo:
+
+- Tabela: `mvp_alerts_dev`.
+- `pk`: `TENANT#{tenant_id}#ASSET#{asset_id}`.
+- `sk`: `ALERT#ACTIVE#{alert_type}`.
+- `alert_id`: `{tenant_id}#{asset_id}#{alert_type}#active`.
+
+Esse modelo atualiza o alerta ativo por tipo, em vez de criar um alerta novo a
+cada ciclo da bridge.
+
+Sprint 4B local validada por fakes:
+
+- Alert processor recebe evento EventBridge fake.
+- Le latest state fake.
+- Reconstrui payload canonico.
+- Aplica `rules_engine`.
+- Normal nao grava alerta.
+- `imbalance` grava alerta `critical`.
+- Alerta ativo preserva `first_detected_at`.
+
+Integracao AWS planejada:
+
+1. Criar tabela `mvp_alerts_dev`.
+2. Criar IAM role da `alert_processor_lambda`.
+3. Empacotar Lambda incluindo `aws_lambdas` e `rules_engine`.
+4. Criar Lambda alert processor.
+5. Criar regra EventBridge para `TelemetryNormalized`.
+6. Permitir EventBridge invocar a Lambda.
+7. Rodar bridge ate gerar `imbalance` ou `bearing_fault`.
+8. Verificar item ativo em `mvp_alerts_dev`.
+

@@ -17,6 +17,7 @@ data/
 
 # Raw reference inputs kept outside version control by default
 *.pdf
+*PROMPTS*.txt
 mermaid-diagram.png
 arqutetura de bancada do MVP.png
 mvp_bancada_virtual_monitoramento_condicao_documentacao_md.md

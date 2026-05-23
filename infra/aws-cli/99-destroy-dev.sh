@@ -11,6 +11,7 @@ echo "AWS_PROFILE=${AWS_PROFILE}"
 echo "AWS_REGION=${AWS_REGION}"
 echo "RAW_BUCKET=${RAW_BUCKET}"
 echo "DDB_TABLE=${DDB_TABLE}"
+echo "ALERTS_TABLE=${ALERTS_TABLE}"
 echo "TIMESTREAM_DB=${TIMESTREAM_DB}"
 echo "TIMESTREAM_TABLE=${TIMESTREAM_TABLE}"
 echo "LAMBDA_NAME=${LAMBDA_NAME}"
@@ -21,9 +22,10 @@ echo "1. API Gateway HTTP API"
 echo "2. Lambda"
 echo "3. IAM inline/managed policies e role"
 echo "4. Timestream table/database"
-echo "5. DynamoDB table"
-echo "6. S3 objects"
-echo "7. S3 bucket"
+echo "5. DynamoDB alerts table"
+echo "6. DynamoDB latest-state table"
+echo "7. S3 objects"
+echo "8. S3 bucket"
 echo
 read -r -p "Isto remove recursos AWS dev. Digite DESTROY para continuar: " CONFIRM
 
@@ -122,6 +124,19 @@ else
 fi
 
 if aws dynamodb describe-table \
+  --table-name "$ALERTS_TABLE" \
+  --region "$AWS_REGION" \
+  --profile "$AWS_PROFILE" >/dev/null 2>&1; then
+  aws dynamodb delete-table \
+    --table-name "$ALERTS_TABLE" \
+    --region "$AWS_REGION" \
+    --profile "$AWS_PROFILE"
+  echo "Deleted DynamoDB alerts table: $ALERTS_TABLE"
+else
+  echo "DynamoDB alerts table not found, skipping."
+fi
+
+if aws dynamodb describe-table \
   --table-name "$DDB_TABLE" \
   --region "$AWS_REGION" \
   --profile "$AWS_PROFILE" >/dev/null 2>&1; then
@@ -143,4 +158,3 @@ else
 fi
 
 echo "Destroy complete."
-

@@ -45,6 +45,10 @@ export AWS_ACCOUNT_ID
 : "${TIMESTREAM_TABLE:=telemetry}"
 : "${LAMBDA_NAME:=mvp-ingest-telemetry-${STAGE}}"
 : "${LAMBDA_ROLE_NAME:=mvp-ingest-telemetry-role-${STAGE}}"
+: "${ALERTS_TABLE:=mvp_alerts_${STAGE}}"
+: "${ALERT_LAMBDA_NAME:=mvp-alert-processor-${STAGE}}"
+: "${ALERT_LAMBDA_ROLE_NAME:=mvp-alert-processor-role-${STAGE}}"
+: "${ALERT_EVENT_RULE_NAME:=mvp-telemetry-normalized-alerts-${STAGE}}"
 : "${EVENT_BUS:=default}"
 
 export RAW_BUCKET
@@ -56,4 +60,8 @@ export TIMESTREAM_DB
 export TIMESTREAM_TABLE
 export LAMBDA_NAME
 export LAMBDA_ROLE_NAME
+export ALERTS_TABLE
+export ALERT_LAMBDA_NAME
+export ALERT_LAMBDA_ROLE_NAME
+export ALERT_EVENT_RULE_NAME
 export EVENT_BUS

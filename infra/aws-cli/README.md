@@ -6,6 +6,7 @@ Fluxo-alvo:
 
 ```text
 Bridge HTTPS -> API Gateway HTTP API -> Lambda -> S3 + DynamoDB + EventBridge
+EventBridge TelemetryNormalized -> Alert Processor Lambda -> DynamoDB alerts
 ```
 
 Timestream for LiveAnalytics e opcional neste MVP. Em contas AWS sem acesso ao servico,
@@ -47,7 +48,8 @@ Timestream for LiveAnalytics pode estar indisponivel.
 7. `./infra/aws-cli/07-invoke-lambda-direct.sh`
 8. `./infra/aws-cli/08-create-http-api.sh`
 9. `./infra/aws-cli/09-test-http-api.sh`
-10. Ler `10-api-gateway-notes.md`
+10. `./infra/aws-cli/10-create-alerts-dynamodb.sh`
+11. Ler `10-api-gateway-notes.md`
 
 ## Teste direto da Lambda
 

@@ -8,6 +8,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
+from rules_engine.diagnostics import evaluate_payload as evaluate_payload_contract
 from rules_engine.diagnostics import extract_metric_values
 from rules_engine.rules import evaluate_payload
 
@@ -90,6 +91,24 @@ class RulesEngineTest(unittest.TestCase):
         self.assertEqual(alert["probable_cause"], "Possivel desbalanceamento")
         self.assertGreaterEqual(alert["confidence"], 0.8)
         self.assertIn("Vibracao RMS acima de 4.0 mm/s", alert["evidence"])
+
+    def test_diagnostics_public_contract_returns_alert_dicts(self) -> None:
+        payload = canonical_payload(
+            {
+                "vibration_rms_mm_s": 4.4,
+                "temperature_c": 63.0,
+                "ultrasound_db": 33.0,
+                "kurtosis": 3.4,
+                "crest_factor": 3.2,
+            },
+            failure_mode="imbalance",
+        )
+
+        alerts = evaluate_payload_contract(payload)
+
+        self.assertIsInstance(alerts[0], dict)
+        self.assertEqual(alerts[0]["alert_type"], "imbalance")
+        self.assertEqual(alerts[0]["severity"], "critical")
 
     def test_bearing_fault_generates_critical_alert(self) -> None:
         payload = canonical_payload(
