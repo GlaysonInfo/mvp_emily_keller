@@ -321,8 +321,12 @@ Status Sprint 3B:
 - Validado: `OPC UA Server -> Bridge HTTPS -> API Gateway /dev/telemetry -> Lambda real -> S3 raw + DynamoDB latest state`.
 - DynamoDB: tabela `mvp_asset_state_dev`.
 - S3 raw: objetos em `raw/tenant=cliente_demo/plant=lab_virtual/asset=motor_001/`.
+- Evidencia S3: novos arquivos raw da bridge em `date=2026-05-23`.
+- Evidencia DynamoDB: `source=opcua_edge_bridge`, `failure_mode_simulated=imbalance`, `updated_at=2026-05-23T03:02:29.019870Z`, `raw_s3_key=raw/tenant=cliente_demo/plant=lab_virtual/asset=motor_001/date=2026-05-23/806c6859-76b4-4dd3-bb5a-a87ec6dc395c.json`.
+- Evidencia DynamoDB: metricas numericas presentes no item `LATEST`.
 - Timestream: opcional/pendente por limitacao de acesso da conta AWS ao Timestream for LiveAnalytics.
 - CloudWatch: validado sem `ERROR` ou `Traceback`.
+- Observacao operacional: ao finalizar testes AWS, parar a bridge com `Ctrl+C` para evitar chamadas continuas ao API Gateway/Lambda.
 
 Scripts da Sprint 3B:
 
