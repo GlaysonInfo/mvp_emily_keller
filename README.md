@@ -362,3 +362,62 @@ PENDENTE OPERACIONAL:
 
 Validar fluxo real OPC UA -> Bridge -> Mosquitto quando Docker Desktop estiver ativo.
 
+## Sprint 4 - Motor de Regras e Alertas Explicaveis
+
+Sprint 4A implementa primeiro o diagnostico local, sem tocar na AWS.
+
+Fluxo-alvo:
+
+```text
+Payload canonico / DynamoDB latest state
+  -> Motor de regras
+  -> Diagnostico
+  -> Alerta explicavel
+  -> DynamoDB mvp_alerts_dev
+  -> Dashboard futuro
+```
+
+Escopo Sprint 4A:
+
+- Criar `rules_engine`.
+- Criar contrato de alerta.
+- Criar regras para `lubrication_degradation`, `imbalance` e `bearing_fault`.
+- Criar testes unitarios fortes.
+- Integrar com Lambda/DynamoDB somente depois.
+
+Regras iniciais:
+
+| Alerta | Condicao | Severidade |
+|---|---|---|
+| `lubrication_degradation` | `ultrasound_db > 38` e `temperature_c > 65` e `vibration_rms_mm_s < 4.0` | `warning` |
+| `imbalance` | `vibration_rms_mm_s >= 4.0` e `ultrasound_db < 38` e `kurtosis < 4.5` | `critical` |
+| `bearing_fault` | `kurtosis >= 5.0` e `crest_factor >= 4.5` | `critical` |
+
+Contrato minimo de alerta:
+
+```json
+{
+  "alert_type": "imbalance",
+  "severity": "critical",
+  "status": "open",
+  "probable_cause": "Possivel desbalanceamento",
+  "confidence": 0.82,
+  "evidence": [
+    "Vibracao RMS acima de 4.0 mm/s",
+    "Ultrassom dentro da faixa esperada",
+    "Kurtosis sem forte evidencia de impacto de rolamento"
+  ],
+  "recommended_action": "Verificar balanceamento, fixacao, acoplamento e base do motor"
+}
+```
+
+Definition of Done Sprint 4A:
+
+- Motor de regras recebe payload canonico.
+- Cenario normal nao gera alerta.
+- `lubrication_degradation` gera `warning`.
+- `imbalance` gera `critical`.
+- `bearing_fault` gera `critical`.
+- Todo alerta tem causa provavel, severidade, evidencias e acao recomendada.
+- Testes unitarios passam.
+
