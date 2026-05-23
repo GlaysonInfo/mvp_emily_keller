@@ -249,7 +249,7 @@ Objects > Lab > Motor_001
 Divisão de trabalho:
 
 - Sprint 3A: fechada; Lambda full-flow local com mocks/fakes.
-- Sprint 3B: em andamento; deploy AWS dev com S3, DynamoDB, Lambda e API Gateway HTTP API. Timestream fica opcional porque contas novas podem nao ter acesso ao Timestream for LiveAnalytics.
+- Sprint 3B: fechada; deploy AWS dev validado com S3, DynamoDB, Lambda e API Gateway HTTP API. Timestream fica opcional porque contas novas podem nao ter acesso ao Timestream for LiveAnalytics.
 
 Fluxo-alvo:
 
@@ -322,7 +322,7 @@ Status Sprint 3B:
 - DynamoDB: tabela `mvp_asset_state_dev`.
 - S3 raw: objetos em `raw/tenant=cliente_demo/plant=lab_virtual/asset=motor_001/`.
 - Timestream: opcional/pendente por limitacao de acesso da conta AWS ao Timestream for LiveAnalytics.
-- Pendente operacional final: confirmar CloudWatch da Lambda sem stack trace.
+- CloudWatch: validado sem `ERROR` ou `Traceback`.
 
 Scripts da Sprint 3B:
 
@@ -352,7 +352,7 @@ O script de limpeza exige confirmação explícita digitando `DESTROY`.
 - Sprint 1: fechada.
 - Sprint 2: code-ready; pendente apenas aceite operacional Mosquitto com Docker Desktop ativo.
 - Sprint 3A: fechada; Lambda validada com fake clients.
-- Sprint 3B: validada via HTTPS com S3 raw + DynamoDB latest state; pendente apenas checagem CloudWatch sem erro.
+- Sprint 3B: fechada; validada via HTTPS com S3 raw + DynamoDB latest state e CloudWatch sem erro.
 
 PENDENTE OPERACIONAL:
 
