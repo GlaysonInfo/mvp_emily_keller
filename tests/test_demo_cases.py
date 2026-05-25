@@ -47,10 +47,18 @@ class DemoCasesTest(unittest.TestCase):
         self.assertIsNotNone(alert)
         assert alert is not None
         self.assertEqual(alert["sk"], "ALERT#ACTIVE#bearing_fault_initial")
+        self.assertEqual(alert["tenant_asset"], "cliente_demo#motor_001")
+        self.assertEqual(alert["alert_key"], "open#demo#bearing_fault_initial")
+        self.assertEqual(alert["metric"], "ultrasound_db")
+        self.assertEqual(alert["status_label"], "ALERTA")
+        self.assertEqual(alert["asset_name"], "motor_001")
         self.assertEqual(alert["severity"], "critical")
+        self.assertEqual(alert["last_detected_at"], "2026-05-23T13:45:24Z")
         self.assertEqual(alert["last_payload_timestamp"], "2026-05-23T13:45:24Z")
+        self.assertTrue(alert["recommended_action"])
         self.assertTrue(alert["is_demo_case"])
         self.assertGreater(len(alert["evidence"]), 0)
+        self.assertGreater(len(alert["timeline"]), 0)
 
     def test_normal_operation_has_no_active_alert(self) -> None:
         case = get_demo_case("normal_operation")

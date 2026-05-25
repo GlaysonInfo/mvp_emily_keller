@@ -21,6 +21,20 @@ UNIT_BY_METRIC: dict[str, str] = {
     "health_score": "score",
 }
 
+PRIMARY_METRIC_BY_ALERT_TYPE: dict[str, str] = {
+    "lubrication_degradation": "ultrasound_db",
+    "mechanical_unbalance": "vibration_rms_mm_s",
+    "thermal_stress": "temperature_c",
+    "bearing_fault_initial": "ultrasound_db",
+    "critical_failure_risk": "vibration_rms_mm_s",
+    "communication_lost": "communication_lost",
+}
+
+DEFAULT_RECOMMENDED_ACTION = (
+    "Realizar inspeção técnica no ativo, registrar evidências e avaliar necessidade de intervenção corretiva "
+    "ou preventiva."
+)
+
 
 def utc_now_iso(*, stale_minutes: int = 0) -> str:
     timestamp = datetime.now(timezone.utc) - timedelta(minutes=stale_minutes)
@@ -135,29 +149,51 @@ def build_demo_alert_item(
 
     alert_type = alert.get("alert_type", case["case_id"])
     now = utc_now_iso()
+    detected_at = payload_updated_at or now
+    metric = PRIMARY_METRIC_BY_ALERT_TYPE.get(alert_type, alert_type)
+    metric_value = (case.get("metrics") or {}).get(metric)
+    recommended_action = case.get("recommended_action") or DEFAULT_RECOMMENDED_ACTION
 
     item = {
         "pk": f"TENANT#{tenant_id}#ASSET#{asset_id}",
         "sk": f"ALERT#ACTIVE#{alert_type}",
+        "tenant_asset": f"{tenant_id}#{asset_id}",
+        "alert_key": f"open#demo#{alert_type}",
         "alert_id": f"{tenant_id}#{asset_id}#{alert_type}#demo",
         "tenant_id": tenant_id,
         "plant_id": plant_id,
         "asset_id": asset_id,
+        "asset_name": asset_id,
         "alert_type": alert_type,
+        "metric": metric,
+        "value": metric_value,
+        "threshold": alert.get("threshold"),
         "severity": alert.get("severity", "warning"),
+        "status_label": case.get("status_label") or alert.get("status_label"),
         "status": "open",
         "probable_cause": alert.get("probable_cause", case.get("diagnosis", "Demo alert")),
         "confidence": alert.get("confidence", 0.7),
         "evidence": case.get("evidence", []),
-        "recommended_action": case.get("recommended_action"),
+        "recommended_action": recommended_action,
         "failure_mode_simulated": case["mode"],
         "source": case.get("source", "demo_case_loader"),
         "loaded_by": "demo_case_loader",
         "first_detected_at": now,
+        "last_detected_at": detected_at,
         "updated_at": now,
-        "last_payload_timestamp": payload_updated_at or now,
+        "last_payload_timestamp": detected_at,
         "demo_case_id": case["case_id"],
         "demo_case_name": case["case_name"],
+        "timeline": [
+            {
+                "at": now,
+                "by": "demo_case_loader",
+                "from_status": None,
+                "to_status": "open",
+                "note": case.get("demo_message", ""),
+                "action_taken": "Cenário de apresentação aplicado.",
+            }
+        ],
         "is_demo_case": True,
     }
 

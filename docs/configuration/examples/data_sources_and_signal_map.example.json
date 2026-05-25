@@ -1,0 +1,137 @@
+{
+  "clients": [
+    {
+      "tenant_id": "cliente_demo",
+      "name": "Cliente Demonstração",
+      "environment": "demo"
+    }
+  ],
+  "plants": [
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "name": "Demonstração - Bancada Virtual",
+      "timezone": "America/Sao_Paulo"
+    }
+  ],
+  "data_sources": [
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "source_id": "bancada_virtual",
+      "name": "Bancada Virtual",
+      "source_kind": "simulation",
+      "protocol": "internal",
+      "environment": "demo",
+      "endpoint_ref": "local_simulator",
+      "collection_interval_sec": 5,
+      "history_interval_sec": 60,
+      "status": "active",
+      "credential_ref": null,
+      "last_test_status": "ok"
+    },
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "source_id": "opcua_edge_bridge_01",
+      "name": "Bridge OPC UA / HTTPS Linha 1",
+      "source_kind": "gateway",
+      "protocol": "opcua_https",
+      "environment": "pilot",
+      "endpoint_ref": "opc.tcp://gateway-industrial:4840",
+      "collection_interval_sec": 5,
+      "history_interval_sec": 60,
+      "status": "pending",
+      "credential_ref": "aws-secrets:cliente_demo/opcua_edge_bridge_01",
+      "last_test_status": "not_tested"
+    },
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "source_id": "csv_manual_01",
+      "name": "Entrada Manual CSV",
+      "source_kind": "upload",
+      "protocol": "csv",
+      "environment": "pilot",
+      "endpoint_ref": "manual_upload",
+      "collection_interval_sec": null,
+      "history_interval_sec": 60,
+      "status": "active",
+      "credential_ref": null,
+      "last_test_status": "not_required"
+    }
+  ],
+  "assets": [
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "asset_id": "motor_001",
+      "asset_name": "Motor Linha 1",
+      "asset_type": "Motor elétrico",
+      "area": "Linha de Produção 1",
+      "criticality": "Alta"
+    }
+  ],
+  "asset_signal_map": [
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "asset_id": "motor_001",
+      "source_id": "opcua_edge_bridge_01",
+      "internal_metric": "rpm",
+      "external_tag": "Motor001.RPM",
+      "unit": "rpm",
+      "conversion": "direct",
+      "required": true,
+      "status": "active"
+    },
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "asset_id": "motor_001",
+      "source_id": "opcua_edge_bridge_01",
+      "internal_metric": "vibration_rms_mm_s",
+      "external_tag": "Motor001.VIB_RMS",
+      "unit": "mm/s",
+      "conversion": "direct",
+      "required": true,
+      "status": "active"
+    },
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "asset_id": "motor_001",
+      "source_id": "opcua_edge_bridge_01",
+      "internal_metric": "temperature_c",
+      "external_tag": "Motor001.TEMP",
+      "unit": "°C",
+      "conversion": "direct",
+      "required": true,
+      "status": "active"
+    },
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "asset_id": "motor_001",
+      "source_id": "opcua_edge_bridge_01",
+      "internal_metric": "ultrasound_db",
+      "external_tag": "Motor001.ULTRA",
+      "unit": "dB",
+      "conversion": "direct",
+      "required": false,
+      "status": "active"
+    },
+    {
+      "tenant_id": "cliente_demo",
+      "plant_id": "lab_virtual",
+      "asset_id": "motor_001",
+      "source_id": "opcua_edge_bridge_01",
+      "internal_metric": "hourmeter_h",
+      "external_tag": "Motor001.HOUR",
+      "unit": "h",
+      "conversion": "direct",
+      "required": true,
+      "status": "active"
+    }
+  ]
+}

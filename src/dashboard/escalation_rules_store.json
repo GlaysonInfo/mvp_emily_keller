@@ -1,0 +1,284 @@
+{
+  "rules": [
+    {
+      "rule_id": "attention_dashboard_only",
+      "severity": "ATENÇÃO",
+      "status_label": "ATENÇÃO",
+      "enabled": true,
+      "channel_ids": [
+        "dashboard"
+      ],
+      "notify_channels": [
+        "dashboard"
+      ],
+      "contact_group_ids": [
+        "operador_local"
+      ],
+      "target_groups": [
+        "operador_local"
+      ],
+      "metric": "*",
+      "asset_criticality": "*",
+      "notify_when_status": [
+        "open"
+      ],
+      "delay_minutes": 0,
+      "repeat_after_minutes": 0,
+      "repeat_minutes": 0,
+      "escalate_after_minutes": 0,
+      "escalate_to_group_ids": [],
+      "escalate_to_groups": [],
+      "message_template": "ATENÇÃO — {asset_name}: {metric_label} em {value}. Ação recomendada: {recommended_action}",
+      "description": "Eventos de atenção permanecem apenas no dashboard, sem notificação externa."
+    },
+    {
+      "rule_id": "alert_maintenance_telegram",
+      "severity": "ALERTA",
+      "status_label": "ALERTA",
+      "enabled": true,
+      "channel_ids": [
+        "dashboard",
+        "telegram"
+      ],
+      "notify_channels": [
+        "dashboard",
+        "telegram"
+      ],
+      "contact_group_ids": [
+        "manutencao"
+      ],
+      "target_groups": [
+        "manutencao"
+      ],
+      "metric": "*",
+      "asset_criticality": "*",
+      "notify_when_status": [
+        "open"
+      ],
+      "delay_minutes": 0,
+      "repeat_after_minutes": 30,
+      "repeat_minutes": 30,
+      "escalate_after_minutes": 60,
+      "escalate_to_group_ids": [
+        "supervisor_manutencao"
+      ],
+      "escalate_to_groups": [
+        "supervisor_manutencao"
+      ],
+      "message_template": "ALERTA - {asset_name} ({area}): {metric_label}={value}, limite={threshold}. Ação: {recommended_action}",
+      "description": "Alertas vão para manutenção e repetem se permanecerem abertos."
+    },
+    {
+      "rule_id": "critical_immediate_escalation",
+      "severity": "CRÍTICO",
+      "status_label": "CRÍTICO",
+      "enabled": true,
+      "channel_ids": [
+        "dashboard",
+        "telegram",
+        "whatsapp"
+      ],
+      "notify_channels": [
+        "dashboard",
+        "telegram",
+        "whatsapp"
+      ],
+      "contact_group_ids": [
+        "manutencao",
+        "gestor_planta"
+      ],
+      "target_groups": [
+        "manutencao",
+        "gestor_planta"
+      ],
+      "metric": "*",
+      "asset_criticality": "*",
+      "notify_when_status": [
+        "open"
+      ],
+      "delay_minutes": 0,
+      "repeat_after_minutes": 10,
+      "repeat_minutes": 10,
+      "escalate_after_minutes": 20,
+      "escalate_to_group_ids": [
+        "gerencia_industrial"
+      ],
+      "escalate_to_groups": [
+        "gerencia_industrial"
+      ],
+      "message_template": "CRÍTICO - {asset_name} ({area}). {metric_label}={value}, limite={threshold}. Ação imediata: {recommended_action}",
+      "description": "Eventos críticos geram notificação imediata e escalonamento rápido."
+    },
+    {
+      "rule_id": "communication_loss_automation",
+      "severity": "SEM COMUNICAÇÃO",
+      "status_label": "SEM COMUNICAÇÃO",
+      "enabled": true,
+      "channel_ids": [
+        "dashboard",
+        "telegram"
+      ],
+      "notify_channels": [
+        "dashboard",
+        "telegram"
+      ],
+      "contact_group_ids": [
+        "automacao_ti"
+      ],
+      "target_groups": [
+        "automacao_ti"
+      ],
+      "metric": "*",
+      "asset_criticality": "*",
+      "notify_when_status": [
+        "open"
+      ],
+      "delay_minutes": 5,
+      "repeat_after_minutes": 30,
+      "repeat_minutes": 30,
+      "escalate_after_minutes": 60,
+      "escalate_to_group_ids": [
+        "supervisor_manutencao"
+      ],
+      "escalate_to_groups": [
+        "supervisor_manutencao"
+      ],
+      "message_template": "SEM COMUNICAÇÃO - {asset_name} ({area}). Última leitura: {last_detected_at}. Verificar sensor, rede, gateway e bridge.",
+      "description": "Eventos de comunicação são direcionados para automação/TI."
+    }
+  ],
+  "contact_groups": [
+    {
+      "group_id": "operador_local",
+      "name": "Operador local",
+      "group_name": "Operador local",
+      "responsibility": "Receber ocorrências operacionais e registrar ciência no dashboard.",
+      "description": "Equipe operacional da área.",
+      "telegram_chat_id": "",
+      "whatsapp_to": "",
+      "email_to": "",
+      "contacts": [
+        {
+          "name": "Operador demo",
+          "role": "Operação",
+          "channel_ref": "dashboard"
+        }
+      ]
+    },
+    {
+      "group_id": "manutencao",
+      "name": "Manutenção",
+      "group_name": "Manutenção",
+      "responsibility": "Avaliar condição do ativo, planejar intervenção e registrar ação tomada.",
+      "description": "Equipe de manutenção.",
+      "telegram_chat_id": "",
+      "whatsapp_to": "",
+      "email_to": "",
+      "contacts": [
+        {
+          "name": "Técnico manutenção demo",
+          "role": "Manutenção",
+          "channel_ref": "telegram"
+        }
+      ]
+    },
+    {
+      "group_id": "supervisor_manutencao",
+      "name": "Supervisor de manutenção",
+      "group_name": "Supervisor de manutenção",
+      "responsibility": "Priorizar atendimento técnico e acompanhar reincidências.",
+      "description": "Responsável por priorização técnica.",
+      "telegram_chat_id": "",
+      "whatsapp_to": "",
+      "email_to": "",
+      "contacts": [
+        {
+          "name": "Supervisor demo",
+          "role": "Supervisão",
+          "channel_ref": "telegram"
+        }
+      ]
+    },
+    {
+      "group_id": "gestor_planta",
+      "name": "Gestor da planta",
+      "group_name": "Gestor da planta",
+      "responsibility": "Acompanhar eventos críticos e decisões operacionais da unidade.",
+      "description": "Responsável gerencial da unidade.",
+      "telegram_chat_id": "",
+      "whatsapp_to": "",
+      "email_to": "",
+      "contacts": [
+        {
+          "name": "Gestor planta demo",
+          "role": "Gestão",
+          "channel_ref": "whatsapp"
+        }
+      ]
+    },
+    {
+      "group_id": "gerencia_industrial",
+      "name": "Gerência industrial",
+      "group_name": "Gerência industrial",
+      "responsibility": "Escalonamento executivo para eventos críticos não tratados.",
+      "description": "Escalonamento executivo para eventos críticos.",
+      "telegram_chat_id": "",
+      "whatsapp_to": "",
+      "email_to": "",
+      "contacts": [
+        {
+          "name": "Gerência demo",
+          "role": "Gerência",
+          "channel_ref": "whatsapp"
+        }
+      ]
+    },
+    {
+      "group_id": "automacao_ti",
+      "name": "Automação/TI",
+      "group_name": "Automação/TI",
+      "responsibility": "Restabelecer comunicação de campo, gateway, rede ou integração.",
+      "description": "Rede, gateway, sensores e conectividade.",
+      "telegram_chat_id": "",
+      "whatsapp_to": "",
+      "email_to": "",
+      "contacts": [
+        {
+          "name": "Automação demo",
+          "role": "Automação/TI",
+          "channel_ref": "telegram"
+        }
+      ]
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "dashboard",
+      "name": "Dashboard",
+      "enabled": true,
+      "configured": true,
+      "description": "Registro visual e operacional dentro da Central de Alertas."
+    },
+    {
+      "channel_id": "telegram",
+      "name": "Telegram",
+      "enabled": true,
+      "configured": false,
+      "description": "Canal planejado para MVP de notificações externas."
+    },
+    {
+      "channel_id": "whatsapp",
+      "name": "WhatsApp",
+      "enabled": true,
+      "configured": false,
+      "description": "Canal planejado para escalonamento executivo posterior."
+    },
+    {
+      "channel_id": "email",
+      "name": "E-mail",
+      "enabled": false,
+      "configured": false,
+      "description": "Canal corporativo opcional."
+    }
+  ]
+}

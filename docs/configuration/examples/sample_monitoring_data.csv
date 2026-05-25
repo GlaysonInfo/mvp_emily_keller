@@ -1,0 +1,4 @@
+asset_id,timestamp_utc,rpm,vibration_rms_mm_s,temperature_c,ultrasound_db,kurtosis_index,crest_factor_index,vibration_peak_g,hourmeter_h
+motor_001,2026-05-23T18:25:00Z,1779.57,2.96,67.91,41.54,3.59,3.42,0.69,1284.03
+motor_001,2026-05-23T18:26:00Z,1780.10,2.98,68.10,42.00,3.62,3.44,0.70,1284.05
+motor_001,2026-05-23T18:27:00Z,1778.80,3.01,68.40,42.50,3.70,3.50,0.73,1284.07

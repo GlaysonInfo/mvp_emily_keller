@@ -12,7 +12,9 @@ Para simplificar o MVP, parte dos dados transacionais pode ficar em DynamoDB. Em
 erDiagram
     TENANT ||--o{ PLANT : owns
     PLANT ||--o{ ASSET : contains
-    ASSET ||--o{ DATA_SOURCE : receives_from
+    PLANT ||--o{ DATA_SOURCE : exposes
+    DATA_SOURCE ||--o{ ASSET_SIGNAL_MAP : provides_tags
+    ASSET ||--o{ ASSET_SIGNAL_MAP : maps_metrics
     ASSET ||--o{ TELEMETRY_EVENT : emits
     TELEMETRY_EVENT ||--o{ TELEMETRY_MEASURE : contains
     ASSET ||--o{ ALERT : has
@@ -49,8 +51,26 @@ erDiagram
         string source_id PK
         string tenant_id FK
         string plant_id FK
+        string name
         string source_type
+        string protocol
         string endpoint
+        int collection_interval_sec
+        int history_interval_sec
+        string credential_ref
+        string status
+    }
+
+    ASSET_SIGNAL_MAP {
+        string signal_map_id PK
+        string tenant_id FK
+        string plant_id FK
+        string asset_id FK
+        string source_id FK
+        string internal_metric
+        string external_tag
+        string unit
+        string conversion
         string status
     }
 
@@ -59,7 +79,7 @@ erDiagram
         string tenant_id FK
         string plant_id FK
         string asset_id FK
-        string source
+        string source_id
         datetime timestamp
         datetime received_at
         string raw_s3_key
@@ -107,6 +127,11 @@ erDiagram
         datetime created_at
     }
 ```
+
+Observação importante: o ativo não conversa diretamente com o sistema. O ativo é
+o objeto monitorado. Quem conversa com o sistema é uma fonte de dados, gateway,
+conector, CLP, SCADA, broker ou API. O vínculo entre ativo e fonte acontece por
+`ASSET_SIGNAL_MAP`, que traduz tags externas em métricas internas padronizadas.
 
 ## 3. Modelagem em DynamoDB para MVP
 

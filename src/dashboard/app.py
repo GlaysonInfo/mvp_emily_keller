@@ -10,17 +10,39 @@ from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 import streamlit as st
 
 try:
+    from dashboard.alert_projection import alerts_for_state
+    from dashboard.alerts_ui import render_alerts_center
+    from dashboard.config_repository import ConfigRepository
+    from dashboard.config_ui import render_config_page
     from dashboard.dynamodb_repository import create_repository_from_env
     from dashboard.demo_cases import build_demo_alert_item, build_latest_state_item, load_demo_cases
+    from dashboard.e2e_ui import render_e2e_test_page
     from dashboard.echarts_gauge_components import render_asset_gauges_echarts
+    from dashboard.escalation_ui import render_escalation_page
     from dashboard.history_repository import create_history_repository_from_env
     from dashboard.history_ui import render_history_button
+    from dashboard.multiasset_repository import create_multiasset_repository_from_env
+    from dashboard.notification_outbox_ui import render_notification_outbox_page
+    from dashboard.operational_intelligence_ui import render_operational_intelligence_page
+    from dashboard.plant_overview_ui import render_plant_overview
+    from dashboard.reports_ui import render_reports_page
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
+    from src.dashboard.alert_projection import alerts_for_state
+    from src.dashboard.alerts_ui import render_alerts_center
+    from src.dashboard.config_repository import ConfigRepository
+    from src.dashboard.config_ui import render_config_page
     from src.dashboard.demo_cases import build_demo_alert_item, build_latest_state_item, load_demo_cases
     from src.dashboard.dynamodb_repository import create_repository_from_env
+    from src.dashboard.e2e_ui import render_e2e_test_page
     from src.dashboard.echarts_gauge_components import render_asset_gauges_echarts
+    from src.dashboard.escalation_ui import render_escalation_page
     from src.dashboard.history_repository import create_history_repository_from_env
     from src.dashboard.history_ui import render_history_button
+    from src.dashboard.multiasset_repository import create_multiasset_repository_from_env
+    from src.dashboard.notification_outbox_ui import render_notification_outbox_page
+    from src.dashboard.operational_intelligence_ui import render_operational_intelligence_page
+    from src.dashboard.plant_overview_ui import render_plant_overview
+    from src.dashboard.reports_ui import render_reports_page
 
 
 st.set_page_config(
@@ -58,16 +80,94 @@ STATUS_LABELS = {
 }
 
 DEMO_PRESENTATION_INDEX_KEY = "demo_presentation_index"
+DASHBOARD_PAGE_KEY = "dashboard_page"
+PAGE_TARGET_KEY = "dashboard_page_target"
+SELECTED_ASSET_ID_KEY = "selected_asset_id"
 
 
-def metric_value(metrics: dict[str, Any], name: str, default: str = "-") -> str:
-    metric = metrics.get(name)
+def render_global_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            max-width: 1160px;
+            padding-top: 1.25rem;
+            padding-bottom: 2rem;
+        }
 
-    if not metric:
+        h1 {
+            font-size: 2.1rem !important;
+            line-height: 1.15 !important;
+            margin-bottom: 0.25rem !important;
+        }
+
+        h2 {
+            font-size: 1.35rem !important;
+            line-height: 1.2 !important;
+        }
+
+        h3 {
+            font-size: 1.05rem !important;
+            line-height: 1.2 !important;
+        }
+
+        [data-testid="stMetricLabel"] {
+            font-size: 0.78rem !important;
+        }
+
+        [data-testid="stMetricValue"] {
+            font-size: 1.45rem !important;
+            line-height: 1.15 !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+        }
+
+        [data-testid="stMetric"] {
+            min-height: 62px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def number_value(value: Any) -> float | None:
+    if isinstance(value, dict):
+        value = value.get("value")
+
+    if isinstance(value, bool) or value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def metric_value(metrics: dict[str, Any], *names: str, default: str = "-") -> str:
+    if not isinstance(metrics, dict):
         return default
 
-    value = metric.get("value")
-    unit = display_unit(str(metric.get("unit", "")))
+    value = None
+    unit = ""
+
+    for name in names:
+        metric = metrics.get(name)
+
+        if metric is None:
+            continue
+
+        if isinstance(metric, dict):
+            value = metric.get("value")
+            unit = display_unit(str(metric.get("unit", "")))
+        else:
+            value = metric
+            unit = ""
+
+        break
+
+    if value is None:
+        return default
 
     if isinstance(value, float):
         return f"{value:.2f} {unit}".strip()
@@ -85,24 +185,35 @@ def display_unit(unit: str) -> str:
     return unit
 
 
-def metric_number(metrics: dict[str, Any], name: str) -> float | None:
-    metric = metrics.get(name)
-
-    if not isinstance(metric, dict):
+def metric_number(metrics: dict[str, Any], *names: str) -> float | None:
+    if not isinstance(metrics, dict):
         return None
 
-    value = metric.get("value")
+    for name in names:
+        value = number_value(metrics.get(name))
 
-    if isinstance(value, int | float):
-        return float(value)
+        if value is not None:
+            return value
 
-    if value is None:
-        return None
+    return None
 
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+
+def state_number(latest_state: dict[str, Any], *names: str) -> float | None:
+    metrics = latest_state.get("metrics")
+    metric_map = metrics if isinstance(metrics, dict) else {}
+
+    for name in names:
+        value = number_value(latest_state.get(name))
+
+        if value is not None:
+            return value
+
+        value = metric_number(metric_map, name)
+
+        if value is not None:
+            return value
+
+    return None
 
 
 def format_score(value: float | int | str | None) -> str:
@@ -116,23 +227,15 @@ def format_score(value: float | int | str | None) -> str:
 
 
 def resolve_severity_score(latest_state: dict[str, Any], metrics: dict[str, Any]) -> float | None:
-    explicit_score = latest_state.get("severity_score")
-
-    if isinstance(explicit_score, int | float):
-        return float(explicit_score)
-
-    metric_score = metric_number(metrics, "severity")
+    metric_score = state_number(latest_state, "severity_score", "severity")
 
     if metric_score is not None:
         return metric_score
 
-    health_score = metric_number(metrics, "health_score")
+    health_score = state_number(latest_state, "health_score")
 
-    if health_score is None:
-        health_score = latest_state.get("health_score")
-
-    if isinstance(health_score, int | float):
-        return round(100.0 - float(health_score), 1)
+    if health_score is not None:
+        return round(100.0 - health_score, 1)
 
     return None
 
@@ -309,7 +412,7 @@ def render_metric_grid(metrics: dict[str, Any]) -> None:
     m5.metric("Kurtosis", metric_value(metrics, "kurtosis"))
     m6.metric("Crest Factor", metric_value(metrics, "crest_factor"))
     m7.metric("Pico de vibração", metric_value(metrics, "vibration_peak_g"))
-    m8.metric("Horímetro", metric_value(metrics, "horimeter_h"))
+    m8.metric("Horímetro", metric_value(metrics, "horimeter_h", "hourmeter_h"))
 
 
 def render_alerts(active_alerts: list[dict[str, Any]]) -> None:
@@ -337,6 +440,9 @@ def render_alerts(active_alerts: list[dict[str, Any]]) -> None:
         title = f"{severity} - {alert.get('probable_cause', 'Alerta ativo')}"
 
         with st.expander(title, expanded=True):
+            if alert.get("is_state_derived"):
+                st.caption("Alerta operacional derivado do estado atual do ativo.")
+
             c1, c2, c3 = st.columns(3)
             c1.metric("Tipo", mode_label(alert.get("alert_type")))
             c2.metric("Status", alert.get("status", "-"))
@@ -460,61 +566,19 @@ def render_history_unavailable(error: Exception) -> None:
     st.sidebar.warning(f"Histórico indisponível: {error}")
 
 
-def main() -> None:
-    tenant_id = os.getenv("TENANT_ID", "cliente_demo")
-    plant_id = os.getenv("PLANT_ID", "lab_virtual")
-    asset_id = os.getenv("ASSET_ID", "motor_001")
-
-    st.title("MVP Monitoramento de Condição")
-    st.caption("Bancada virtual OPC UA -> Bridge HTTPS -> AWS -> Diagnóstico")
-
-    try:
-        repo = create_repository_from_env()
-    except ProfileNotFound as exc:
-        render_aws_profile_error(exc)
-        st.stop()
-
-    with st.sidebar:
-        st.header("Configuração")
-        st.write(f"Tenant: `{tenant_id}`")
-        st.write(f"Planta: `{plant_id}`")
-        st.write(f"Ativo: `{asset_id}`")
-        auto_refresh = st.checkbox("Auto-refresh", value=True)
-        refresh_seconds = st.number_input(
-            "Intervalo de atualização em segundos",
-            min_value=2,
-            max_value=60,
-            value=int(os.getenv("DASHBOARD_REFRESH_SECONDS", "5")),
-        )
-
-        if st.button("Atualizar agora", type="primary"):
-            st.rerun()
-
-        render_demo_selector(repo, tenant_id=tenant_id, plant_id=plant_id, asset_id=asset_id)
-
-    try:
-        latest_state = repo.get_latest_state(tenant_id=tenant_id, asset_id=asset_id)
-        active_alerts = repo.get_active_alerts(tenant_id=tenant_id, asset_id=asset_id)
-    except NoCredentialsError as exc:
-        render_aws_credentials_error(exc)
-        st.stop()
-
-    if not latest_state:
-        st.warning("Nenhum estado atual encontrado no DynamoDB.")
-        st.stop()
-
-    history_repo = None
-    try:
-        history_repo = create_history_repository_from_env()
-        history_repo.put_minute_snapshot(latest_state, retention_days=int(os.getenv("HISTORY_RETENTION_DAYS", "365")))
-    except Exception as exc:
-        render_history_unavailable(exc)
-
+def render_asset_detail(
+    latest_state: dict[str, Any],
+    active_alerts: list[dict[str, Any]],
+    *,
+    tenant_id: str,
+    asset_id: str,
+    history_repo: Any | None,
+) -> None:
     metrics = latest_state.get("metrics", {})
     failure_mode = str(latest_state.get("failure_mode_simulated") or latest_state.get("mode") or "unknown")
     source = latest_state.get("source", "unknown")
     updated_at = format_brazil_time(latest_state.get("updated_at"))
-    health_score = metric_number(metrics, "health_score")
+    health_score = state_number(latest_state, "health_score")
     severity_score = resolve_severity_score(latest_state, metrics)
     operational_status = resolve_status_label(latest_state, failure_mode, health_score, severity_score)
 
@@ -549,10 +613,297 @@ def main() -> None:
 
     st.divider()
     render_alerts(active_alerts)
+    return
 
-    if auto_refresh:
-        time.sleep(float(refresh_seconds))
-        st.rerun()
+
+def main() -> None:
+    config_store_path = os.getenv("DASHBOARD_CONFIG_STORE") or None
+    config_repo = ConfigRepository(config_store_path)
+    config = config_repo.load()
+    client_config = config_repo.client(config)
+    plant_config = config_repo.plant(config)
+
+    tenant_id = os.getenv("TENANT_ID") or str(client_config.get("tenant_id") or "cliente_demo")
+    plant_id = os.getenv("PLANT_ID") or str(plant_config.get("plant_id") or "lab_virtual")
+    default_asset_id = os.getenv("ASSET_ID") or config_repo.default_asset_id(config)
+
+    if SELECTED_ASSET_ID_KEY not in st.session_state:
+        st.session_state[SELECTED_ASSET_ID_KEY] = default_asset_id
+
+    page_target = st.session_state.pop(PAGE_TARGET_KEY, None)
+    if page_target:
+        st.session_state[DASHBOARD_PAGE_KEY] = page_target
+
+    render_global_styles()
+
+    st.title("MVP Monitoramento de Condição")
+    st.caption("Bancada virtual OPC UA -> Bridge HTTPS -> AWS -> Diagnóstico")
+
+    with st.sidebar:
+        st.header("Ambiente")
+        st.caption(f"Atual: {config_repo.environment_label(config)}")
+        page = st.radio(
+            "Navegação",
+            [
+                "Visão Geral da Planta",
+                "Detalhe do Ativo",
+                "Inteligência Operacional",
+                "Alertas e Eventos",
+                "Matriz de Escalonamento",
+                "Notification Outbox",
+                "Relatórios",
+                "Configurações",
+                "Teste ponta a ponta",
+            ],
+            index=0,
+            key=DASHBOARD_PAGE_KEY,
+        )
+        asset_id = str(st.session_state.get(SELECTED_ASSET_ID_KEY, default_asset_id))
+        auto_refresh = False
+        refresh_seconds = int(os.getenv("DASHBOARD_REFRESH_SECONDS", "5"))
+
+        if page not in {"Configurações", "Teste ponta a ponta"}:
+            st.write(f"Ativo selecionado: `{asset_id}`")
+            auto_refresh = st.checkbox("Auto-refresh", value=True)
+            refresh_seconds = st.number_input(
+                "Intervalo de atualização em segundos",
+                min_value=2,
+                max_value=60,
+                value=refresh_seconds,
+            )
+
+            if st.button("Atualizar agora", type="primary"):
+                st.rerun()
+
+            if page == "Detalhe do Ativo" and st.button("Trocar ativo", use_container_width=True):
+                st.session_state[PAGE_TARGET_KEY] = "Visão Geral da Planta"
+                st.rerun()
+
+    asset_id = str(st.session_state.get(SELECTED_ASSET_ID_KEY, default_asset_id))
+
+    if page == "Configurações":
+        render_config_page(config_store_path)
+        st.stop()
+        return
+
+    elif page == "Teste ponta a ponta":
+        render_e2e_test_page(config_store_path)
+        st.stop()
+        return
+
+    elif page == "Inteligência Operacional":
+        try:
+            render_operational_intelligence_page(
+                tenant_id=tenant_id,
+                plant_id=plant_id,
+                asset_id=asset_id,
+                history_hours=24,
+            )
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar a inteligência operacional: {exc}")
+            st.stop()
+
+        if auto_refresh:
+            time.sleep(float(refresh_seconds))
+            st.rerun()
+
+        st.stop()
+        return
+
+    elif page == "Alertas e Eventos":
+        try:
+            render_alerts_center(
+                tenant_id=tenant_id,
+                plant_id=plant_id,
+                assets=config_repo.assets(config),
+                timezone_str=str(client_config.get("timezone") or "America/Sao_Paulo"),
+            )
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar a central de alertas: {exc}")
+            st.stop()
+
+        if auto_refresh:
+            time.sleep(float(refresh_seconds))
+            st.rerun()
+
+        st.stop()
+        return
+
+    elif page == "Matriz de Escalonamento":
+        try:
+            render_escalation_page(
+                tenant_id=tenant_id,
+                plant_id=plant_id,
+                assets=config_repo.assets(config),
+            )
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar a matriz de escalonamento: {exc}")
+            st.stop()
+
+        if auto_refresh:
+            time.sleep(float(refresh_seconds))
+            st.rerun()
+
+        st.stop()
+        return
+
+    elif page == "Notification Outbox":
+        try:
+            multi_repo = create_multiasset_repository_from_env()
+            current_states = multi_repo.list_current_states(tenant_id=tenant_id, plant_id=plant_id)
+            render_notification_outbox_page(
+                tenant_id=tenant_id,
+                plant_id=plant_id,
+                assets=config_repo.assets(config),
+                escalation_path="escalation_rules_store.json",
+                current_states=current_states,
+            )
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar a Notification Outbox: {exc}")
+            st.stop()
+
+        if auto_refresh:
+            time.sleep(float(refresh_seconds))
+            st.rerun()
+
+        st.stop()
+        return
+
+    elif page == "Visão Geral da Planta":
+        try:
+            multi_repo = create_multiasset_repository_from_env()
+            states = multi_repo.list_current_states(tenant_id=tenant_id, plant_id=plant_id)
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar a visão geral da planta: {exc}")
+            st.stop()
+
+        selected_asset_id = render_plant_overview(states)
+
+        if selected_asset_id:
+            st.session_state[SELECTED_ASSET_ID_KEY] = selected_asset_id
+            st.session_state[PAGE_TARGET_KEY] = "Detalhe do Ativo"
+            st.rerun()
+
+        if auto_refresh:
+            time.sleep(float(refresh_seconds))
+            st.rerun()
+
+        st.stop()
+        return
+
+    elif page == "Relatórios":
+        try:
+            repo = create_repository_from_env()
+            multi_repo = create_multiasset_repository_from_env()
+            states = multi_repo.list_current_states(tenant_id=tenant_id, plant_id=plant_id)
+            alerts = repo.list_alerts(tenant_id=tenant_id, plant_id=plant_id)
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar os dados para relatórios: {exc}")
+            st.stop()
+
+        history_repo = None
+        try:
+            history_repo = create_history_repository_from_env()
+        except Exception as exc:
+            render_history_unavailable(exc)
+
+        render_reports_page(
+            states=states,
+            alerts=alerts,
+            history_repo=history_repo,
+            tenant_id=tenant_id,
+            selected_asset_id=asset_id,
+        )
+        st.stop()
+        return
+
+    elif page == "Detalhe do Ativo":
+        try:
+            repo = create_repository_from_env()
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+
+        with st.sidebar:
+            render_demo_selector(repo, tenant_id=tenant_id, plant_id=plant_id, asset_id=asset_id)
+
+        try:
+            latest_state = repo.get_latest_state(tenant_id=tenant_id, asset_id=asset_id)
+            active_alerts = repo.get_active_alerts(tenant_id=tenant_id, asset_id=asset_id)
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar o detalhe do ativo: {exc}")
+            st.stop()
+
+        if not latest_state:
+            st.warning("Nenhum estado atual encontrado no DynamoDB.")
+            st.stop()
+
+        active_alerts = alerts_for_state(latest_state, active_alerts)
+
+        history_repo = None
+        try:
+            history_repo = create_history_repository_from_env()
+            history_repo.put_minute_snapshot(latest_state, retention_days=int(os.getenv("HISTORY_RETENTION_DAYS", "365")))
+        except Exception as exc:
+            render_history_unavailable(exc)
+
+        render_asset_detail(
+            latest_state,
+            active_alerts,
+            tenant_id=tenant_id,
+            asset_id=asset_id,
+            history_repo=history_repo,
+        )
+
+        if auto_refresh:
+            time.sleep(float(refresh_seconds))
+            st.rerun()
+
+        st.stop()
+        return
+
+    st.error(f"Página não reconhecida: {page}")
+    st.stop()
+    return
 
 
 if __name__ == "__main__":

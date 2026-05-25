@@ -1,0 +1,21 @@
+{
+  "tenant_id": "cliente_demo",
+  "plant_id": "lab_virtual",
+  "asset_id": "motor_001",
+  "source_id": "opcua_edge_bridge_01",
+  "timestamp_utc": "2026-05-23T18:25:00Z",
+  "metrics": {
+    "rpm": 1779.57,
+    "vibration_rms_mm_s": 4.96,
+    "temperature_c": 78.91,
+    "ultrasound_db": 51.54,
+    "kurtosis_index": 4.59,
+    "crest_factor_index": 4.42,
+    "vibration_peak_g": 1.19,
+    "hourmeter_h": 1284.03
+  },
+  "quality": {
+    "status": "good",
+    "sample_rate_sec": 5
+  }
+}

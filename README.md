@@ -675,6 +675,243 @@ O resumo técnico trata cada variável conforme sua natureza:
 - Horímetro: inicial, final e diferença.
 - Alertas: minutos em alerta e minutos críticos.
 
+### Sprint 1 - Parque Industrial Multiativos
+
+O dashboard agora possui navegação entre:
+
+- `Visão Geral da Planta`.
+- `Detalhe do Ativo`.
+
+A visão geral consulta a tabela de estado atual e monta um painel executivo com
+KPIs da planta, filtros e lista clicável de ativos por prioridade. Ao clicar em
+um ativo, o app muda para o detalhe e reaproveita os relógios, histórico e
+diagnóstico já existentes.
+
+Arquivos principais:
+
+- `src/dashboard/demo_assets_catalog.json`
+- `src/dashboard/demo_multiasset_states.json`
+- `src/dashboard/multiasset_repository.py`
+- `src/dashboard/plant_overview_ui.py`
+- `seed_multi_assets.py`
+
+Para listar os ativos simulados sem acessar a AWS:
+
+```powershell
+python seed_multi_assets.py --list
+```
+
+Para carregar os 12 ativos simulados na tabela de estado atual:
+
+```powershell
+$env:AWS_PROFILE="automacaoapi"
+$env:AWS_REGION="us-east-1"
+$env:AWS_DEFAULT_REGION="us-east-1"
+$env:DYNAMODB_TABLE="mvp_asset_state_dev"
+
+python seed_multi_assets.py
+```
+
+Também é aceito o alias do pacote:
+
+```powershell
+$env:DYNAMODB_STATE_TABLE="mvp_asset_state_dev"
+```
+
+Nesta Sprint, a consulta multiativos usa `scan` com filtro por `tenant_id`,
+`plant_id` e `sk=LATEST`. Para produção, evoluir para um GSI:
+
+```text
+GSI: tenant_plant_index
+Partition key: tenant_plant
+Sort key: asset_id
+```
+
+### Relatórios MVP
+
+A navegação lateral inclui a tela `Relatórios`, com exportação em CSV e TXT.
+Esta primeira versão cobre os relatórios mais úteis para demonstração e gestão:
+
+- Gerais:
+  - Visão geral da planta.
+  - Ranking de risco.
+- Operacionais:
+  - Relatório individual do ativo.
+  - Tendência operacional.
+- Eventos:
+  - Alertas ativos.
+  - Histórico de alertas.
+
+Os relatórios gerais usam os estados atuais dos ativos. A tendência operacional
+usa a tabela `condition_history`. Os relatórios de eventos usam a tabela
+`mvp_alerts_dev`; nesta fase, o histórico de alertas reflete o que existir nessa
+tabela.
+
+Quando um ativo está em condição de risco, mas ainda não existe alerta formal
+persistido para ele, o dashboard projeta um alerta operacional a partir do estado
+atual. Isso mantém o detalhe do ativo e o relatório de alertas ativos coerentes
+com o Health Score, Severity Score e status operacional exibidos.
+
+### Configurações MVP
+
+A navegação lateral inclui a tela `Configurações`. A primeira entrega usa
+persistência local em `src/dashboard/config_store.json` e prepara:
+
+- Cliente.
+- Planta.
+- Fontes de Dados.
+- Ativos.
+- Mapeamento de Sinais.
+- Parâmetros e Alertas.
+
+A arquitetura está documentada em `docs/11-configuracoes-fontes-dados.md`. A
+decisão principal é separar o ativo monitorado da camada de aquisição: fontes de
+dados/gateways/conectores entram em `data_sources`, e o vínculo
+ativo-fonte-tag fica em `signal_map`. Credenciais não são armazenadas em texto
+puro; o cadastro guarda apenas uma referência segura, como Secrets Manager ou
+variável de ambiente.
+
+#### Validações reais de Configurações
+
+A aba `Fontes de Dados` possui validações funcionais:
+
+- Bancada virtual: valida cadastro interno e contrato de métricas esperado.
+- Bridge OPC UA / HTTPS: testa a URL da bridge, status HTTP, latência e prévia
+  da resposta.
+- CSV/manual: lê arquivo enviado, valida cabeçalho, colunas obrigatórias e
+  mapeamento de tags contra colunas do CSV.
+- Credencial: valida apenas a referência segura, sem ler nem exibir segredo.
+
+Arquivo CSV de exemplo: `docs/configuration/examples/sample_monitoring_data.csv`.
+
+### Teste Ponta a Ponta
+
+A navegação lateral inclui a tela `Teste ponta a ponta`. Ela executa um teste
+controlado da cadeia:
+
+```text
+Fonte de dados -> payload padronizado -> estado atual -> histórico -> alertas -> leitura de volta
+```
+
+Modos disponíveis:
+
+- Bancada virtual / payload simulado.
+- CSV/manual.
+- HTTP/HTTPS da bridge.
+
+Variáveis usadas:
+
+```powershell
+$env:DYNAMODB_STATE_TABLE="mvp_asset_state_dev"
+$env:CONDITION_HISTORY_TABLE="condition_history"
+$env:CONDITION_ALERTS_TABLE="condition_alerts"
+```
+
+O script `infra/aws-cli/17-create-e2e-dynamodb-tables.ps1` cria as tabelas
+`condition_history` e `condition_alerts` quando elas ainda não existem. A tabela
+de estado atual deve ser a mesma usada pelo dashboard.
+
+Payload HTTP de exemplo:
+`docs/configuration/examples/sample_e2e_payload.json`.
+
+### Central de Alertas e Eventos
+
+A navegação lateral também inclui a tela `Alertas e Eventos`. Ela fecha o ciclo
+operacional depois da detecção:
+
+```text
+detectar -> registrar -> reconhecer ciência -> tratar -> resolver -> fechar -> auditar
+```
+
+Funcionalidades entregues:
+
+- Listagem de eventos da tabela `condition_alerts`.
+- Filtros por status de tratamento, ativo e severidade.
+- KPIs de eventos, abertos, cientes, em tratamento e críticos.
+- Cards priorizados por status e severidade.
+- Alteração de status para `acknowledged`, `in_progress`, `resolved` ou `closed`.
+- Registro de responsável, observação e ação tomada.
+- Timeline do evento.
+- Criação de evento manual para inspeção visual ou ocorrência de campo.
+- Exportação CSV/TXT.
+
+### Matriz de Escalonamento
+
+A navegação lateral inclui a tela `Matriz de Escalonamento`. Ela governa:
+
+- qual severidade usa qual canal;
+- qual grupo recebe;
+- quando repetir;
+- quando escalar;
+- qual mensagem seria enviada.
+
+Arquivos principais:
+
+- `src/dashboard/escalation_rules_store.json`
+- `src/dashboard/escalation_repository.py`
+- `src/dashboard/escalation_engine.py`
+- `src/dashboard/escalation_ui.py`
+
+Regras iniciais:
+
+| Severidade | Canal | Destino | Repetição | Escalonamento |
+| --- | --- | --- | --- | --- |
+| ATENÇÃO | Dashboard | Operador local | Não repete | Não escala |
+| ALERTA | Dashboard + Telegram | Manutenção | 30 min | 60 min |
+| CRÍTICO | Dashboard + Telegram + WhatsApp | Manutenção + gestor | 10 min | 20 min |
+| SEM COMUNICAÇÃO | Dashboard + Telegram | Automação/TI | 30 min | 60 min |
+
+A tela possui abas para `Regras`, `Grupos de Contato`, `Canais` e `Simulação`.
+Na simulação, os alertas atuais da Central são avaliados contra a matriz e o
+dashboard mostra regra aplicada, ativo, severidade, métrica, canais, grupos de
+destino, necessidade de repetição/escalonamento e a mensagem que seria enviada.
+
+Essa matriz prepara Telegram/WhatsApp para funcionarem como canais governados
+por severidade, status de tratamento e responsabilidade operacional, evitando
+disparos soltos.
+
+### Notification Outbox
+
+A navegação lateral inclui a tela `Notification Outbox`. Ela ainda não envia
+mensagens reais; nesta etapa cria uma fila local e processa em modo dry-run.
+Os candidatos vêm de duas origens: alertas abertos da Central e estados atuais
+da planta em `ATENÇÃO`, `ALERTA`, `CRÍTICO` ou `SEM COMUNICAÇÃO`.
+
+Fluxo demonstrável:
+
+```text
+Alerta -> Matriz -> Outbox -> Envio simulado
+```
+
+Arquivos principais:
+
+- `src/dashboard/notification_outbox_store.json`
+- `src/dashboard/notification_outbox_repository.py`
+- `src/dashboard/notification_outbox_engine.py`
+- `src/dashboard/notification_outbox_ui.py`
+
+Na tela:
+
+- `Gerar/atualizar fila de notificações` calcula alertas e estados atuais
+  contra a matriz e adiciona itens não duplicados à fila.
+- `Processar em dry-run` marca os itens pendentes como processados sem chamar
+  Telegram, WhatsApp ou e-mail.
+- A fila exibe regra, ativo, severidade, canais, grupos e mensagem calculada.
+
+Tabela esperada:
+
+```text
+condition_alerts
+Partition key: tenant_asset
+Sort key: alert_key
+```
+
+Variável usada:
+
+```powershell
+$env:CONDITION_ALERTS_TABLE="condition_alerts"
+```
+
 Definition of Done Sprint 5A:
 
 - Dashboard abre localmente.

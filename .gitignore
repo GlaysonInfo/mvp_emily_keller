@@ -12,6 +12,11 @@ htmlcov/
 .env
 *_credentials.csv
 *credentials*.csv
+*.pem
+*.key
+*.zip
+*.jpg
+*.jpeg
 build/
 logs/
 data/
