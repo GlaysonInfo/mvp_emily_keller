@@ -1,0 +1,8 @@
+Risco;Probabilidade;Impacto;Mitigação;Responsável;Status
+Sensor com faixa inadequada;Média;Alto;Usar 0–250 bar no piloto;;Aberto
+Rosca incompatível;Média;Médio;Medir manômetros antes da compra;;Aberto
+Vazamento em adaptador;Baixa/Média;Alto;Teste de estanqueidade;;Aberto
+Gateway incompatível;Média;Alto;Confirmar protocolo antes da compra;;Aberto
+Endpoint inacessível;Média;Médio;Validar Security Group e health check;;Aberto
+Token incorreto;Média;Médio;Validar X-API-Key;;Aberto
+Baseline insuficiente;Alta;Médio;Coletar 20–50 ciclos reais;;Aberto

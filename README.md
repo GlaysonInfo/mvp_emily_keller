@@ -1054,6 +1054,58 @@ GREASE_FIELD_CONFIG=config/field_lubrication_config.json
 GREASE_ALLOWED_SOURCE_IPS=
 ```
 
+### Interface HMI / Campo
+
+O dashboard separa a experiência em dois modos:
+
+- `Modo Operador`: menu reduzido para campo, com Painel da Planta, Equipamento,
+  Lubrificação, Alertas, Relatórios e Ajuda.
+- `Modo Técnico`: menu completo para suporte, configuração, testes e
+  demonstrações.
+
+Arquivos principais:
+
+- `config/hmi_menu_config.json`
+- `src/dashboard/hmi/hmi_sidebar.py`
+- `src/dashboard/hmi/hmi_home.py`
+- `src/dashboard/hmi/hmi_help.py`
+
+O objetivo do Modo Operador é responder rapidamente:
+
+- Tem problema?
+- Onde está?
+- Qual é a prioridade?
+- O que devo fazer?
+- Preciso chamar manutenção?
+
+### Aceite Técnico do Piloto de Lubrificação
+
+O projeto inclui documentos e scripts para comissionamento, validação e aceite do
+piloto de lubrificação por pressão.
+
+Arquivos principais:
+
+- `config/acceptance_config.example.json`
+- `config/bom_piloto_lubrificacao.csv`
+- `config/checklist_comissionamento_campo.csv`
+- `config/matriz_riscos_implantacao.csv`
+- `docs/termo_aceite_piloto_lubrificacao.md`
+- `docs/checklist_comissionamento_campo.md`
+- `docs/relatorio_tecnico_piloto_lubrificacao.md`
+- `docs/plano_teste_campo_gateway_iolink.md`
+- `scripts/validate_acceptance_config.py`
+- `scripts/export_lubrication_acceptance_report.py`
+- `scripts/generate_acceptance_pack.ps1`
+
+Validação e geração do pacote:
+
+```powershell
+python scripts\validate_acceptance_config.py
+.\scripts\generate_acceptance_pack.ps1
+```
+
+Os relatórios são gerados em `reports/acceptance/`, pasta ignorada pelo Git.
+
 Definition of Done Sprint 5A:
 
 - Dashboard abre localmente.

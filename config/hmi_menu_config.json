@@ -1,0 +1,48 @@
+{
+  "default_mode": "operator",
+  "operator_pages": [
+    {
+      "id": "operator_home",
+      "label": "Painel da Planta",
+      "route": "Visão Geral da Planta"
+    },
+    {
+      "id": "asset_detail",
+      "label": "Equipamento",
+      "route": "Detalhe do Ativo"
+    },
+    {
+      "id": "lubrication",
+      "label": "Lubrificação",
+      "route": "Sistema de Lubrificação"
+    },
+    {
+      "id": "alerts",
+      "label": "Alertas",
+      "route": "Alertas e Eventos"
+    },
+    {
+      "id": "reports",
+      "label": "Relatórios",
+      "route": "Relatórios"
+    },
+    {
+      "id": "help",
+      "label": "Ajuda",
+      "route": "Ajuda do Operador"
+    }
+  ],
+  "technical_pages": [
+    "Visão Geral da Planta",
+    "Detalhe do Ativo",
+    "Inteligência Operacional",
+    "Sistema de Lubrificação",
+    "Configuração de Campo — Lubrificação",
+    "Alertas e Eventos",
+    "Matriz de Escalonamento",
+    "Notification Outbox",
+    "Relatórios",
+    "Configurações",
+    "Teste ponta a ponta"
+  ]
+}

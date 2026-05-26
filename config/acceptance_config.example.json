@@ -1,0 +1,37 @@
+{
+  "project": "Monitoramento Inteligente de Lubrificação por Pressão",
+  "version": "1.0.0",
+  "aws_region": "us-east-1",
+  "ec2_host": "44.204.114.107",
+  "endpoint_health": "https://sentinelaindustrial.com.br/grease/health",
+  "endpoint_ingest": "https://sentinelaindustrial.com.br/grease/ingest",
+  "tables": {
+    "state": "grease_lubrication_state",
+    "cycles": "grease_lubrication_cycles",
+    "alerts": "condition_alerts"
+  },
+  "client": {
+    "tenant_id": "cliente_demo",
+    "company_name": "Cliente Demonstração",
+    "plant_id": "lab_virtual",
+    "plant_name": "Piloto - Bancada Virtual"
+  },
+  "pilot_scope": {
+    "asset_id": "sistema_lubrificacao_01",
+    "outlets": 4,
+    "sensor_range_bar": 250,
+    "physical_gauges_kept": true,
+    "gateway": "IO-Link",
+    "bridge": "Edge HTTP"
+  },
+  "acceptance_criteria": [
+    "Leitura individual das 4 saídas",
+    "Manômetros físicos mantidos",
+    "Gateway IO-Link lendo sensores",
+    "Bridge enviando payload para /grease/ingest",
+    "Ciclos salvos no DynamoDB",
+    "Dashboard exibindo últimos ciclos",
+    "Alertas gerados por baixa/alta pressão",
+    "Recomendação da IA exibida"
+  ]
+}

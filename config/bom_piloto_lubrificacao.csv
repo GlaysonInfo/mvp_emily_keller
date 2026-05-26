@@ -1,0 +1,10 @@
+Item;Descrição;Qtd;Especificação recomendada;Fabricante/Modelo;Status;Observação
+1;Sensor de pressão;4;0–250 bar, IO-Link, 24 Vcc, IP67+;;A definir;1 sensor por saída
+2;Conexão em T / adaptador;4;Compatível com rosca dos manômetros e pressão do sistema;;A definir;Manter manômetro físico
+3;Cabo IO-Link;4;Conector compatível com sensor/gateway;;A definir;
+4;Gateway IO-Link;1;Mínimo 4 portas; preferível 8 portas;;A definir;Reserva para expansão
+5;Fonte 24 Vcc;1;Dimensionada para sensores + gateway;;A definir;
+6;Caixa elétrica;1;IP adequado ao ambiente;;A definir;
+7;Bornes/conectores/prensa-cabos;1 lote;Conforme montagem;;A definir;
+8;Bridge Edge;1;Mini PC/industrial gateway para envio HTTP;;A definir;
+9;Rede/switch/cabos Ethernet;1 lote;Conforme infraestrutura;;A definir;

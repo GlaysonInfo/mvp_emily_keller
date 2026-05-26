@@ -21,6 +21,10 @@ try:
     from dashboard.escalation_ui import render_escalation_page
     from dashboard.history_repository import create_history_repository_from_env
     from dashboard.history_ui import render_history_button
+    from dashboard.hmi.hmi_help import render_operator_help
+    from dashboard.hmi.hmi_home import render_operator_home
+    from dashboard.hmi.hmi_sidebar import render_hmi_sidebar, set_operator_page_for_route
+    from dashboard.hmi.hmi_style import apply_hmi_style
     from dashboard.multiasset_repository import create_multiasset_repository_from_env
     from dashboard.notification_outbox_ui import render_notification_outbox_page
     from dashboard.operational_intelligence_ui import render_operational_intelligence_page
@@ -40,6 +44,10 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.escalation_ui import render_escalation_page
     from src.dashboard.history_repository import create_history_repository_from_env
     from src.dashboard.history_ui import render_history_button
+    from src.dashboard.hmi.hmi_help import render_operator_help
+    from src.dashboard.hmi.hmi_home import render_operator_home
+    from src.dashboard.hmi.hmi_sidebar import render_hmi_sidebar, set_operator_page_for_route
+    from src.dashboard.hmi.hmi_style import apply_hmi_style
     from src.dashboard.multiasset_repository import create_multiasset_repository_from_env
     from src.dashboard.notification_outbox_ui import render_notification_outbox_page
     from src.dashboard.operational_intelligence_ui import render_operational_intelligence_page
@@ -637,56 +645,57 @@ def main() -> None:
     page_target = st.session_state.pop(PAGE_TARGET_KEY, None)
     if page_target:
         st.session_state[DASHBOARD_PAGE_KEY] = page_target
+        set_operator_page_for_route(page_target)
 
     render_global_styles()
+    apply_hmi_style()
 
     st.title("MVP Monitoramento de Condição")
     st.caption("Bancada virtual OPC UA -> Bridge HTTPS -> AWS -> Diagnóstico")
 
-    with st.sidebar:
-        st.header("Ambiente")
-        st.caption(f"Atual: {config_repo.environment_label(config)}")
-        page = st.radio(
-            "Navegação",
-            [
-                "Visão Geral da Planta",
-                "Detalhe do Ativo",
-                "Inteligência Operacional",
-                "Sistema de Lubrificação",
-                "Configuração de Campo — Lubrificação",
-                "Alertas e Eventos",
-                "Matriz de Escalonamento",
-                "Notification Outbox",
-                "Relatórios",
-                "Configurações",
-                "Teste ponta a ponta",
-            ],
-            index=0,
-            key=DASHBOARD_PAGE_KEY,
-        )
-        asset_id = str(st.session_state.get(SELECTED_ASSET_ID_KEY, default_asset_id))
-        auto_refresh = False
-        refresh_seconds = int(os.getenv("DASHBOARD_REFRESH_SECONDS", "5"))
-
-        if page not in {"Configurações", "Teste ponta a ponta", "Configuração de Campo — Lubrificação"}:
-            if page != "Sistema de Lubrificação":
-                st.write(f"Ativo selecionado: `{asset_id}`")
-            auto_refresh = st.checkbox("Auto-refresh", value=True)
-            refresh_seconds = st.number_input(
-                "Intervalo de atualização em segundos",
-                min_value=2,
-                max_value=60,
-                value=refresh_seconds,
-            )
-
-            if st.button("Atualizar agora", type="primary"):
-                st.rerun()
-
-            if page == "Detalhe do Ativo" and st.button("Trocar ativo", use_container_width=True):
-                st.session_state[PAGE_TARGET_KEY] = "Visão Geral da Planta"
-                st.rerun()
+    hmi = render_hmi_sidebar(config=config)
+    page = hmi["page"]
+    mode = hmi["mode"]
+    auto_refresh = bool(hmi.get("auto_refresh"))
+    refresh_seconds = int(hmi.get("refresh_interval") or os.getenv("DASHBOARD_REFRESH_SECONDS", "5"))
 
     asset_id = str(st.session_state.get(SELECTED_ASSET_ID_KEY, default_asset_id))
+
+    if page == "Ajuda do Operador":
+        render_operator_help()
+        st.stop()
+        return
+
+    if mode == "operator" and page == "Visão Geral da Planta":
+        try:
+            multi_repo = create_multiasset_repository_from_env()
+            states = multi_repo.list_current_states(tenant_id=tenant_id, plant_id=plant_id)
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar o painel da planta: {exc}")
+            st.stop()
+
+        operator_states = [
+            {
+                **state,
+                "status_label": state.get("status_label") or derive_status_label(state),
+                "mode_label": state.get("mode_label") or mode_label(state.get("mode") or state.get("diagnosis")),
+            }
+            for state in states
+        ]
+        render_operator_home(operator_states)
+
+        if auto_refresh:
+            time.sleep(float(refresh_seconds))
+            st.rerun()
+
+        st.stop()
+        return
 
     if page == "Configurações":
         render_config_page(config_store_path)

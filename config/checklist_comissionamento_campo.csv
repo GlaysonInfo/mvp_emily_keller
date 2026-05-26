@@ -1,0 +1,15 @@
+Categoria;Item;Status;Responsável;Observação
+Preparação;Confirmar rosca dos manômetros;Pendente;;
+Preparação;Confirmar pressão operacional;Pendente;;
+Mecânica;Instalar conexão em T por saída;Pendente;;
+Mecânica;Manter manômetros físicos;Pendente;;
+Elétrica;Instalar fonte 24 Vcc;Pendente;;
+Elétrica;Conectar sensores ao gateway;Pendente;;
+Comunicação;Validar leitura do gateway;Pendente;;
+API;Validar /grease/health;Pendente;;
+API;Enviar payload de teste;Pendente;;
+Dashboard;Validar últimos ciclos;Pendente;;
+Alertas;Validar alerta baixa pressão;Pendente;;
+Alertas;Validar alerta alta pressão;Pendente;;
+IA;Validar recomendação automática;Pendente;;
+Aceite;Emitir relatório técnico;Pendente;;
