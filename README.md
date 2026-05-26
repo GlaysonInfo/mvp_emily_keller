@@ -975,8 +975,10 @@ Arquivos principais:
 - `src/api/grease_ingest_models.py`
 - `src/api/grease_ingest_service.py`
 - `src/edge/grease_bridge/grease_payload_sender_http.py`
-- `infra/systemd/automacaoapi-grease-api.service`
-- `infra/nginx/grease_ingest_location.conf`
+- `deploy/grease-ingest.service`
+- `deploy/install_grease_service.sh`
+- `deploy/update_grease_service.sh`
+- `deploy/nginx_grease_ingest.conf`
 
 Execução local:
 
@@ -991,6 +993,23 @@ endpoint pelo domínio HTTPS:
 ```text
 https://sentinelaindustrial.com.br/grease/ingest
 ```
+
+Instalação na EC2:
+
+```bash
+cd /opt/automacaoapi
+sudo bash deploy/install_grease_service.sh /opt/automacaoapi
+```
+
+Atualização depois de novos commits:
+
+```bash
+cd /opt/automacaoapi
+sudo bash deploy/update_grease_service.sh /opt/automacaoapi
+```
+
+Não libere a porta `8000` no Security Group; o endpoint público deve passar pelo
+Nginx em `80/443`.
 
 Para piloto, o endpoint pode exigir token simples:
 
