@@ -1,0 +1,18 @@
+{
+  "port1": {
+    "pressure_bar": 84.2,
+    "quality": "good"
+  },
+  "port2": {
+    "pressure_bar": 91.7,
+    "quality": "good"
+  },
+  "port3": {
+    "pressure_bar": 8.4,
+    "quality": "good"
+  },
+  "port4": {
+    "pressure_bar": 148.6,
+    "quality": "good"
+  }
+}

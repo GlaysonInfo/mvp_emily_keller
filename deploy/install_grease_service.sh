@@ -57,9 +57,14 @@ set_env "GREASE_STATE_TABLE" "grease_lubrication_state"
 set_env "GREASE_CYCLES_TABLE" "grease_lubrication_cycles"
 set_env "CONDITION_ALERTS_TABLE" "condition_alerts"
 set_env "LUBRICATION_CONFIG_PATH" "config/lubrication_pilot_config.json"
+set_env "GREASE_FIELD_CONFIG" "config/field_lubrication_config.json"
 set_env "GREASE_API_HOST" "127.0.0.1"
 set_env "GREASE_API_PORT" "8000"
 set_env "PYTHONUNBUFFERED" "1"
+
+if ! sudo grep -q "^GREASE_ALLOWED_SOURCE_IPS=" "${ENV_FILE}"; then
+  echo "GREASE_ALLOWED_SOURCE_IPS=" | sudo tee -a "${ENV_FILE}" >/dev/null
+fi
 
 CURRENT_TOKEN="$(sudo grep '^GREASE_INGEST_TOKEN=' "${ENV_FILE}" | tail -1 | cut -d= -f2- || true)"
 if [ -z "${CURRENT_TOKEN}" ]; then

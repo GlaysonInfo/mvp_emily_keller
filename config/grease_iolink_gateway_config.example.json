@@ -1,0 +1,28 @@
+{
+  "gateway": {
+    "source_id": "grease_gateway_01",
+    "type": "IO-Link Master",
+    "protocol": "http_json",
+    "endpoint": "http://gateway-local/api/iolink/processdata",
+    "read_timeout_sec": 5,
+    "poll_interval_ms": 200
+  },
+  "tag_map": {
+    "saida_graxa_01": "port1.pressure_bar",
+    "saida_graxa_02": "port2.pressure_bar",
+    "saida_graxa_03": "port3.pressure_bar",
+    "saida_graxa_04": "port4.pressure_bar"
+  },
+  "cycle_detection": {
+    "mode": "pressure_delta",
+    "start_threshold_bar": 10,
+    "end_threshold_bar": 5,
+    "min_cycle_duration_sec": 1,
+    "max_cycle_duration_sec": 120,
+    "quiet_time_after_cycle_sec": 3
+  },
+  "ingest": {
+    "endpoint": "https://sentinelaindustrial.com.br/grease/ingest",
+    "token_env": "GREASE_INGEST_TOKEN"
+  }
+}

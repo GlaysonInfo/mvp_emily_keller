@@ -21,6 +21,7 @@ def _payload() -> dict:
 
 def test_grease_health_uses_default_tables(monkeypatch) -> None:
     monkeypatch.delenv("GREASE_INGEST_TOKEN", raising=False)
+    monkeypatch.delenv("GREASE_ALLOWED_SOURCE_IPS", raising=False)
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
     response = TestClient(app).get("/grease/health")
@@ -34,6 +35,7 @@ def test_grease_health_uses_default_tables(monkeypatch) -> None:
 
 def test_grease_ingest_rejects_missing_token(monkeypatch) -> None:
     monkeypatch.setenv("GREASE_INGEST_TOKEN", "token_do_piloto")
+    monkeypatch.delenv("GREASE_ALLOWED_SOURCE_IPS", raising=False)
 
     response = TestClient(app).post("/grease/ingest", json=_payload())
 
@@ -42,6 +44,7 @@ def test_grease_ingest_rejects_missing_token(monkeypatch) -> None:
 
 def test_grease_ingest_accepts_api_key(monkeypatch) -> None:
     monkeypatch.setenv("GREASE_INGEST_TOKEN", "token_do_piloto")
+    monkeypatch.delenv("GREASE_ALLOWED_SOURCE_IPS", raising=False)
 
     def fake_process(payload):
         return GreaseIngestResponse(
@@ -73,3 +76,55 @@ def test_grease_ingest_accepts_api_key(monkeypatch) -> None:
     body = response.json()
     assert body["status_label"] == "ALERTA"
     assert body["active_alerts_count"] == 2
+
+
+def test_grease_ingest_rejects_disallowed_source_ip(monkeypatch) -> None:
+    monkeypatch.setenv("GREASE_INGEST_TOKEN", "token_do_piloto")
+    monkeypatch.setenv("GREASE_ALLOWED_SOURCE_IPS", "203.0.113.10")
+
+    response = TestClient(app).post(
+        "/grease/ingest",
+        headers={
+            "X-API-Key": "token_do_piloto",
+            "X-Forwarded-For": "198.51.100.20",
+        },
+        json=_payload(),
+    )
+
+    assert response.status_code == 403
+
+
+def test_grease_ingest_accepts_allowed_forwarded_ip(monkeypatch) -> None:
+    monkeypatch.setenv("GREASE_INGEST_TOKEN", "token_do_piloto")
+    monkeypatch.setenv("GREASE_ALLOWED_SOURCE_IPS", "198.51.100.0/24")
+
+    def fake_process(payload):
+        return GreaseIngestResponse(
+            ok=True,
+            message="ok",
+            tenant_id=payload.tenant_id,
+            plant_id=payload.plant_id,
+            asset_id=payload.asset_id,
+            source_id=payload.source_id,
+            cycle_id=payload.cycle_id,
+            status_label="ALERTA",
+            outlet_count=4,
+            active_alerts_count=2,
+            saved_state=True,
+            saved_cycle=True,
+            saved_alerts=True,
+            details={"alert_count": 1},
+        )
+
+    monkeypatch.setattr("src.api.grease_ingest_api.process_grease_ingest", fake_process)
+
+    response = TestClient(app).post(
+        "/grease/ingest",
+        headers={
+            "X-API-Key": "token_do_piloto",
+            "X-Forwarded-For": "198.51.100.20, 127.0.0.1",
+        },
+        json=_payload(),
+    )
+
+    assert response.status_code == 200

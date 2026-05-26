@@ -19,6 +19,7 @@ htmlcov/
 *.jpeg
 build/
 logs/
+reports/
 data/
 *.db
 

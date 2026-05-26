@@ -27,6 +27,7 @@ try:
     from dashboard.plant_overview_ui import render_plant_overview
     from dashboard.reports_ui import render_reports_page
     from dashboard.lubrication.lubrication_ui import render_lubrication_page
+    from dashboard.lubrication_field.field_config_ui import render_lubrication_field_config_page
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alert_projection import alerts_for_state
     from src.dashboard.alerts_ui import render_alerts_center
@@ -45,6 +46,7 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.plant_overview_ui import render_plant_overview
     from src.dashboard.reports_ui import render_reports_page
     from src.dashboard.lubrication.lubrication_ui import render_lubrication_page
+    from src.dashboard.lubrication_field.field_config_ui import render_lubrication_field_config_page
 
 
 st.set_page_config(
@@ -651,6 +653,7 @@ def main() -> None:
                 "Detalhe do Ativo",
                 "Inteligência Operacional",
                 "Sistema de Lubrificação",
+                "Configuração de Campo — Lubrificação",
                 "Alertas e Eventos",
                 "Matriz de Escalonamento",
                 "Notification Outbox",
@@ -665,7 +668,7 @@ def main() -> None:
         auto_refresh = False
         refresh_seconds = int(os.getenv("DASHBOARD_REFRESH_SECONDS", "5"))
 
-        if page not in {"Configurações", "Teste ponta a ponta"}:
+        if page not in {"Configurações", "Teste ponta a ponta", "Configuração de Campo — Lubrificação"}:
             if page != "Sistema de Lubrificação":
                 st.write(f"Ativo selecionado: `{asset_id}`")
             auto_refresh = st.checkbox("Auto-refresh", value=True)
@@ -733,6 +736,14 @@ def main() -> None:
             st.error(f"Não foi possível carregar o sistema de lubrificação: {exc}")
             st.stop()
 
+        st.stop()
+        return
+
+    elif page == "Configuração de Campo — Lubrificação":
+        render_lubrication_field_config_page(
+            os.getenv("GREASE_FIELD_CONFIG", "config/field_lubrication_config.json")
+        )
+        st.stop()
         return
 
     elif page == "Alertas e Eventos":

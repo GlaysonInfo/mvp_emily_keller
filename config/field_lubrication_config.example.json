@@ -1,0 +1,123 @@
+{
+  "version": "1.0.0",
+  "aws": {
+    "region": "us-east-1",
+    "state_table": "grease_lubrication_state",
+    "cycles_table": "grease_lubrication_cycles",
+    "alerts_table": "condition_alerts"
+  },
+  "client": {
+    "tenant_id": "cliente_demo",
+    "company_name": "Cliente Demonstração",
+    "technical_responsible": "",
+    "timezone": "America/Sao_Paulo"
+  },
+  "plant": {
+    "plant_id": "lab_virtual",
+    "plant_name": "Bancada Virtual / Piloto",
+    "area": "Lubrificação",
+    "environment": "Piloto"
+  },
+  "lubrication_system": {
+    "asset_id": "sistema_lubrificacao_01",
+    "asset_name": "Sistema de Lubrificação Centralizada",
+    "machine_or_line": "Equipamento piloto",
+    "lubricant_type": "Graxa",
+    "expected_operating_pressure_bar": 100,
+    "recommended_sensor_range_bar": 250,
+    "physical_gauges_kept": true,
+    "cycle_detection_mode": "pressure_delta",
+    "sample_interval_ms": 200,
+    "send_mode": "per_cycle"
+  },
+  "gateway": {
+    "source_id": "grease_gateway_01",
+    "name": "Gateway IO-Link Lubrificação 01",
+    "manufacturer": "",
+    "model": "",
+    "protocol": "http_json",
+    "endpoint": "http://gateway-local/api/iolink/processdata",
+    "read_timeout_sec": 5,
+    "authentication": {
+      "type": "none",
+      "token_env": ""
+    }
+  },
+  "ingest_api": {
+    "endpoint": "https://sentinelaindustrial.com.br/grease/ingest",
+    "token_env": "GREASE_INGEST_TOKEN",
+    "require_token": true,
+    "allowed_source_ips": []
+  },
+  "rules": {
+    "low_pressure_bar": 10,
+    "high_pressure_bar": 160,
+    "critical_pressure_bar": 220,
+    "max_rise_time_sec": 10,
+    "max_decay_time_sec": 15,
+    "pulse_min_delta_bar": 8,
+    "min_samples_for_baseline": 20,
+    "baseline_warning_pct": 30,
+    "baseline_alert_pct": 50
+  },
+  "outlets": [
+    {
+      "outlet_id": "saida_graxa_01",
+      "name": "Saída de Graxa 01",
+      "physical_gauge_present": true,
+      "sensor_id": "pressure_sensor_01",
+      "sensor_model": "",
+      "sensor_range_bar": 250,
+      "sensor_signal": "IO-Link",
+      "process_connection": "",
+      "gateway_port": "P1",
+      "gateway_tag_pressure": "port1.pressure_bar",
+      "enabled": true
+    },
+    {
+      "outlet_id": "saida_graxa_02",
+      "name": "Saída de Graxa 02",
+      "physical_gauge_present": true,
+      "sensor_id": "pressure_sensor_02",
+      "sensor_model": "",
+      "sensor_range_bar": 250,
+      "sensor_signal": "IO-Link",
+      "process_connection": "",
+      "gateway_port": "P2",
+      "gateway_tag_pressure": "port2.pressure_bar",
+      "enabled": true
+    },
+    {
+      "outlet_id": "saida_graxa_03",
+      "name": "Saída de Graxa 03",
+      "physical_gauge_present": true,
+      "sensor_id": "pressure_sensor_03",
+      "sensor_model": "",
+      "sensor_range_bar": 250,
+      "sensor_signal": "IO-Link",
+      "process_connection": "",
+      "gateway_port": "P3",
+      "gateway_tag_pressure": "port3.pressure_bar",
+      "enabled": true
+    },
+    {
+      "outlet_id": "saida_graxa_04",
+      "name": "Saída de Graxa 04",
+      "physical_gauge_present": true,
+      "sensor_id": "pressure_sensor_04",
+      "sensor_model": "",
+      "sensor_range_bar": 250,
+      "sensor_signal": "IO-Link",
+      "process_connection": "",
+      "gateway_port": "P4",
+      "gateway_tag_pressure": "port4.pressure_bar",
+      "enabled": true
+    }
+  ],
+  "reporting": {
+    "default_period_hours": 24,
+    "include_raw_curve": true,
+    "include_baseline": true,
+    "include_recommendations": true
+  }
+}

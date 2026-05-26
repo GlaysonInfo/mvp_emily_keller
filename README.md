@@ -1019,6 +1019,41 @@ GREASE_INGEST_TOKEN=token_do_piloto
 
 O cliente/bridge deve enviar esse valor em `X-API-Key` ou `Authorization: Bearer`.
 
+### Configuração de Campo — Lubrificação
+
+A navegação lateral também inclui `Configuração de Campo — Lubrificação`, focada
+na preparação do piloto real com gateway IO-Link, sensores físicos, manômetros
+mantidos, baseline por saída, curva pressão x tempo, segurança do endpoint e
+relatórios específicos.
+
+Arquivos principais:
+
+- `config/field_lubrication_config.json`
+- `config/field_lubrication_config.example.json`
+- `config/grease_iolink_gateway_config.example.json`
+- `src/dashboard/lubrication_field/field_config_ui.py`
+- `src/dashboard/lubrication_field/baseline_engine.py`
+- `src/dashboard/lubrication_field/cycle_curve_engine.py`
+- `src/edge/grease_bridge_field/bridge_runner.py`
+- `src/edge/grease_bridge_field/payload_builder.py`
+- `src/api/grease_security_middleware.py`
+
+Scripts úteis:
+
+```powershell
+python scripts\test_field_config.py
+python scripts\simulate_raw_iolink_cycle.py
+.\scripts\run_grease_bridge_field.ps1
+python scripts\generate_lubrication_report.py
+```
+
+Variáveis adicionais:
+
+```text
+GREASE_FIELD_CONFIG=config/field_lubrication_config.json
+GREASE_ALLOWED_SOURCE_IPS=
+```
+
 Definition of Done Sprint 5A:
 
 - Dashboard abre localmente.

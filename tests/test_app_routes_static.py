@@ -42,3 +42,14 @@ def test_lubrication_route_stops_before_plant_overview() -> None:
     assert "render_plant_overview" not in lubrication_route
     assert "st.stop()" in lubrication_route
     assert "return" in lubrication_route
+
+
+def test_lubrication_field_config_route_stops_before_other_pages() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    field_config_route = _route_block(source, "Configuração de Campo — Lubrificação")
+
+    assert "render_lubrication_field_config_page(" in field_config_route
+    assert "render_lubrication_page(" not in field_config_route
+    assert "render_plant_overview" not in field_config_route
+    assert "st.stop()" in field_config_route
+    assert "return" in field_config_route

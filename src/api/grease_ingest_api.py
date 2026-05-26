@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .grease_ingest_models import GreaseHealthResponse, GreaseIngestPayload, GreaseIngestResponse
 from .grease_ingest_service import ensure_region, process_grease_ingest
+from .grease_security_middleware import validate_grease_ingest_security
 
 app = FastAPI(
     title="Grease Lubrication Ingest API",
@@ -21,18 +22,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-def check_token(x_api_key: str | None, authorization: str | None) -> None:
-    expected = os.getenv("GREASE_INGEST_TOKEN")
-    if not expected:
-        return
-    bearer = ""
-    if authorization and authorization.lower().startswith("bearer "):
-        bearer = authorization.split(" ", 1)[1].strip()
-    if x_api_key == expected or bearer == expected:
-        return
-    raise HTTPException(status_code=401, detail="Token de ingestão inválido ou ausente.")
 
 
 @app.get("/grease/health", response_model=GreaseHealthResponse)
@@ -51,10 +40,8 @@ def grease_health():
 @app.post("/grease/ingest", response_model=GreaseIngestResponse)
 async def grease_ingest(
     payload: GreaseIngestPayload,
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
-    authorization: str | None = Header(default=None, alias="Authorization"),
+    _security_ok: bool = Depends(validate_grease_ingest_security),
 ):
-    check_token(x_api_key, authorization)
     try:
         return process_grease_ingest(payload)
     except HTTPException:
