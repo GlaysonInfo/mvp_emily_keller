@@ -912,6 +912,53 @@ Variável usada:
 $env:CONDITION_ALERTS_TABLE="condition_alerts"
 ```
 
+### Sistema de Lubrificação
+
+A navegação lateral inclui a tela `Sistema de Lubrificação`, voltada ao piloto
+`Monitoramento Inteligente de Lubrificação por Pressão`.
+
+O submódulo monitora quatro saídas de graxa do conjunto de lubrificação, mantendo
+os manômetros físicos e usando sensores eletrônicos de pressão para registrar
+pressão instantânea, pico por ciclo, tempo de subida, tempo de alívio, pulso
+detectado, anomalias, alertas e recomendação explicável.
+
+Arquivos principais:
+
+- `src/dashboard/lubrication/lubrication_config.py`
+- `src/dashboard/lubrication/lubrication_engine.py`
+- `src/dashboard/lubrication/lubrication_repository.py`
+- `src/dashboard/lubrication/lubrication_ui.py`
+- `src/edge/grease_bridge/grease_cycle_simulator.py`
+- `src/edge/grease_bridge/grease_payload_sender.py`
+- `config/lubrication_pilot_config.json`
+
+Tabelas sugeridas:
+
+```text
+grease_lubrication_state
+Partition key: tenant_id
+Sort key: asset_id
+
+grease_lubrication_cycles
+Partition key: tenant_asset
+Sort key: cycle_timestamp
+```
+
+Variáveis usadas:
+
+```powershell
+$env:GREASE_STATE_TABLE="grease_lubrication_state"
+$env:GREASE_CYCLES_TABLE="grease_lubrication_cycles"
+$env:LUBRICATION_CONFIG_PATH="config/lubrication_pilot_config.json"
+```
+
+Teste rápido sem hardware:
+
+```powershell
+.\scripts\create_lubrication_tables.ps1
+python scripts\seed_lubrication_demo.py
+```
+
 Definition of Done Sprint 5A:
 
 - Dashboard abre localmente.

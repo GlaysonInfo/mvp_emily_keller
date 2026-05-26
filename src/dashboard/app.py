@@ -26,6 +26,7 @@ try:
     from dashboard.operational_intelligence_ui import render_operational_intelligence_page
     from dashboard.plant_overview_ui import render_plant_overview
     from dashboard.reports_ui import render_reports_page
+    from dashboard.lubrication.lubrication_ui import render_lubrication_page
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alert_projection import alerts_for_state
     from src.dashboard.alerts_ui import render_alerts_center
@@ -43,6 +44,7 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.operational_intelligence_ui import render_operational_intelligence_page
     from src.dashboard.plant_overview_ui import render_plant_overview
     from src.dashboard.reports_ui import render_reports_page
+    from src.dashboard.lubrication.lubrication_ui import render_lubrication_page
 
 
 st.set_page_config(
@@ -648,6 +650,7 @@ def main() -> None:
                 "Visão Geral da Planta",
                 "Detalhe do Ativo",
                 "Inteligência Operacional",
+                "Sistema de Lubrificação",
                 "Alertas e Eventos",
                 "Matriz de Escalonamento",
                 "Notification Outbox",
@@ -663,7 +666,8 @@ def main() -> None:
         refresh_seconds = int(os.getenv("DASHBOARD_REFRESH_SECONDS", "5"))
 
         if page not in {"Configurações", "Teste ponta a ponta"}:
-            st.write(f"Ativo selecionado: `{asset_id}`")
+            if page != "Sistema de Lubrificação":
+                st.write(f"Ativo selecionado: `{asset_id}`")
             auto_refresh = st.checkbox("Auto-refresh", value=True)
             refresh_seconds = st.number_input(
                 "Intervalo de atualização em segundos",
@@ -707,6 +711,26 @@ def main() -> None:
             st.stop()
         except ClientError as exc:
             st.error(f"Não foi possível carregar a inteligência operacional: {exc}")
+            st.stop()
+
+        if auto_refresh:
+            time.sleep(float(refresh_seconds))
+            st.rerun()
+
+        st.stop()
+        return
+
+    elif page == "Sistema de Lubrificação":
+        try:
+            render_lubrication_page(os.getenv("LUBRICATION_CONFIG_PATH", "config/lubrication_pilot_config.json"))
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar o sistema de lubrificação: {exc}")
             st.stop()
 
         if auto_refresh:
