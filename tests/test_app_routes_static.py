@@ -32,3 +32,13 @@ def test_asset_detail_route_stops_before_any_other_page() -> None:
     assert "render_plant_overview" not in detail_route
     assert "st.stop()" in detail_route
     assert "return" in detail_route
+
+
+def test_lubrication_route_stops_before_plant_overview() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    lubrication_route = _route_block(source, "Sistema de Lubrificação")
+
+    assert "render_lubrication_page(" in lubrication_route
+    assert "render_plant_overview" not in lubrication_route
+    assert "st.stop()" in lubrication_route
+    assert "return" in lubrication_route

@@ -1,6 +1,6 @@
 
 from datetime import datetime, timezone
-from .lubrication_labels import status_priority, severity_from_priority
+from .lubrication_labels import outlet_label, status_priority, severity_from_priority
 
 def now_utc():
     return datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
@@ -75,13 +75,13 @@ def build_ai_recommendation(outlets):
     bad=[o for o in outlets if o['status']!='normal']
     if not bad:
         return {"primary_hypothesis":"Sistema de lubrificação com comportamento normal no ciclo atual.","confidence":0.80,"evidence":["Todas as saídas monitoradas apresentaram pulso e pressão dentro das regras iniciais."],"recommended_actions":["Manter monitoramento e registrar próximos ciclos para formação de baseline."]}
-    worst=sorted(bad,key=lambda x:x['priority'],reverse=True)[0]; oid=worst['outlet_id']; status=worst['status']
-    if status=='low_pressure': hyp=f'Possível falta de lubrificação ou linha aberta na {oid}.'
-    elif status=='no_pulse': hyp=f'Ausência de pulso de lubrificação na {oid}.'
-    elif status in ['high_pressure','high_pressure_slow_decay']: hyp=f'Possível obstrução, graxa endurecida ou ponto pesado na {oid}.'
-    elif status=='slow_decay': hyp=f'Possível restrição ou retorno lento na {oid}.'
-    elif status=='slow_rise': hyp=f'Possível alimentação irregular ou pistão com atuação lenta na {oid}.'
-    else: hyp=f'Anomalia de lubrificação na {oid}.'
+    worst=sorted(bad,key=lambda x:x['priority'],reverse=True)[0]; oid=worst['outlet_id']; outlet_name=outlet_label(oid); status=worst['status']
+    if status=='low_pressure': hyp=f'Possível falta de lubrificação ou linha aberta na {outlet_name}.'
+    elif status=='no_pulse': hyp=f'Ausência de pulso de lubrificação na {outlet_name}.'
+    elif status in ['high_pressure','high_pressure_slow_decay']: hyp=f'Possível obstrução, graxa endurecida ou ponto pesado na {outlet_name}.'
+    elif status=='slow_decay': hyp=f'Possível restrição ou retorno lento na {outlet_name}.'
+    elif status=='slow_rise': hyp=f'Possível alimentação irregular ou pistão com atuação lenta na {outlet_name}.'
+    else: hyp=f'Anomalia de lubrificação na {outlet_name}.'
     return {"primary_hypothesis":hyp,"confidence":min(0.95,0.65+worst['priority']*0.05),"evidence":worst.get('reasons',[]),"recommended_actions":["Comparar o manômetro físico com a leitura eletrônica.","Inspecionar a linha e o bico da saída indicada.","Verificar se houve pulso de lubrificação no ciclo.","Registrar ação tomada na Central de Alertas."],"affected_outlets":[o['outlet_id'] for o in bad]}
 
 def evaluate_lubrication_cycle(payload, config):
