@@ -733,11 +733,6 @@ def main() -> None:
             st.error(f"Não foi possível carregar o sistema de lubrificação: {exc}")
             st.stop()
 
-        if auto_refresh:
-            time.sleep(float(refresh_seconds))
-            st.rerun()
-
-        st.stop()
         return
 
     elif page == "Alertas e Eventos":

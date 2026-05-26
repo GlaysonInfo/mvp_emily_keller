@@ -346,6 +346,9 @@ def render_asset_priority_list(rows: list[dict[str, Any]]) -> str | None:
 
 
 def render_plant_overview(states: list[dict[str, Any]]) -> str | None:
+    if st.session_state.get("dashboard_page") == "Sistema de Lubrificação":
+        return None
+
     st.subheader("Parque Industrial - Visão Geral")
     rows = states_to_rows(states)
 
