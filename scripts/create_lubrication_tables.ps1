@@ -22,7 +22,7 @@ function Ensure-DynamoTable {
         [string[]]$KeySchema
     )
 
-    aws dynamodb describe-table --table-name $TableName --region $Region *> $null
+    $null = aws dynamodb describe-table --table-name $TableName --region $Region 2>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Tabela ja existe: $TableName"
         return
@@ -36,7 +36,16 @@ function Ensure-DynamoTable {
         --billing-mode PAY_PER_REQUEST `
         --region $Region
 
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falha ao criar a tabela $TableName na regiao $Region."
+    }
+
     aws dynamodb wait table-exists --table-name $TableName --region $Region
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "A tabela $TableName nao ficou disponivel na regiao $Region."
+    }
+
     Write-Host "Tabela pronta: $TableName"
 }
 
