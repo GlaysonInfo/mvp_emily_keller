@@ -1056,6 +1056,33 @@ CONDITION_INGEST_TOKEN="$TOKEN" \
 /opt/automacaoapi/.venv/bin/python /opt/automacaoapi/scripts/test_condition_ingest.py
 ```
 
+Bridge de campo para gateways de equipamentos:
+
+```text
+Gateway de equipamentos -> bridge de campo -> /condition/ingest -> DynamoDB -> dashboard
+```
+
+Arquivo base:
+
+```text
+config/field_condition_config.example.json
+```
+
+Teste o mapeamento local:
+
+```powershell
+python scripts\simulate_condition_gateway_payload.py
+```
+
+Execute a bridge em campo:
+
+```powershell
+$env:CONDITION_INGEST_TOKEN="token_do_piloto"
+.\scripts\run_condition_bridge_field.ps1
+```
+
+Documentação: `docs/configuracao_gateway_equipamentos.md`.
+
 Payload mínimo:
 
 ```json

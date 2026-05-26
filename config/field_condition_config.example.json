@@ -1,0 +1,79 @@
+{
+  "version": "1.0.0",
+  "aws": {
+    "region": "us-east-1",
+    "state_table": "mvp_asset_state_dev",
+    "history_table": "condition_history",
+    "alerts_table": "condition_alerts"
+  },
+  "client": {
+    "tenant_id": "cliente_demo",
+    "company_name": "Cliente Demonstração",
+    "timezone": "America/Sao_Paulo"
+  },
+  "plant": {
+    "plant_id": "lab_virtual",
+    "plant_name": "Piloto - Bancada Virtual",
+    "area": "Linha de Produção"
+  },
+  "gateway": {
+    "source_id": "condition_gateway_01",
+    "name": "Gateway Equipamentos 01",
+    "type": "Edge Gateway",
+    "protocol": "simulated_json",
+    "endpoint": "local/demo",
+    "sample_path": "src/edge/condition_bridge_field/sample_raw_gateway_response.json",
+    "poll_interval_ms": 1000,
+    "read_timeout_sec": 5,
+    "authentication": {
+      "type": "none",
+      "token_env": ""
+    }
+  },
+  "ingest_api": {
+    "endpoint": "https://sentinelaindustrial.com.br/condition/ingest",
+    "token_env": "CONDITION_INGEST_TOKEN",
+    "require_token": true
+  },
+  "quality": {
+    "sample_rate_hz": 1,
+    "source": "field_condition_bridge"
+  },
+  "assets": [
+    {
+      "asset_id": "motor_001",
+      "asset_name": "Motor Principal",
+      "asset_type": "Motor elétrico",
+      "area": "Linha de Produção 1",
+      "criticality": "Alta",
+      "enabled": true,
+      "signals": [
+        {"metric": "rpm", "tag": "motor_001.rpm", "unit": "rpm", "required": false},
+        {"metric": "vibration_rms_mm_s", "tag": "motor_001.vibration_rms_mm_s", "unit": "mm/s", "required": true},
+        {"metric": "vibration_peak_g", "tag": "motor_001.vibration_peak_g", "unit": "g", "required": false},
+        {"metric": "temperature_c", "tag": "motor_001.temperature_c", "unit": "C", "required": true},
+        {"metric": "ultrasound_db", "tag": "motor_001.ultrasound_db", "unit": "dB", "required": false},
+        {"metric": "kurtosis", "tag": "motor_001.kurtosis", "unit": "index", "required": false},
+        {"metric": "crest_factor", "tag": "motor_001.crest_factor", "unit": "index", "required": false},
+        {"metric": "health_score", "tag": "motor_001.health_score", "unit": "score", "required": false},
+        {"metric": "severity_score", "tag": "motor_001.severity_score", "unit": "score", "required": false}
+      ]
+    },
+    {
+      "asset_id": "compressor_001",
+      "asset_name": "Compressor de Ar 01",
+      "asset_type": "Compressor",
+      "area": "Casa de Máquinas",
+      "criticality": "Crítica",
+      "enabled": true,
+      "signals": [
+        {"metric": "rpm", "tag": "compressor_001.rpm", "unit": "rpm", "required": false},
+        {"metric": "vibration_rms_mm_s", "tag": "compressor_001.vibration_rms_mm_s", "unit": "mm/s", "required": true},
+        {"metric": "temperature_c", "tag": "compressor_001.temperature_c", "unit": "C", "required": true},
+        {"metric": "ultrasound_db", "tag": "compressor_001.ultrasound_db", "unit": "dB", "required": false},
+        {"metric": "health_score", "tag": "compressor_001.health_score", "unit": "score", "required": false},
+        {"metric": "severity_score", "tag": "compressor_001.severity_score", "unit": "score", "required": false}
+      ]
+    }
+  ]
+}

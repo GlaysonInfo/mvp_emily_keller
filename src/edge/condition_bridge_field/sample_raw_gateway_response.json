@@ -1,0 +1,22 @@
+{
+  "timestamp_utc": "2026-05-26T22:00:00Z",
+  "motor_001": {
+    "rpm": 1778.0,
+    "vibration_rms_mm_s": 4.4,
+    "vibration_peak_g": 0.82,
+    "temperature_c": 62.8,
+    "ultrasound_db": 33.1,
+    "kurtosis": 3.2,
+    "crest_factor": 3.1,
+    "health_score": 67.6,
+    "severity_score": 32.4
+  },
+  "compressor_001": {
+    "rpm": 3565.0,
+    "vibration_rms_mm_s": 2.7,
+    "temperature_c": 71.2,
+    "ultrasound_db": 38.4,
+    "health_score": 73.5,
+    "severity_score": 26.5
+  }
+}
