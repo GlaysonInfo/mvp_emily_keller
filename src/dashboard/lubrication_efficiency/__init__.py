@@ -1,0 +1,1 @@
+"""Lubrication efficiency dashboard module."""

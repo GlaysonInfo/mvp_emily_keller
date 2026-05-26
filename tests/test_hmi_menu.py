@@ -18,11 +18,13 @@ def test_hmi_menu_config_exposes_operator_and_technical_modes() -> None:
         "Painel da Planta",
         "Equipamento",
         "Lubrificação",
+        "Eficiência",
         "Alertas",
         "Relatórios",
         "Ajuda",
     ]
     assert "Configuração de Campo — Lubrificação" in config["technical_pages"]
+    assert "Eficiência da Lubrificação" in config["technical_pages"]
     assert "Modo Apresentação" not in config["technical_pages"]
 
 

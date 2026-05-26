@@ -959,6 +959,23 @@ Teste rápido sem hardware:
 python scripts\seed_lubrication_demo.py
 ```
 
+### Eficiência da Lubrificação
+
+A navegação lateral também inclui `Eficiência da Lubrificação`, uma tela para
+clientes que possuem as duas frentes ativas: equipamentos monitorados e sistema
+de lubrificação.
+
+A tela cruza:
+
+- condição atual dos equipamentos em `mvp_asset_state_dev`;
+- estado/ciclo atual em `grease_lubrication_state`;
+- últimos ciclos em `grease_lubrication_cycles`;
+- alertas ativos de lubrificação em `condition_alerts`.
+
+O indicador combina pontuação das saídas de graxa, condição dos equipamentos e
+score de anomalia para mostrar eficiência, saídas afetadas, equipamentos
+correlacionados, recomendação operacional e tabelas de apoio.
+
 ### Endpoint de Ingestão de Lubrificação
 
 O projeto também inclui uma API HTTP específica para receber ciclos reais da

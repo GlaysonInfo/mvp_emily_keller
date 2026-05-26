@@ -44,6 +44,17 @@ def test_lubrication_route_stops_before_plant_overview() -> None:
     assert "return" in lubrication_route
 
 
+def test_lubrication_efficiency_route_stops_before_other_pages() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    efficiency_route = _route_block(source, "Eficiência da Lubrificação")
+
+    assert "render_lubrication_efficiency_page(" in efficiency_route
+    assert "render_lubrication_page(" not in efficiency_route
+    assert "render_plant_overview" not in efficiency_route
+    assert "st.stop()" in efficiency_route
+    assert "return" in efficiency_route
+
+
 def test_lubrication_field_config_route_stops_before_other_pages() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
     field_config_route = _route_block(source, "Configuração de Campo — Lubrificação")
