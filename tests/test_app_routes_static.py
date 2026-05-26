@@ -59,6 +59,7 @@ def test_app_uses_hmi_sidebar_instead_of_raw_technical_menu() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
 
     assert "render_hmi_sidebar(config=config)" in source
+    assert "st.session_state[DASHBOARD_PAGE_KEY] = page" in source
     assert "render_operator_home(operator_states)" in source
     assert "render_operator_help()" in source
     assert 'st.radio(\n            "Navegação",' not in source

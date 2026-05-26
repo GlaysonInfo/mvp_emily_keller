@@ -346,7 +346,8 @@ def render_asset_priority_list(rows: list[dict[str, Any]]) -> str | None:
 
 
 def render_plant_overview(states: list[dict[str, Any]]) -> str | None:
-    if st.session_state.get("dashboard_page") == "Sistema de Lubrificação":
+    current_page = st.session_state.get("dashboard_page")
+    if current_page and current_page != "Visão Geral da Planta":
         return None
 
     st.subheader("Parque Industrial - Visão Geral")

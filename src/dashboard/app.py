@@ -656,6 +656,7 @@ def main() -> None:
     hmi = render_hmi_sidebar(config=config)
     page = hmi["page"]
     mode = hmi["mode"]
+    st.session_state[DASHBOARD_PAGE_KEY] = page
     auto_refresh = bool(hmi.get("auto_refresh"))
     refresh_seconds = int(hmi.get("refresh_interval") or os.getenv("DASHBOARD_REFRESH_SECONDS", "5"))
 

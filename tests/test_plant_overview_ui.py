@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import unittest
 from decimal import Decimal
+from pathlib import Path
 
 from src.dashboard.plant_overview_ui import filter_rows, plant_kpis, state_to_row, states_to_rows
+
+
+PLANT_OVERVIEW_SOURCE = Path("src/dashboard/plant_overview_ui.py")
 
 
 class PlantOverviewUiTest(unittest.TestCase):
@@ -71,6 +75,12 @@ class PlantOverviewUiTest(unittest.TestCase):
         filtered = filter_rows(rows, status="ALERTA", area="Linha 2")
 
         self.assertEqual(filtered, [rows[1]])
+
+    def test_plant_overview_has_active_route_guard(self) -> None:
+        source = PLANT_OVERVIEW_SOURCE.read_text(encoding="utf-8")
+
+        self.assertIn('current_page != "Visão Geral da Planta"', source)
+        self.assertIn("return None", source)
 
 
 if __name__ == "__main__":
