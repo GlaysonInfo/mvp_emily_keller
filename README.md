@@ -1019,6 +1019,69 @@ GREASE_INGEST_TOKEN=token_do_piloto
 
 O cliente/bridge deve enviar esse valor em `X-API-Key` ou `Authorization: Bearer`.
 
+### Endpoint público para equipamentos monitorados
+
+O endpoint geral de telemetria deixa motores, bombas, compressores, exaustores e
+ventiladores plugáveis no mesmo padrão operacional do módulo de lubrificação.
+
+```text
+GET  https://sentinelaindustrial.com.br/condition/health
+POST https://sentinelaindustrial.com.br/condition/ingest
+```
+
+Tabelas usadas:
+
+```text
+DYNAMODB_STATE_TABLE=mvp_asset_state_dev
+CONDITION_HISTORY_TABLE=condition_history
+CONDITION_ALERTS_TABLE=condition_alerts
+```
+
+Instalação na EC2:
+
+```bash
+cd /opt/automacaoapi
+sudo bash deploy/install_condition_service.sh /opt/automacaoapi
+```
+
+Teste local:
+
+```bash
+curl http://127.0.0.1:8001/condition/health
+
+TOKEN="$(sudo grep '^CONDITION_INGEST_TOKEN=' /opt/automacaoapi/.env | tail -1 | cut -d= -f2-)"
+
+CONDITION_INGEST_ENDPOINT="http://127.0.0.1:8001/condition/ingest" \
+CONDITION_INGEST_TOKEN="$TOKEN" \
+/opt/automacaoapi/.venv/bin/python /opt/automacaoapi/scripts/test_condition_ingest.py
+```
+
+Payload mínimo:
+
+```json
+{
+  "tenant_id": "cliente_demo",
+  "plant_id": "lab_virtual",
+  "asset_id": "motor_001",
+  "source": "condition_gateway_01",
+  "timestamp": "2026-05-26T18:00:00Z",
+  "metrics": [
+    {"name": "rpm", "value": 1778.0, "unit": "rpm"},
+    {"name": "vibration_rms_mm_s", "value": 4.4, "unit": "mm/s"},
+    {"name": "temperature_c", "value": 62.8, "unit": "C"},
+    {"name": "health_score", "value": 67.6, "unit": "score"},
+    {"name": "severity_score", "value": 32.4, "unit": "score"}
+  ]
+}
+```
+
+Documentação completa:
+
+```text
+docs/especificacao_endpoint_condition_ingest.md
+docs/checklist_teste_gateway_equipamentos.md
+```
+
 ### Configuração de Campo — Lubrificação
 
 A navegação lateral também inclui `Configuração de Campo — Lubrificação`, focada
