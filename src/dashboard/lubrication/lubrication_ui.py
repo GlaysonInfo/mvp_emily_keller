@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from .lubrication_config import load_lubrication_config
+from .digital_pressure_gauge import render_pressure_gauges
 from .lubrication_engine import evaluate_lubrication_cycle
 from .lubrication_labels import outlet_label, status_label
 from .lubrication_repository import LubricationRepository
@@ -143,6 +144,9 @@ def render_lubrication_page(config_path: str = "config/lubrication_pilot_config.
     kpi_alert.metric("Alertas", state.get("alert_count", 0))
     kpi_critical.metric("Críticos", state.get("critical_count", 0))
 
+    st.subheader("Manômetros digitais")
+    render_pressure_gauges(state, sensor_range_bar=float(config.get("sensor_range_bar", 250) or 250))
+
     tab_overview, tab_pressure, tab_cycles, tab_alerts, tab_ai = st.tabs(
         ["Visão Geral", "Pressão por Saída", "Últimos Ciclos", "Alertas Ativos", "Recomendação da IA"]
     )
@@ -157,6 +161,9 @@ def render_lubrication_page(config_path: str = "config/lubrication_pilot_config.
             st.rerun()
 
     with tab_pressure:
+        st.subheader("Leitura digital")
+        render_pressure_gauges(state, sensor_range_bar=float(config.get("sensor_range_bar", 250) or 250))
+        st.subheader("Dados por saída")
         df = outlets_df(state)
         st.dataframe(df, use_container_width=True, hide_index=True)
         st.download_button(
