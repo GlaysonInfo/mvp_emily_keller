@@ -31,6 +31,8 @@ DEFAULT_TECH_PAGES = [
 ]
 
 OPERATOR_LABEL_BY_ROUTE = {item["route"]: item["label"] for item in DEFAULT_OPERATOR_PAGES}
+PENDING_OPERATOR_PAGE_KEY = "hmi_pending_operator_page"
+PENDING_TECHNICAL_PAGE_KEY = "hmi_pending_technical_page"
 
 
 def load_hmi_menu_config(path: str = "config/hmi_menu_config.json") -> dict[str, Any]:
@@ -47,9 +49,9 @@ def load_hmi_menu_config(path: str = "config/hmi_menu_config.json") -> dict[str,
 def set_operator_page_for_route(route: str) -> None:
     label = OPERATOR_LABEL_BY_ROUTE.get(route)
     if label:
-        st.session_state["hmi_operator_page"] = label
+        st.session_state[PENDING_OPERATOR_PAGE_KEY] = label
     if route in DEFAULT_TECH_PAGES:
-        st.session_state["hmi_technical_page"] = route
+        st.session_state[PENDING_TECHNICAL_PAGE_KEY] = route
 
 
 def _get(config: dict, *keys: str, default: str = "-") -> str:
@@ -99,6 +101,9 @@ def render_hmi_sidebar(config: dict | None = None, menu_config_path: str = "conf
     if st.session_state["hmi_mode"] == "operator":
         page_map = _normal_operator_pages(menu_config)
         labels = [item["label"] for item in page_map]
+        pending_label = st.session_state.pop(PENDING_OPERATOR_PAGE_KEY, None)
+        if pending_label in labels:
+            st.session_state["hmi_operator_page"] = pending_label
         if st.session_state.get("hmi_operator_page") not in labels:
             st.session_state["hmi_operator_page"] = labels[0]
         selected_label = st.sidebar.radio("Menu do operador", labels, key="hmi_operator_page")
@@ -110,6 +115,9 @@ def render_hmi_sidebar(config: dict | None = None, menu_config_path: str = "conf
     else:
         technical_pages = menu_config.get("technical_pages") or DEFAULT_TECH_PAGES
         technical_pages = [str(page) for page in technical_pages if str(page) != "Modo Apresentação"]
+        pending_page = st.session_state.pop(PENDING_TECHNICAL_PAGE_KEY, None)
+        if pending_page in technical_pages:
+            st.session_state["hmi_technical_page"] = pending_page
         if st.session_state.get("hmi_technical_page") not in technical_pages:
             st.session_state["hmi_technical_page"] = technical_pages[0]
         page = st.sidebar.radio("Navegação técnica", technical_pages, key="hmi_technical_page")
