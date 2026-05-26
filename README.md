@@ -959,6 +959,47 @@ Teste rápido sem hardware:
 python scripts\seed_lubrication_demo.py
 ```
 
+### Endpoint de Ingestão de Lubrificação
+
+O projeto também inclui uma API HTTP específica para receber ciclos reais da
+bridge/gateway do sistema de lubrificação:
+
+```text
+GET  /grease/health
+POST /grease/ingest
+```
+
+Arquivos principais:
+
+- `src/api/grease_ingest_api.py`
+- `src/api/grease_ingest_models.py`
+- `src/api/grease_ingest_service.py`
+- `src/edge/grease_bridge/grease_payload_sender_http.py`
+- `infra/systemd/automacaoapi-grease-api.service`
+- `infra/nginx/grease_ingest_location.conf`
+
+Execução local:
+
+```powershell
+.\scripts\run_grease_api.ps1 -Reload
+.\scripts\test_grease_ingest.ps1
+```
+
+Na EC2, o serviço deve escutar em `127.0.0.1:8000` e o Nginx deve expor o
+endpoint pelo domínio HTTPS:
+
+```text
+https://sentinelaindustrial.com.br/grease/ingest
+```
+
+Para piloto, o endpoint pode exigir token simples:
+
+```text
+GREASE_INGEST_TOKEN=token_do_piloto
+```
+
+O cliente/bridge deve enviar esse valor em `X-API-Key` ou `Authorization: Bearer`.
+
 Definition of Done Sprint 5A:
 
 - Dashboard abre localmente.

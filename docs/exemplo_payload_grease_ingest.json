@@ -1,0 +1,35 @@
+{
+  "tenant_id": "cliente_demo",
+  "plant_id": "lab_virtual",
+  "asset_id": "sistema_lubrificacao_01",
+  "source_id": "grease_gateway_01",
+  "timestamp_utc": "2026-05-25T23:30:00Z",
+  "cycle_id": "cycle_20260525_233000",
+  "metrics": {
+    "pressure_saida_graxa_01_bar": 84.2,
+    "pressure_saida_graxa_02_bar": 91.7,
+    "pressure_saida_graxa_03_bar": 7.8,
+    "pressure_saida_graxa_04_bar": 146.5,
+    "peak_saida_graxa_01_bar": 102.3,
+    "peak_saida_graxa_02_bar": 108.1,
+    "peak_saida_graxa_03_bar": 9.2,
+    "peak_saida_graxa_04_bar": 181.2,
+    "min_saida_graxa_01_bar": 2.0,
+    "min_saida_graxa_02_bar": 2.0,
+    "min_saida_graxa_03_bar": 0.0,
+    "min_saida_graxa_04_bar": 4.0,
+    "rise_time_saida_graxa_01_sec": 3.2,
+    "rise_time_saida_graxa_02_sec": 3.5,
+    "rise_time_saida_graxa_03_sec": 8.9,
+    "rise_time_saida_graxa_04_sec": 2.1,
+    "decay_time_saida_graxa_01_sec": 4.8,
+    "decay_time_saida_graxa_02_sec": 5.1,
+    "decay_time_saida_graxa_03_sec": 2.4,
+    "decay_time_saida_graxa_04_sec": 18.6
+  },
+  "quality": {
+    "gateway": "io_link_gateway_01",
+    "sensor_range_bar": 250,
+    "source": "example_payload"
+  }
+}

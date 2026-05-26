@@ -11,12 +11,15 @@ requires-python = ">=3.11"
 dependencies = [
     "boto3>=1.34.0",
     "botocore>=1.34.0",
+    "fastapi>=0.110.0",
     "opcua>=0.98.13",
     "pandas>=2.2.0",
     "paho-mqtt>=2.0.0",
+    "pydantic>=2.0.0",
     "PyYAML>=6.0.1",
     "streamlit>=1.36.0",
     "streamlit-echarts>=0.4.0,<0.6.0",
+    "uvicorn[standard]>=0.29.0",
 ]
 
 [tool.setuptools.packages.find]

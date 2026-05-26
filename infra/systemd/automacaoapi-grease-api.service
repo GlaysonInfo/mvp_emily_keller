@@ -1,0 +1,15 @@
+[Unit]
+Description=AutomacaoAPI Grease Ingest API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ec2-user
+WorkingDirectory=/opt/automacaoapi
+EnvironmentFile=/opt/automacaoapi/.env
+ExecStart=/opt/automacaoapi/.venv/bin/python -m uvicorn src.api.grease_ingest_api:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
