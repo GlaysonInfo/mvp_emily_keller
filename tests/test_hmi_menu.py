@@ -25,10 +25,12 @@ def test_hmi_menu_config_exposes_operator_and_technical_modes() -> None:
     ]
     assert "Configuração de Campo — Lubrificação" in config["technical_pages"]
     assert "Eficiência da Lubrificação" in config["technical_pages"]
+    assert "Bancada Virtual — Lubrificação" in config["technical_pages"]
     assert "Modo Apresentação" not in config["technical_pages"]
 
 
 def test_default_technical_pages_keep_support_routes() -> None:
+    assert "Bancada Virtual — Lubrificação" in DEFAULT_TECH_PAGES
     assert "Matriz de Escalonamento" in DEFAULT_TECH_PAGES
     assert "Notification Outbox" in DEFAULT_TECH_PAGES
     assert "Teste ponta a ponta" in DEFAULT_TECH_PAGES

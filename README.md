@@ -959,6 +959,28 @@ Teste rápido sem hardware:
 python scripts\seed_lubrication_demo.py
 ```
 
+### Bancada Virtual — Lubrificação
+
+O menu técnico inclui `Bancada Virtual — Lubrificação` para simular sequências
+temporais antes de conectar sensores reais. Ela gera ciclos sucessivos, avalia
+cada payload pelo mesmo motor do `/grease/ingest` e, opcionalmente, grava o
+resultado no DynamoDB.
+
+Cenários disponíveis:
+
+- operação normal;
+- queda progressiva de pressão;
+- aumento progressivo de pressão;
+- entupimento parcial;
+- entupimento severo;
+- graxa contaminada/endurecida;
+- ausência completa de graxa na ponta;
+- pulso intermitente;
+- recuperação pós-manutenção.
+
+A tela mostra a prévia da sequência, o último ciclo, a curva pressão x tempo e
+o payload JSON que representa o envio do gateway.
+
 ### Eficiência da Lubrificação
 
 A navegação lateral também inclui `Eficiência da Lubrificação`, uma tela para

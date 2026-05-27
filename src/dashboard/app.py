@@ -33,6 +33,7 @@ try:
     from dashboard.lubrication.lubrication_ui import render_lubrication_page
     from dashboard.lubrication_efficiency.efficiency_ui import render_lubrication_efficiency_page
     from dashboard.lubrication_field.field_config_ui import render_lubrication_field_config_page
+    from dashboard.lubrication_virtual_bench.virtual_bench_ui import render_lubrication_virtual_bench_page
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alert_projection import alerts_for_state
     from src.dashboard.alerts_ui import render_alerts_center
@@ -57,6 +58,7 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.lubrication.lubrication_ui import render_lubrication_page
     from src.dashboard.lubrication_efficiency.efficiency_ui import render_lubrication_efficiency_page
     from src.dashboard.lubrication_field.field_config_ui import render_lubrication_field_config_page
+    from src.dashboard.lubrication_virtual_bench.virtual_bench_ui import render_lubrication_virtual_bench_page
 
 
 st.set_page_config(
@@ -771,6 +773,24 @@ def main() -> None:
         if auto_refresh:
             time.sleep(float(refresh_seconds))
             st.rerun()
+
+        st.stop()
+        return
+
+    elif page == "Bancada Virtual — Lubrificação":
+        try:
+            render_lubrication_virtual_bench_page(
+                os.getenv("LUBRICATION_CONFIG_PATH", "config/lubrication_pilot_config.json")
+            )
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar a bancada virtual de lubrificação: {exc}")
+            st.stop()
 
         st.stop()
         return
