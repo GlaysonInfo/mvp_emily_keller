@@ -23,6 +23,7 @@ DEFAULT_TECH_PAGES = [
     "Inteligência Operacional",
     "Sistema de Lubrificação",
     "Eficiência da Lubrificação",
+    "Eficiência da Lubrificação do Motor",
     "Bancada Virtual — Lubrificação",
     "Configuração de Campo — Lubrificação",
     "Alertas e Eventos",

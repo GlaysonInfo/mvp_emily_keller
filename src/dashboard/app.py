@@ -33,6 +33,7 @@ try:
     from dashboard.lubrication.lubrication_ui import render_lubrication_page
     from dashboard.lubrication_efficiency.efficiency_ui import render_lubrication_efficiency_page
     from dashboard.lubrication_field.field_config_ui import render_lubrication_field_config_page
+    from dashboard.lubrication_motor_efficiency.motor_efficiency_ui import render_motor_lubrication_efficiency_page
     from dashboard.lubrication_virtual_bench.virtual_bench_ui import render_lubrication_virtual_bench_page
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alert_projection import alerts_for_state
@@ -58,6 +59,7 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.lubrication.lubrication_ui import render_lubrication_page
     from src.dashboard.lubrication_efficiency.efficiency_ui import render_lubrication_efficiency_page
     from src.dashboard.lubrication_field.field_config_ui import render_lubrication_field_config_page
+    from src.dashboard.lubrication_motor_efficiency.motor_efficiency_ui import render_motor_lubrication_efficiency_page
     from src.dashboard.lubrication_virtual_bench.virtual_bench_ui import render_lubrication_virtual_bench_page
 
 
@@ -768,6 +770,30 @@ def main() -> None:
             st.stop()
         except ClientError as exc:
             st.error(f"Não foi possível carregar a eficiência da lubrificação: {exc}")
+            st.stop()
+
+        if auto_refresh:
+            time.sleep(float(refresh_seconds))
+            st.rerun()
+
+        st.stop()
+        return
+
+    elif page == "Eficiência da Lubrificação do Motor":
+        try:
+            render_motor_lubrication_efficiency_page(
+                tenant_id=tenant_id,
+                plant_id=plant_id,
+                config_path=os.getenv("LUBRICATION_CONFIG_PATH", "config/lubrication_pilot_config.json"),
+            )
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            st.error(f"Não foi possível carregar a eficiência da lubrificação do motor: {exc}")
             st.stop()
 
         if auto_refresh:

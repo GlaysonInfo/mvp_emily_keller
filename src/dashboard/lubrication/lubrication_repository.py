@@ -1,4 +1,5 @@
 
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 import os, boto3
@@ -39,6 +40,21 @@ class LubricationRepository:
     def list_cycles(self,tenant_id,asset_id,limit=50):
         resp=self.cycles_table.query(KeyConditionExpression=Key('tenant_asset').eq(self.tenant_asset(tenant_id,asset_id)),ScanIndexForward=False,Limit=limit)
         return [undec(i) for i in resp.get('Items',[])]
+    def update_cycle_dose(self,tenant_id,asset_id,cycle_timestamp,*,linked_asset_id,outlet_id,grease_amount_g,grease_type,cycle_interval_h):
+        result=self.cycles_table.update_item(
+            Key={'tenant_asset':self.tenant_asset(tenant_id,asset_id),'cycle_timestamp':cycle_timestamp},
+            UpdateExpression='SET linked_asset_id=:linked_asset_id, linked_outlet_id=:outlet_id, grease_amount_g=:amount, grease_type=:grease_type, cycle_interval_h=:interval, dose_recorded_at=:recorded_at',
+            ExpressionAttributeValues=dec({
+                ':linked_asset_id': linked_asset_id,
+                ':outlet_id': outlet_id,
+                ':amount': grease_amount_g,
+                ':grease_type': grease_type,
+                ':interval': cycle_interval_h,
+                ':recorded_at': datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+            }),
+            ReturnValues='ALL_NEW',
+        )
+        return undec(result.get('Attributes',{}))
     def list_alerts(self,tenant_id,asset_id):
         resp=self.alerts_table.query(KeyConditionExpression=Key('tenant_asset').eq(self.tenant_asset(tenant_id,asset_id)))
         return [undec(i) for i in resp.get('Items',[])]

@@ -55,6 +55,17 @@ def test_lubrication_efficiency_route_stops_before_other_pages() -> None:
     assert "return" in efficiency_route
 
 
+def test_motor_lubrication_efficiency_route_stops_before_other_pages() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    motor_efficiency_route = _route_block(source, "Eficiência da Lubrificação do Motor")
+
+    assert "render_motor_lubrication_efficiency_page(" in motor_efficiency_route
+    assert "render_lubrication_page(" not in motor_efficiency_route
+    assert "render_plant_overview" not in motor_efficiency_route
+    assert "st.stop()" in motor_efficiency_route
+    assert "return" in motor_efficiency_route
+
+
 def test_lubrication_virtual_bench_route_stops_before_other_pages() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
     bench_route = _route_block(source, "Bancada Virtual — Lubrificação")

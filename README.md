@@ -1016,6 +1016,30 @@ Esse vínculo permite iniciar a próxima etapa: comparar o marco zero e a respos
 do motor antes/depois dos ciclos de graxa para recomendar aumentar, manter ou
 reduzir a dose aplicada.
 
+### Eficiência da Lubrificação do Motor
+
+O menu técnico inclui `Eficiência da Lubrificação do Motor`, uma tela específica
+para clientes que possuem monitoramento do equipamento e lubrificação
+instrumentada.
+
+A tela usa:
+
+- vínculo `motor_cli01 -> saida_graxa_03`;
+- ciclos em `grease_lubrication_cycles`;
+- histórico do motor em `condition_history`;
+- estado atual em `mvp_asset_state_dev`.
+
+Abas disponíveis:
+
+- `Marco Zero`: primeiro ponto histórico usado como referência do motor;
+- `Ciclos de Graxa`: registro manual de gramas aplicadas, tipo de graxa e intervalo;
+- `Resposta do Motor`: comparação antes/depois do ciclo de lubrificação;
+- `Dose Recomendada`: recomendação inicial para aumentar, manter ou reduzir dose;
+- `Comparativo de Graxas`: ranking futuro por resposta média e dose média.
+
+Nesta etapa a recomendação é assistida: o técnico registra a dose e aprova
+qualquer alteração antes de mudar a prática de campo.
+
 ### Endpoint de Ingestão de Lubrificação
 
 O projeto também inclui uma API HTTP específica para receber ciclos reais da
