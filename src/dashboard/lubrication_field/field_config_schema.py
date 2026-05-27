@@ -21,6 +21,22 @@ class SensorOutletConfig:
 
 
 @dataclass
+class EquipmentLubricationLinkConfig:
+    asset_id: str
+    outlet_id: str
+    asset_name: str = ""
+    outlet_name: str = ""
+    link_id: str = ""
+    lubrication_system_id: str = "sistema_lubrificacao_01"
+    grease_type: str = ""
+    target_grease_g_per_cycle: float = 0
+    cycle_interval_h: float = 0
+    baseline_status: str = "marco_zero_pendente"
+    objective: str = ""
+    enabled: bool = True
+
+
+@dataclass
 class GatewayConfig:
     source_id: str = "grease_gateway_01"
     name: str = "Gateway IO-Link Lubrificação 01"

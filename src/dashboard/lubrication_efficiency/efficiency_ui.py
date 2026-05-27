@@ -15,6 +15,7 @@ except ImportError:  # pragma: no cover - supports local test imports.
     from src.dashboard.multiasset_repository import create_multiasset_repository_from_env
 
 from .efficiency_engine import calculate_lubrication_efficiency, equipment_rows
+from .equipment_links import enabled_equipment_links, equipment_link_rows, filter_linked_equipment_states
 
 
 def _outlet_rows(state: dict) -> list[dict]:
@@ -56,6 +57,7 @@ def render_lubrication_efficiency_page(
 
     config = load_lubrication_config(config_path)
     lubrication_asset_id = config.get("asset_id", "sistema_lubrificacao_01")
+    links = enabled_equipment_links(config)
 
     lubrication_repo = LubricationRepository()
     lubrication_state = lubrication_repo.get_state(tenant_id, lubrication_asset_id)
@@ -68,12 +70,13 @@ def render_lubrication_efficiency_page(
         for state in multi_repo.list_current_states(tenant_id=tenant_id, plant_id=plant_id)
         if state.get("asset_id") != lubrication_asset_id
     ]
+    linked_equipment_states = filter_linked_equipment_states(equipment_states, links)
 
     if not lubrication_state:
         st.warning("Ainda não há ciclo de lubrificação salvo para calcular eficiência.")
         return
 
-    summary = calculate_lubrication_efficiency(lubrication_state, equipment_states)
+    summary = calculate_lubrication_efficiency(lubrication_state, linked_equipment_states, links)
     _status_message(summary)
 
     col_score, col_outlets, col_equipment, col_anomaly = st.columns(4)
@@ -90,9 +93,16 @@ def render_lubrication_efficiency_page(
     st.subheader("Leitura operacional")
     st.info(summary["recommendation"])
 
-    tab_outlets, tab_equipment, tab_cycles, tab_alerts = st.tabs(
-        ["Saídas de Graxa", "Equipamentos", "Últimos Ciclos", "Alertas"]
+    tab_links, tab_outlets, tab_equipment, tab_cycles, tab_alerts = st.tabs(
+        ["Vínculos", "Saídas de Graxa", "Equipamentos", "Últimos Ciclos", "Alertas"]
     )
+
+    with tab_links:
+        link_rows = equipment_link_rows(links, equipment_states, lubrication_state)
+        if not link_rows:
+            st.info("Nenhum vínculo ativo entre equipamento monitorado e saída de graxa.")
+        else:
+            st.dataframe(pd.DataFrame(link_rows), use_container_width=True, hide_index=True)
 
     with tab_outlets:
         outlet_df = pd.DataFrame(_outlet_rows(lubrication_state))
@@ -102,9 +112,9 @@ def render_lubrication_efficiency_page(
             st.dataframe(outlet_df, use_container_width=True, hide_index=True)
 
     with tab_equipment:
-        equipment_df = pd.DataFrame(equipment_rows(equipment_states))
+        equipment_df = pd.DataFrame(equipment_rows(linked_equipment_states))
         if equipment_df.empty:
-            st.info("Nenhum equipamento correlacionado encontrado para esta planta.")
+            st.info("Nenhum estado atual encontrado para os equipamentos vinculados.")
         else:
             st.dataframe(equipment_df, use_container_width=True, hide_index=True)
 

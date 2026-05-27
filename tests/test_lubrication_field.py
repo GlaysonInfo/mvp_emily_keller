@@ -18,6 +18,17 @@ def test_field_config_example_is_valid() -> None:
 
     assert not [issue for issue in issues if issue["level"] == "ERRO"]
     assert config["ingest_api"]["endpoint"] == "https://sentinelaindustrial.com.br/grease/ingest"
+    assert config["equipment_links"][0]["asset_id"] == "motor_cli01"
+    assert config["equipment_links"][0]["outlet_id"] == "saida_graxa_03"
+
+
+def test_field_config_validates_equipment_link_outlet() -> None:
+    config = load_field_config("config/field_lubrication_config.example.json")
+    config["equipment_links"][0]["outlet_id"] = "saida_inexistente"
+
+    issues = validate_field_config(config)
+
+    assert any(issue["area"] == "Vínculos" and issue["level"] == "ERRO" for issue in issues)
 
 
 def test_curve_engine_builds_pressure_metrics() -> None:

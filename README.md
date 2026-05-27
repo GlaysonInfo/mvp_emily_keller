@@ -993,10 +993,28 @@ A tela cruza:
 - estado/ciclo atual em `grease_lubrication_state`;
 - últimos ciclos em `grease_lubrication_cycles`;
 - alertas ativos de lubrificação em `condition_alerts`.
+- vínculos de equipamento x saída configurados em `equipment_links`.
 
 O indicador combina pontuação das saídas de graxa, condição dos equipamentos e
 score de anomalia para mostrar eficiência, saídas afetadas, equipamentos
 correlacionados, recomendação operacional e tabelas de apoio.
+
+O primeiro vínculo do piloto completo é:
+
+```json
+{
+  "asset_id": "motor_cli01",
+  "asset_name": "Motor Cliente 01",
+  "outlet_id": "saida_graxa_03",
+  "target_grease_g_per_cycle": 12.0,
+  "cycle_interval_h": 24,
+  "baseline_status": "marco_zero_pendente"
+}
+```
+
+Esse vínculo permite iniciar a próxima etapa: comparar o marco zero e a resposta
+do motor antes/depois dos ciclos de graxa para recomendar aumentar, manter ou
+reduzir a dose aplicada.
 
 ### Endpoint de Ingestão de Lubrificação
 

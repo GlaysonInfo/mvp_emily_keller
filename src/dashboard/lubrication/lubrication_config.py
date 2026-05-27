@@ -12,6 +12,8 @@ def default_lubrication_config():
             {"outlet_id":"saida_graxa_02","name":"Saída de Graxa 02"},
             {"outlet_id":"saida_graxa_03","name":"Saída de Graxa 03"},
             {"outlet_id":"saida_graxa_04","name":"Saída de Graxa 04"}],
+        "equipment_links":[
+            {"link_id":"motor_cli01_saida_graxa_03","enabled":True,"asset_id":"motor_cli01","asset_name":"Motor Cliente 01","outlet_id":"saida_graxa_03","outlet_name":"Saída de Graxa 03","lubrication_system_id":"sistema_lubrificacao_01","grease_type":"Graxa especificada pelo cliente","target_grease_g_per_cycle":12.0,"cycle_interval_h":24,"baseline_status":"marco_zero_pendente","objective":"Encontrar a menor dose de graxa que mantenha o motor saudável pelo maior tempo possível."}],
         "rules":{"low_pressure_bar":10,"high_pressure_bar":160,"critical_pressure_bar":220,"max_rise_time_sec":10,"max_decay_time_sec":15,"pulse_min_delta_bar":8}}
 
 def load_lubrication_config(path=None):

@@ -114,6 +114,22 @@
       "enabled": true
     }
   ],
+  "equipment_links": [
+    {
+      "link_id": "motor_cli01_saida_graxa_03",
+      "enabled": true,
+      "asset_id": "motor_cli01",
+      "asset_name": "Motor Cliente 01",
+      "outlet_id": "saida_graxa_03",
+      "outlet_name": "Saída de Graxa 03",
+      "lubrication_system_id": "sistema_lubrificacao_01",
+      "grease_type": "Graxa especificada pelo cliente",
+      "target_grease_g_per_cycle": 12.0,
+      "cycle_interval_h": 24,
+      "baseline_status": "marco_zero_pendente",
+      "objective": "Encontrar a menor dose de graxa que mantenha o motor saudável pelo maior tempo possível."
+    }
+  ],
   "reporting": {
     "default_period_hours": 24,
     "include_raw_curve": true,

@@ -119,6 +119,7 @@ def equipment_condition_score(equipment_states: list[dict[str, Any]]) -> float:
 def calculate_lubrication_efficiency(
     lubrication_state: dict[str, Any],
     equipment_states: list[dict[str, Any]],
+    equipment_links: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     outlet_score = lubrication_outlet_score(lubrication_state)
     equipment_score = equipment_condition_score(equipment_states)
@@ -152,7 +153,7 @@ def calculate_lubrication_efficiency(
         "equipment_score": equipment_score,
         "anomaly_score": anomaly_score,
         "affected_outlets": affected_outlets,
-        "monitored_equipment": len(equipment_states),
+        "monitored_equipment": len(equipment_links) if equipment_links else len(equipment_states),
         "recommendation": recommendation,
     }
 

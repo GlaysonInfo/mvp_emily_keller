@@ -32,11 +32,12 @@ def render_lubrication_field_config_page(path: str = "config/field_lubrication_c
         with st.expander("Checklist da configuração de campo", expanded=True):
             st.dataframe(pd.DataFrame(issues), use_container_width=True, hide_index=True)
 
-    tab_general, tab_gateway, tab_outlets, tab_rules, tab_security, tab_report = st.tabs(
+    tab_general, tab_gateway, tab_outlets, tab_links, tab_rules, tab_security, tab_report = st.tabs(
         [
             "Sistema",
             "Gateway IO-Link",
             "Saídas/Sensores",
+            "Vínculos",
             "Regras e Baseline",
             "Segurança",
             "Relatórios",
@@ -119,6 +120,36 @@ def render_lubrication_field_config_page(path: str = "config/field_lubrication_c
         )
 
         config["outlets"] = edited.to_dict(orient="records")
+
+    with tab_links:
+        st.subheader("Vínculos entre equipamento e saída de graxa")
+        st.caption("Use para correlacionar resposta do motor, dose em gramas e saída de lubrificação.")
+        links = config.setdefault("equipment_links", [])
+
+        rows = []
+        for link in links:
+            rows.append({
+                "enabled": link.get("enabled", True),
+                "link_id": link.get("link_id"),
+                "asset_id": link.get("asset_id"),
+                "asset_name": link.get("asset_name"),
+                "outlet_id": link.get("outlet_id"),
+                "outlet_name": link.get("outlet_name"),
+                "grease_type": link.get("grease_type"),
+                "target_grease_g_per_cycle": link.get("target_grease_g_per_cycle"),
+                "cycle_interval_h": link.get("cycle_interval_h"),
+                "baseline_status": link.get("baseline_status"),
+                "objective": link.get("objective"),
+            })
+
+        edited_links = st.data_editor(
+            pd.DataFrame(rows),
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+        )
+
+        config["equipment_links"] = edited_links.to_dict(orient="records")
 
     with tab_rules:
         st.subheader("Regras iniciais e baseline")

@@ -74,4 +74,17 @@ def validate_field_config(config: dict[str, Any]) -> list[dict[str, str]]:
         if float(outlet.get("sensor_range_bar") or 0) < 160:
             issue("ATENÇÃO", "Sensor", f"{outlet.get('outlet_id')} com faixa de sensor baixa.", "Usar 0–250 bar no piloto, salvo justificativa técnica.")
 
+    outlet_ids = {outlet.get("outlet_id") for outlet in outlets}
+    for link in config.get("equipment_links", []) or []:
+        if not link.get("enabled", True):
+            continue
+        if not link.get("asset_id"):
+            issue("ERRO", "Vínculos", "Vínculo sem asset_id do equipamento.", "Preencher o equipamento monitorado.")
+        if link.get("outlet_id") not in outlet_ids:
+            issue("ERRO", "Vínculos", f"Vínculo aponta para saída inexistente: {link.get('outlet_id')}.", "Selecionar uma saída cadastrada.")
+        if float(link.get("target_grease_g_per_cycle") or 0) <= 0:
+            issue("ATENÇÃO", "Vínculos", f"{link.get('asset_id')} sem dose alvo em gramas.", "Informar dose inicial para análise de eficiência.")
+        if float(link.get("cycle_interval_h") or 0) <= 0:
+            issue("ATENÇÃO", "Vínculos", f"{link.get('asset_id')} sem intervalo de ciclo.", "Informar intervalo inicial de lubrificação.")
+
     return issues
