@@ -8,8 +8,10 @@ import streamlit as st
 
 
 DEFAULT_OPERATOR_PAGES = [
+    {"id": "condition_monitoring", "label": "Equipamentos", "route": "Monitoramento de Equipamentos"},
     {"id": "operator_home", "label": "Painel da Planta", "route": "Visão Geral da Planta"},
     {"id": "asset_detail", "label": "Equipamento", "route": "Detalhe do Ativo"},
+    {"id": "lubrication_operation", "label": "Operação Lub.", "route": "Operação de Lubrificação"},
     {"id": "lubrication", "label": "Lubrificação", "route": "Sistema de Lubrificação"},
     {"id": "lubrication_efficiency", "label": "Eficiência", "route": "Eficiência da Lubrificação"},
     {"id": "alerts", "label": "Alertas", "route": "Alertas e Eventos"},
@@ -18,9 +20,11 @@ DEFAULT_OPERATOR_PAGES = [
 ]
 
 DEFAULT_TECH_PAGES = [
+    "Monitoramento de Equipamentos",
     "Visão Geral da Planta",
     "Detalhe do Ativo",
     "Inteligência Operacional",
+    "Operação de Lubrificação",
     "Sistema de Lubrificação",
     "Eficiência da Lubrificação",
     "Eficiência da Lubrificação do Motor",
@@ -31,6 +35,9 @@ DEFAULT_TECH_PAGES = [
     "Notification Outbox",
     "Relatórios",
     "Configurações",
+    "Admin do Cliente",
+    "Admin da Plataforma",
+    "Arquitetura Modular",
     "Teste ponta a ponta",
 ]
 
@@ -77,11 +84,64 @@ def _normal_operator_pages(menu_config: dict[str, Any]) -> list[dict[str, str]]:
     return normalized
 
 
-def render_hmi_sidebar(config: dict | None = None, menu_config_path: str = "config/hmi_menu_config.json") -> dict[str, Any]:
+def _filter_operator_pages(pages: list[dict[str, str]], allowed_routes: list[str] | None) -> list[dict[str, str]]:
+    if allowed_routes is None:
+        return pages
+    allowed = set(allowed_routes)
+    return [page for page in pages if page["route"] in allowed]
+
+
+def _filter_technical_pages(pages: list[str], allowed_routes: list[str] | None) -> list[str]:
+    if allowed_routes is None:
+        return pages
+    allowed = set(allowed_routes)
+    return [page for page in pages if page in allowed]
+
+
+def _forced_mode_for_role(user_role: str | None) -> str | None:
+    role = (user_role or "").strip().lower()
+    if role == "operador":
+        return "operator"
+    if role in {"tecnico", "cliente_admin", "admin"}:
+        return "technical"
+    return None
+
+
+def _mode_caption_for_role(user_role: str | None, forced_mode: str) -> str:
+    role = (user_role or "").strip().lower()
+    if role == "cliente_admin":
+        return "Cliente Admin"
+    if role == "admin":
+        return "Admin Sentinela"
+    return "Operador" if forced_mode == "operator" else "Técnico"
+
+
+def _technical_navigation_label(user_role: str | None) -> str:
+    role = (user_role or "").strip().lower()
+    if role == "cliente_admin":
+        return "Administração do cliente"
+    if role == "admin":
+        return "Administração da plataforma"
+    return "Navegação técnica"
+
+
+def _is_administrative_role(user_role: str | None) -> bool:
+    return (user_role or "").strip().lower() in {"admin", "cliente_admin"}
+
+
+def render_hmi_sidebar(
+    config: dict | None = None,
+    menu_config_path: str = "config/hmi_menu_config.json",
+    allowed_routes: list[str] | None = None,
+    user_role: str | None = None,
+) -> dict[str, Any]:
     menu_config = load_hmi_menu_config(menu_config_path)
     config = config or {}
+    forced_mode = _forced_mode_for_role(user_role)
 
-    if "hmi_mode" not in st.session_state:
+    if forced_mode:
+        st.session_state["hmi_mode"] = forced_mode
+    elif "hmi_mode" not in st.session_state:
         st.session_state["hmi_mode"] = menu_config.get("default_mode", "operator")
     if "selected_asset_id" not in st.session_state:
         st.session_state["selected_asset_id"] = "motor_001"
@@ -91,19 +151,25 @@ def render_hmi_sidebar(config: dict | None = None, menu_config_path: str = "conf
     plant_name = _get(config, "plant", "plant_name", default="Bancada Virtual")
     st.sidebar.caption(f"Atual: {environment} - {plant_name}")
 
-    mode_choice = st.sidebar.radio(
-        "Modo",
-        ["Operador", "Técnico"],
-        index=0 if st.session_state["hmi_mode"] == "operator" else 1,
-        horizontal=True,
-        key="hmi_mode_radio",
-    )
-    st.session_state["hmi_mode"] = "operator" if mode_choice == "Operador" else "technical"
+    if forced_mode:
+        st.sidebar.markdown("Modo")
+        st.sidebar.caption(_mode_caption_for_role(user_role, forced_mode))
+    else:
+        mode_choice = st.sidebar.radio(
+            "Modo",
+            ["Operador", "Técnico"],
+            index=0 if st.session_state["hmi_mode"] == "operator" else 1,
+            horizontal=True,
+            key="hmi_mode_radio",
+        )
+        st.session_state["hmi_mode"] = "operator" if mode_choice == "Operador" else "technical"
 
     st.sidebar.divider()
 
     if st.session_state["hmi_mode"] == "operator":
-        page_map = _normal_operator_pages(menu_config)
+        page_map = _filter_operator_pages(_normal_operator_pages(menu_config), allowed_routes)
+        if not page_map:
+            page_map = [{"id": "no_access", "label": "Sem páginas", "route": "Acesso indisponível"}]
         labels = [item["label"] for item in page_map]
         pending_label = st.session_state.pop(PENDING_OPERATOR_PAGE_KEY, None)
         if pending_label in labels:
@@ -119,30 +185,38 @@ def render_hmi_sidebar(config: dict | None = None, menu_config_path: str = "conf
     else:
         technical_pages = menu_config.get("technical_pages") or DEFAULT_TECH_PAGES
         technical_pages = [str(page) for page in technical_pages if str(page) != "Modo Apresentação"]
+        technical_pages = _filter_technical_pages(technical_pages, allowed_routes)
+        if not technical_pages:
+            technical_pages = ["Acesso indisponível"]
         pending_page = st.session_state.pop(PENDING_TECHNICAL_PAGE_KEY, None)
         if pending_page in technical_pages:
             st.session_state["hmi_technical_page"] = pending_page
         if st.session_state.get("hmi_technical_page") not in technical_pages:
             st.session_state["hmi_technical_page"] = technical_pages[0]
-        page = st.sidebar.radio("Navegação técnica", technical_pages, key="hmi_technical_page")
+        page = st.sidebar.radio(_technical_navigation_label(user_role), technical_pages, key="hmi_technical_page")
         visible_label = page
-        auto_refresh = st.sidebar.checkbox("Auto-refresh", value=True, key="auto_refresh")
-        refresh_interval = int(
-            st.sidebar.number_input("Intervalo em segundos", min_value=2, max_value=60, value=5, step=1)
-        )
+        if _is_administrative_role(user_role):
+            auto_refresh = False
+            refresh_interval = 5
+        else:
+            auto_refresh = st.sidebar.checkbox("Auto-refresh", value=True, key="auto_refresh")
+            refresh_interval = int(
+                st.sidebar.number_input("Intervalo em segundos", min_value=2, max_value=60, value=5, step=1)
+            )
 
-    st.sidebar.divider()
-    st.sidebar.markdown("### Equipamento")
-    st.sidebar.markdown(f"Selecionado: `{st.session_state['selected_asset_id']}`")
+    if not _is_administrative_role(user_role):
+        st.sidebar.divider()
+        st.sidebar.markdown("### Equipamento")
+        st.sidebar.markdown(f"Selecionado: `{st.session_state['selected_asset_id']}`")
 
-    col_update, col_change = st.sidebar.columns(2)
-    with col_update:
-        if st.button("Atualizar", type="primary", use_container_width=True):
-            st.rerun()
-    with col_change:
-        if st.button("Trocar", use_container_width=True):
-            set_operator_page_for_route("Visão Geral da Planta")
-            st.rerun()
+        col_update, col_change = st.sidebar.columns(2)
+        with col_update:
+            if st.button("Atualizar", type="primary", use_container_width=True):
+                st.rerun()
+        with col_change:
+            if st.button("Trocar", use_container_width=True):
+                set_operator_page_for_route("Visão Geral da Planta")
+                st.rerun()
 
     if st.session_state["hmi_mode"] == "operator":
         st.sidebar.caption("Tela simplificada para operação de campo.")

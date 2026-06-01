@@ -61,7 +61,7 @@ def render_downloads(rows: list[dict[str, Any]], report_name: str) -> None:
         file_name=download_name(report_name, "csv"),
         mime="text/csv",
         disabled=not rows,
-        use_container_width=True,
+        width="stretch",
     )
     c2.download_button(
         "Exportar TXT",
@@ -69,7 +69,7 @@ def render_downloads(rows: list[dict[str, Any]], report_name: str) -> None:
         file_name=download_name(report_name, "txt"),
         mime="text/plain",
         disabled=not rows,
-        use_container_width=True,
+        width="stretch",
     )
 
 
@@ -78,7 +78,7 @@ def render_report_preview(rows: list[dict[str, Any]]) -> None:
         st.info("Nenhum dado encontrado para este relatório.")
         return
 
-    st.dataframe(rows, use_container_width=True, hide_index=True)
+    st.dataframe(rows, width="stretch", hide_index=True)
 
 
 def asset_selectbox(states: list[dict[str, Any]], selected_asset_id: str, *, include_all: bool = False) -> str:

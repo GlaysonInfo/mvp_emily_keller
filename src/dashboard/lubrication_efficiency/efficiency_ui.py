@@ -102,21 +102,21 @@ def render_lubrication_efficiency_page(
         if not link_rows:
             st.info("Nenhum vínculo ativo entre equipamento monitorado e saída de graxa.")
         else:
-            st.dataframe(pd.DataFrame(link_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(link_rows), width="stretch", hide_index=True)
 
     with tab_outlets:
         outlet_df = pd.DataFrame(_outlet_rows(lubrication_state))
         if outlet_df.empty:
             st.info("Nenhuma saída encontrada no ciclo atual.")
         else:
-            st.dataframe(outlet_df, use_container_width=True, hide_index=True)
+            st.dataframe(outlet_df, width="stretch", hide_index=True)
 
     with tab_equipment:
         equipment_df = pd.DataFrame(equipment_rows(linked_equipment_states))
         if equipment_df.empty:
             st.info("Nenhum estado atual encontrado para os equipamentos vinculados.")
         else:
-            st.dataframe(equipment_df, use_container_width=True, hide_index=True)
+            st.dataframe(equipment_df, width="stretch", hide_index=True)
 
     with tab_cycles:
         cycle_rows = [
@@ -132,7 +132,7 @@ def render_lubrication_efficiency_page(
             }
             for cycle in cycles
         ]
-        st.dataframe(pd.DataFrame(cycle_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(cycle_rows), width="stretch", hide_index=True)
 
     with tab_alerts:
         alert_rows = [
@@ -147,4 +147,4 @@ def render_lubrication_efficiency_page(
         if not alert_rows:
             st.success("Nenhum alerta ativo de lubrificação.")
         else:
-            st.dataframe(pd.DataFrame(alert_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(alert_rows), width="stretch", hide_index=True)

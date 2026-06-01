@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+# Áreas de acesso/login não devem ser indexadas (use noindex + autenticação;
+# robots.txt sozinho NÃO impede aparecer na busca).
+Disallow: /acesso/
+
+Sitemap: https://sentinelaindustrial.com.br/sitemap.xml

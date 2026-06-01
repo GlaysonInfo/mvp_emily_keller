@@ -1,0 +1,47 @@
+name: deploy-site
+
+# Publica a vitrine estática (site/) em S3 + CloudFront usando OIDC (sem
+# segredos de longa duração). Configure no repositório/ambiente as variáveis:
+#   AWS_ROLE_ARN, AWS_REGION, SITE_BUCKET, CF_DISTRIBUTION_ID
+# (saídas dos módulos infra/github-oidc e infra/site).
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/deploy-site.yml"]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # necessário para o OIDC
+  contents: read
+
+concurrency:
+  group: deploy-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production   # exige aprovação se houver protection rule
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciais AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Sincronizar site com o S3
+        run: |
+          aws s3 sync site/ "s3://${{ vars.SITE_BUCKET }}/" \
+            --delete \
+            --exclude "README.md" \
+            --cache-control "public, max-age=300"
+
+      - name: Invalidar cache do CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CF_DISTRIBUTION_ID }}" \
+            --paths "/*"

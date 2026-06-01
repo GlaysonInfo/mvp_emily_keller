@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Acesso ao Sistema | Sentinela Industrial</title>
+  <meta name="description" content="Hub de acesso ao sistema Sentinela Industrial por perfil." />
+  <!-- Área de acesso NÃO deve ser indexada -->
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="/">Sentinela<span>Industrial</span></a>
+      <nav class="nav-links">
+        <a class="btn btn-ghost" href="/">Voltar ao site</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container access-wrap">
+      <h1>Acesso ao Sistema</h1>
+      <p class="lead">Escolha o tipo de acesso. A autenticação é feita com segurança pelo provedor de identidade (AWS Cognito) e o acesso é controlado por perfil.</p>
+
+      <div class="access-card">
+        <span class="badge">Área de Clientes</span>
+        <h3>Operador</h3>
+        <p>Acesso à operação diária dos serviços contratados, status da planta, alertas, relatórios e ações recomendadas.</p>
+        <p class="access-action">
+          <a class="btn btn-primary" data-app-link data-local-target="http://127.0.0.1:8502/" href="https://app.sentinelaindustrial.com.br/">Entrar como Operador</a>
+        </p>
+      </div>
+
+      <div class="access-card">
+        <span class="badge">Área de Clientes</span>
+        <h3>Técnico</h3>
+        <p>Acesso técnico para configuração de campo, validação de sinais, regras, escalonamento e análise operacional.</p>
+        <p class="access-action">
+          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8503/" href="https://app.sentinelaindustrial.com.br/">Entrar como Técnico</a>
+        </p>
+      </div>
+
+      <div class="access-card">
+        <span class="badge">Administração do Cliente</span>
+        <h3>Cliente Admin</h3>
+        <p>Gestão do próprio tenant: plantas, usuários, serviços contratados e configurações locais do cliente.</p>
+        <p class="access-action">
+          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8505/" href="https://app.sentinelaindustrial.com.br/">Entrar como Cliente Admin</a>
+        </p>
+      </div>
+
+      <div class="access-card">
+        <span class="badge">Administração da Plataforma</span>
+        <h3>Admin do Sistema</h3>
+        <p>Gestão da plataforma, clientes (tenants), usuários e parâmetros globais.</p>
+        <p class="access-action">
+          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8504/" href="https://app.sentinelaindustrial.com.br/">Entrar como Admin</a>
+        </p>
+      </div>
+
+      <div class="access-card" id="local-auth-preview" hidden>
+        <span class="badge">Prévia local</span>
+        <h3>Perfis simulados</h3>
+        <p>Use estes acessos apenas no ambiente local para validar a separação real de menus e permissões antes do Cognito.</p>
+        <p class="access-action access-actions">
+          <a class="btn btn-primary" href="http://127.0.0.1:8502/">Operador</a>
+          <a class="btn btn-ghost" href="http://127.0.0.1:8503/">Técnico</a>
+          <a class="btn btn-ghost" href="http://127.0.0.1:8505/">Cliente Admin</a>
+          <a class="btn btn-ghost" href="http://127.0.0.1:8504/">Admin</a>
+        </p>
+      </div>
+
+      <p class="access-help">Problemas para entrar? Fale com o administrador da plataforma.</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p><a href="/">Sentinela Industrial</a> &middot; <a href="/contato/">Contato</a> &middot; <a href="/privacidade/">Privacidade</a> &middot; <a href="/cookies/">Cookies</a> &middot; <a href="/termos/">Termos</a></p>
+    </div>
+  </footer>
+  <script>
+    (() => {
+      const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+      document.querySelectorAll("[data-app-link]").forEach((link) => {
+        if (localHosts.has(window.location.hostname) && link.dataset.localTarget) {
+          link.href = link.dataset.localTarget;
+        } else {
+          link.href = "https://app.sentinelaindustrial.com.br/";
+        }
+      });
+      const preview = document.getElementById("local-auth-preview");
+      if (preview && localHosts.has(window.location.hostname)) {
+        preview.hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>

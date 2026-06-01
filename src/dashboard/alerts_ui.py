@@ -6,7 +6,8 @@ import pandas as pd
 import streamlit as st
 
 try:
-    from dashboard.alerts_repository import AlertsRepository
+    from dashboard.alerts_repository import AlertsRepository, create_alerts_repository_from_env
+    from dashboard.audit_events import record_sensitive_action
     from dashboard.escalation_engine import (
         apply_escalation_rule,
         escalation_matrix_rows as engine_escalation_matrix_rows,
@@ -16,7 +17,8 @@ try:
     )
     from dashboard.escalation_repository import DEFAULT_ESCALATION_DATA, EscalationRepository, normalize_escalation_data
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
-    from src.dashboard.alerts_repository import AlertsRepository
+    from src.dashboard.alerts_repository import AlertsRepository, create_alerts_repository_from_env
+    from src.dashboard.audit_events import record_sensitive_action
     from src.dashboard.escalation_engine import (
         apply_escalation_rule,
         escalation_matrix_rows as engine_escalation_matrix_rows,
@@ -244,7 +246,7 @@ def render_operational_status(df: pd.DataFrame) -> None:
 
 def render_escalation_matrix(escalation_data: dict[str, Any]) -> None:
     with st.expander("Matriz de escalonamento de alertas", expanded=True):
-        st.dataframe(escalation_matrix_rows(escalation_data), use_container_width=True, hide_index=True)
+        st.dataframe(escalation_matrix_rows(escalation_data), width="stretch", hide_index=True)
 
 
 def render_cards(df: pd.DataFrame) -> None:
@@ -304,7 +306,7 @@ def render_detail(repo: AlertsRepository, df: pd.DataFrame) -> None:
     with st.expander("Timeline do evento", expanded=False):
         timeline = full.get("timeline", [])
         if timeline:
-            st.dataframe(pd.DataFrame(timeline), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(timeline), width="stretch", hide_index=True)
         else:
             st.info("Sem timeline registrada.")
 
@@ -320,7 +322,7 @@ def render_detail(repo: AlertsRepository, df: pd.DataFrame) -> None:
         ok = st.form_submit_button(
             "Registrar atualização do evento",
             type="primary",
-            use_container_width=True,
+            width="stretch",
         )
 
     if ok:
@@ -333,6 +335,18 @@ def render_detail(repo: AlertsRepository, df: pd.DataFrame) -> None:
             action,
             pk=str(row["pk"]) if row.get("pk") else None,
             sk=str(row["sk"]) if row.get("sk") else None,
+        )
+        record_sensitive_action(
+            "alert.update_status",
+            target=str(row["alert_key"]),
+            tenant_id=str(row["tenant_asset"]).split("#", 1)[0],
+            details={
+                "tenant_asset": str(row["tenant_asset"]),
+                "new_status": new_status,
+                "responsavel": user,
+                "asset_id": row.get("asset_id"),
+                "metric": row.get("metric"),
+            },
         )
         st.success(f"Evento atualizado para {STATUS_PT.get(new_status, new_status)}.")
         st.rerun()
@@ -377,6 +391,18 @@ def render_manual_alert(repo: AlertsRepository, tenant_id: str, plant_id: str, a
                 user,
                 note,
             )
+            record_sensitive_action(
+                "alert.create_manual",
+                target=f"{asset_id}#{metric}",
+                tenant_id=tenant_id,
+                details={
+                    "plant_id": plant_id,
+                    "asset_id": asset_id,
+                    "severity": severity,
+                    "metric": metric,
+                    "created_by": user,
+                },
+            )
             st.success("Evento manual criado.")
             st.rerun()
 
@@ -390,7 +416,7 @@ def render_alerts_center(
     st.header("Central de Alertas e Eventos")
     st.caption("Detectar -> registrar -> reconhecer ciência -> tratar -> resolver -> fechar -> auditar.")
     assets = assets or []
-    repo = AlertsRepository()
+    repo = create_alerts_repository_from_env()
     escalation_data = EscalationRepository().load()
 
     asset_options = ["Todos"] + [
@@ -452,7 +478,7 @@ def render_alerts_center(
                 "ativos_distintos",
             ]
         ]
-        st.dataframe(summary, use_container_width=True, hide_index=True)
+        st.dataframe(summary, width="stretch", hide_index=True)
 
     st.divider()
     render_detail(repo, df)
@@ -476,7 +502,7 @@ def render_alerts_center(
         "last_note",
         "last_action_taken",
     ]
-    st.dataframe(df[[column for column in columns if column in df.columns]], use_container_width=True, hide_index=True)
+    st.dataframe(df[[column for column in columns if column in df.columns]], width="stretch", hide_index=True)
 
     c1, c2 = st.columns(2)
     c1.download_button(
@@ -484,14 +510,14 @@ def render_alerts_center(
         data=csv_bytes(df),
         file_name="alertas_eventos.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
     c2.download_button(
         "Exportar TXT",
         data=txt_bytes(df),
         file_name="alertas_eventos.txt",
         mime="text/plain",
-        use_container_width=True,
+        width="stretch",
     )
 
     render_manual_alert(repo, tenant_id, plant_id, assets)

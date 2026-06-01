@@ -6,11 +6,13 @@ from botocore.exceptions import ClientError
 
 try:
     from dashboard.alerts_repository import AlertsRepository
+    from dashboard.audit_events import record_sensitive_action
     from dashboard.escalation_repository import EscalationRepository
     from dashboard.notification_outbox_engine import build_outbox_items, outbox_kpis
     from dashboard.notification_outbox_repository import NotificationOutboxRepository
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alerts_repository import AlertsRepository
+    from src.dashboard.audit_events import record_sensitive_action
     from src.dashboard.escalation_repository import EscalationRepository
     from src.dashboard.notification_outbox_engine import build_outbox_items, outbox_kpis
     from src.dashboard.notification_outbox_repository import NotificationOutboxRepository
@@ -66,14 +68,26 @@ def render_notification_outbox_page(
 
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Gerar/atualizar fila de notificações", type="primary", use_container_width=True):
+        if st.button("Gerar/atualizar fila de notificações", type="primary", width="stretch"):
             added, skipped = outbox_repo.add_pending(pending_candidates)
+            record_sensitive_action(
+                "notification_outbox.generate",
+                target=f"{tenant_id}#{plant_id}",
+                tenant_id=tenant_id,
+                details={"added": added, "skipped": skipped, "candidates": len(pending_candidates)},
+            )
             st.success(f"{added} notificação(ões) adicionada(s). {skipped} duplicada(s) ignorada(s).")
             st.rerun()
 
     with c2:
-        if st.button("Processar em dry-run", use_container_width=True):
+        if st.button("Processar em dry-run", width="stretch"):
             processed = outbox_repo.mark_dry_run_processed()
+            record_sensitive_action(
+                "notification_outbox.process_dry_run",
+                target=f"{tenant_id}#{plant_id}",
+                tenant_id=tenant_id,
+                details={"processed": processed},
+            )
             st.success(f"{processed} notificação(ões) processada(s) em dry-run.")
             st.rerun()
 
@@ -81,6 +95,6 @@ def render_notification_outbox_page(
     if items:
         status = st.selectbox("Status da fila", ["Todos", "pending", "dry_run", "dry_run_processed"])
         visible = outbox_repo.items(status)
-        st.dataframe(pd.DataFrame(_rows(visible)), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(_rows(visible)), width="stretch", hide_index=True)
     else:
         st.info("A fila ainda está vazia.")

@@ -9,10 +9,12 @@ import streamlit as st
 
 try:
     from dashboard.alerts_repository import AlertsRepository
+    from dashboard.audit_events import record_sensitive_action
     from dashboard.escalation_engine import escalation_matrix_rows, simulate_alerts
     from dashboard.escalation_repository import EscalationRepository
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alerts_repository import AlertsRepository
+    from src.dashboard.audit_events import record_sensitive_action
     from src.dashboard.escalation_engine import escalation_matrix_rows, simulate_alerts
     from src.dashboard.escalation_repository import EscalationRepository
 
@@ -54,6 +56,7 @@ def restore_default_matrix(repo: EscalationRepository) -> None:
 
     data = json.loads(default_path.read_text(encoding="utf-8"))
     repo.save(data)
+    record_sensitive_action("escalation.restore_default", target=str(repo.path))
     st.success("Matriz de escalonamento restaurada para o padrão seguro.")
     st.rerun()
 
@@ -63,12 +66,12 @@ def render_rules_tab(repo: EscalationRepository, data: dict[str, Any]) -> None:
 
     c_restore, c_hint = st.columns([1, 3])
     with c_restore:
-        if st.button("Restaurar padrão seguro", use_container_width=True):
+        if st.button("Restaurar padrão seguro", width="stretch"):
             restore_default_matrix(repo)
     with c_hint:
         st.caption("Padrão seguro: ATENÇÃO apenas no dashboard; ALERTA/CRÍTICO podem acionar canais externos.")
 
-    st.dataframe(escalation_matrix_rows(data), use_container_width=True, hide_index=True)
+    st.dataframe(escalation_matrix_rows(data), width="stretch", hide_index=True)
 
     rules = data.get("rules", [])
     channels = data.get("channels", [])
@@ -147,7 +150,7 @@ def render_rules_tab(repo: EscalationRepository, data: dict[str, Any]) -> None:
                 value=str(rule.get("message_template") or "{status_label} - {asset_name}: {metric_label}={value}."),
             )
             description = st.text_area("Descrição da regra", value=str(rule.get("description") or ""))
-            submitted = st.form_submit_button("Salvar regra", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Salvar regra", type="primary", width="stretch")
 
         if submitted:
             repo.upsert_rule(
@@ -172,6 +175,16 @@ def render_rules_tab(repo: EscalationRepository, data: dict[str, Any]) -> None:
                 },
                 data,
             )
+            record_sensitive_action(
+                "escalation.save_rule",
+                target=str(selected_rule_id),
+                details={
+                    "enabled": enabled,
+                    "channels": selected_channels,
+                    "groups": selected_groups,
+                    "notify_statuses": notify_statuses,
+                },
+            )
             st.success("Regra salva.")
             st.rerun()
 
@@ -191,7 +204,7 @@ def render_groups_tab(repo: EscalationRepository, data: dict[str, Any]) -> None:
         }
         for group in groups
     ]
-    st.dataframe(rows, use_container_width=True, hide_index=True)
+    st.dataframe(rows, width="stretch", hide_index=True)
 
     if not groups:
         return
@@ -218,7 +231,7 @@ def render_groups_tab(repo: EscalationRepository, data: dict[str, Any]) -> None:
                 value=_contacts_text(group.get("contacts", [])),
                 help="Use uma linha por contato no formato: nome;função;canal",
             )
-            submitted = st.form_submit_button("Salvar grupo", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Salvar grupo", type="primary", width="stretch")
 
         if submitted:
             repo.upsert_contact_group(
@@ -234,6 +247,11 @@ def render_groups_tab(repo: EscalationRepository, data: dict[str, Any]) -> None:
                     "contacts": _parse_contacts(contacts),
                 },
                 data,
+            )
+            record_sensitive_action(
+                "escalation.save_group",
+                target=str(selected_group_id),
+                details={"name": name, "contacts_count": len(_parse_contacts(contacts))},
             )
             st.success("Grupo salvo.")
             st.rerun()
@@ -253,7 +271,7 @@ def render_channels_tab(repo: EscalationRepository, data: dict[str, Any]) -> Non
         }
         for channel in channels
     ]
-    st.dataframe(rows, use_container_width=True, hide_index=True)
+    st.dataframe(rows, width="stretch", hide_index=True)
 
     if not channels:
         return
@@ -282,7 +300,7 @@ def render_channels_tab(repo: EscalationRepository, data: dict[str, Any]) -> Non
                 value=str(channel.get("bot_token_ref") or channel.get("token_ref") or channel.get("smtp_ref") or ""),
             )
             description = st.text_area("Descrição", value=str(channel.get("description") or ""))
-            submitted = st.form_submit_button("Salvar canal", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Salvar canal", type="primary", width="stretch")
 
         if submitted:
             ref_key = "bot_token_ref" if selected_channel_id == "telegram" else "token_ref"
@@ -299,6 +317,11 @@ def render_channels_tab(repo: EscalationRepository, data: dict[str, Any]) -> Non
                     "description": description,
                 },
                 data,
+            )
+            record_sensitive_action(
+                "escalation.save_channel",
+                target=str(selected_channel_id),
+                details={"enabled": enabled, "configured": configured, "secret_ref_set": bool(secret_ref)},
             )
             st.success("Canal salvo.")
             st.rerun()
@@ -344,7 +367,7 @@ def render_simulation_tab(
         for decision in decisions
     ]
     df = pd.DataFrame(rows)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width="stretch", hide_index=True)
 
     escalations = int(df["deve_escalar"].sum()) if not df.empty else 0
     repeats = int(df["deve_repetir"].sum()) if not df.empty else 0

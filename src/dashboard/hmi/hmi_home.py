@@ -68,7 +68,7 @@ def render_operator_home(current_states: list[dict] | None = None) -> None:
             col1.caption(f"{area} | {status} | {mode}")
             col2.metric("Saúde", state.get("health_score", "-"))
             col3.metric("Gravidade", state.get("severity_score", "-"))
-            if st.button("Abrir equipamento", key=f"open_asset_{state.get('asset_id')}", use_container_width=True):
+            if st.button("Abrir equipamento", key=f"open_asset_{state.get('asset_id')}", width="stretch"):
                 st.session_state["selected_asset_id"] = state.get("asset_id")
                 set_operator_page_for_route("Detalhe do Ativo")
                 st.rerun()

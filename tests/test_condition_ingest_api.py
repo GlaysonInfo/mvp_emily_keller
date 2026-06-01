@@ -74,6 +74,16 @@ def test_condition_ingest_requires_token_when_configured(monkeypatch) -> None:
     assert response.status_code == 401
 
 
+def test_condition_ingest_fails_closed_without_token(monkeypatch) -> None:
+    # Sem token configurado e com a exigência padrão (fail-closed) -> 503.
+    monkeypatch.delenv("CONDITION_INGEST_TOKEN", raising=False)
+    monkeypatch.delenv("CONDITION_REQUIRE_TOKEN", raising=False)
+
+    response = TestClient(app).post("/condition/ingest", json=_payload())
+
+    assert response.status_code == 503
+
+
 def test_condition_ingest_accepts_valid_payload(monkeypatch) -> None:
     monkeypatch.setenv("CONDITION_INGEST_TOKEN", "token_do_piloto")
 
@@ -99,7 +109,7 @@ def test_condition_ingest_accepts_valid_payload(monkeypatch) -> None:
 
     response = TestClient(app).post(
         "/condition/ingest",
-        headers={"X-API-Key": "token_do_piloto", "X-Forwarded-For": "198.51.100.20, 127.0.0.1"},
+        headers={"X-API-Key": "token_do_piloto", "X-Trusted-Client-IP": "198.51.100.20"},
         json=_payload(),
     )
 
@@ -108,8 +118,28 @@ def test_condition_ingest_accepts_valid_payload(monkeypatch) -> None:
     assert response.json()["status_label"] == "CRÍTICO"
 
 
+def test_condition_ingest_does_not_trust_forwarded_for_by_default(monkeypatch) -> None:
+    monkeypatch.setenv("CONDITION_INGEST_TOKEN", "token_do_piloto")
+    monkeypatch.setenv("CONDITION_ALLOWED_SOURCE_IPS", "198.51.100.0/24")
+    monkeypatch.delenv("CONDITION_TRUST_X_FORWARDED_FOR", raising=False)
+
+    response = TestClient(app).post(
+        "/condition/ingest",
+        headers={
+            "X-API-Key": "token_do_piloto",
+            "X-Forwarded-For": "198.51.100.20",
+        },
+        json=_payload(),
+    )
+
+    assert response.status_code == 403
+
+
 def test_condition_ingest_rejects_duplicate_metrics(monkeypatch) -> None:
+    # Sem token configurado: para validar o corpo (422), desliga a exigência
+    # de token (fail-closed) neste caso específico.
     monkeypatch.delenv("CONDITION_INGEST_TOKEN", raising=False)
+    monkeypatch.setenv("CONDITION_REQUIRE_TOKEN", "false")
     payload = _payload()
     payload["metrics"].append({"name": "rpm", "value": 1780.0, "unit": "rpm"})
 
@@ -137,6 +167,7 @@ def test_process_condition_ingest_saves_state_history_and_alerts(monkeypatch) ->
     state_item = fake_resource.tables["mvp_asset_state_dev"].put_items[0]
     assert state_item["pk"] == "TENANT#cliente_demo#ASSET#motor_001"
     assert state_item["sk"] == "LATEST"
+    assert state_item["tenant_plant"] == "cliente_demo#lab_virtual"
     assert state_item["status_label"] == "CRÍTICO"
     assert state_item["health_score"].as_tuple()
 
@@ -146,5 +177,6 @@ def test_process_condition_ingest_saves_state_history_and_alerts(monkeypatch) ->
 
     alert_item = fake_resource.tables["condition_alerts"].put_items[0]
     assert alert_item["tenant_asset"] == "cliente_demo#motor_001"
+    assert alert_item["tenant_plant"] == "cliente_demo#lab_virtual"
     assert alert_item["alert_key"] == "open#condition#imbalance"
     assert alert_item["status_label"] == "CRÍTICO"

@@ -3,7 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 
 from src.dashboard.hmi.hmi_labels import operator_status_label
-from src.dashboard.hmi.hmi_sidebar import DEFAULT_TECH_PAGES, load_hmi_menu_config
+from src.dashboard.hmi.hmi_sidebar import (
+    DEFAULT_OPERATOR_PAGES,
+    DEFAULT_TECH_PAGES,
+    _filter_operator_pages,
+    _filter_technical_pages,
+    _forced_mode_for_role,
+    _is_administrative_role,
+    _mode_caption_for_role,
+    _technical_navigation_label,
+    load_hmi_menu_config,
+)
 
 
 HMI_SIDEBAR_SOURCE = Path("src/dashboard/hmi/hmi_sidebar.py")
@@ -15,8 +25,10 @@ def test_hmi_menu_config_exposes_operator_and_technical_modes() -> None:
     operator_labels = [item["label"] for item in config["operator_pages"]]
 
     assert operator_labels == [
+        "Equipamentos",
         "Painel da Planta",
         "Equipamento",
+        "Operação Lub.",
         "Lubrificação",
         "Eficiência",
         "Alertas",
@@ -31,10 +43,15 @@ def test_hmi_menu_config_exposes_operator_and_technical_modes() -> None:
 
 
 def test_default_technical_pages_keep_support_routes() -> None:
+    assert "Monitoramento de Equipamentos" in DEFAULT_TECH_PAGES
+    assert "Operação de Lubrificação" in DEFAULT_TECH_PAGES
     assert "Eficiência da Lubrificação do Motor" in DEFAULT_TECH_PAGES
     assert "Bancada Virtual — Lubrificação" in DEFAULT_TECH_PAGES
     assert "Matriz de Escalonamento" in DEFAULT_TECH_PAGES
     assert "Notification Outbox" in DEFAULT_TECH_PAGES
+    assert "Admin do Cliente" in DEFAULT_TECH_PAGES
+    assert "Admin da Plataforma" in DEFAULT_TECH_PAGES
+    assert "Arquitetura Modular" in DEFAULT_TECH_PAGES
     assert "Teste ponta a ponta" in DEFAULT_TECH_PAGES
 
 
@@ -50,3 +67,48 @@ def test_operator_route_changes_are_applied_before_sidebar_widget_is_created() -
     assert "st.session_state[PENDING_OPERATOR_PAGE_KEY] = label" in setter_body
     assert 'st.session_state["hmi_operator_page"] = label' not in setter_body
     assert "pending_label = st.session_state.pop(PENDING_OPERATOR_PAGE_KEY, None)" in source
+
+
+def test_sidebar_pages_can_be_filtered_by_allowed_routes() -> None:
+    allowed_routes = [
+        "Visão Geral da Planta",
+        "Operação de Lubrificação",
+        "Sistema de Lubrificação",
+        "Configurações",
+    ]
+
+    operator_pages = _filter_operator_pages(DEFAULT_OPERATOR_PAGES, allowed_routes)
+    technical_pages = _filter_technical_pages(DEFAULT_TECH_PAGES, allowed_routes)
+
+    assert [page["route"] for page in operator_pages] == [
+        "Visão Geral da Planta",
+        "Operação de Lubrificação",
+        "Sistema de Lubrificação",
+    ]
+    assert technical_pages == [
+        "Visão Geral da Planta",
+        "Operação de Lubrificação",
+        "Sistema de Lubrificação",
+        "Configurações",
+    ]
+
+
+def test_authenticated_roles_force_expected_sidebar_mode() -> None:
+    assert _forced_mode_for_role("operador") == "operator"
+    assert _forced_mode_for_role("tecnico") == "technical"
+    assert _forced_mode_for_role("cliente_admin") == "technical"
+    assert _forced_mode_for_role("admin") == "technical"
+    assert _forced_mode_for_role(None) is None
+
+
+def test_authenticated_admin_roles_use_specific_sidebar_labels() -> None:
+    assert _mode_caption_for_role("cliente_admin", "technical") == "Cliente Admin"
+    assert _mode_caption_for_role("admin", "technical") == "Admin Sentinela"
+    assert _mode_caption_for_role("tecnico", "technical") == "Técnico"
+    assert _technical_navigation_label("cliente_admin") == "Administração do cliente"
+    assert _technical_navigation_label("admin") == "Administração da plataforma"
+    assert _technical_navigation_label("tecnico") == "Navegação técnica"
+    assert _is_administrative_role("cliente_admin")
+    assert _is_administrative_role("admin")
+    assert not _is_administrative_role("tecnico")
+    assert not _is_administrative_role("operador")

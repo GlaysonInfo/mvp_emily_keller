@@ -15,9 +15,16 @@ from src.dashboard.dynamodb_repository import (
 
 
 class FakeTable:
-    def __init__(self, *, item: dict | None = None, items: list[dict] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        item: dict | None = None,
+        items: list[dict] | None = None,
+        fail_tenant_plant_query: bool = False,
+    ) -> None:
         self.item = item
         self.items = items or []
+        self.fail_tenant_plant_query = fail_tenant_plant_query
         self.get_requests: list[dict] = []
         self.query_requests: list[dict] = []
         self.put_items: list[dict] = []
@@ -32,6 +39,11 @@ class FakeTable:
 
     def query(self, **kwargs) -> dict:
         self.query_requests.append(kwargs)
+        if self.fail_tenant_plant_query and kwargs.get("IndexName") == "tenant_plant_index":
+            raise ClientError(
+                {"Error": {"Code": "ValidationException", "Message": "Index not found"}},
+                "Query",
+            )
         return {"Items": self.items}
 
     def scan(self, **kwargs) -> dict:
@@ -190,7 +202,7 @@ class DashboardRepositoryTest(unittest.TestCase):
         self.assertEqual(alerts[0]["confidence"], 1)
         self.assertEqual(len(alerts_table.query_requests), 2)
 
-    def test_list_alerts_scans_alerts_table(self) -> None:
+    def test_list_alerts_queries_tenant_plant_index(self) -> None:
         alerts_table = FakeTable(
             items=[
                 {
@@ -212,6 +224,33 @@ class DashboardRepositoryTest(unittest.TestCase):
 
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0]["confidence"], 0.76)
+        self.assertEqual(len(alerts_table.query_requests), 1)
+        self.assertEqual(alerts_table.query_requests[0]["IndexName"], "tenant_plant_index")
+        self.assertEqual(alerts_table.scan_requests, [])
+
+    def test_list_alerts_falls_back_to_scan_when_tenant_plant_index_is_missing(self) -> None:
+        alerts_table = FakeTable(
+            items=[
+                {
+                    "tenant_id": "cliente_demo",
+                    "plant_id": "lab_virtual",
+                    "asset_id": "motor_001",
+                    "confidence": Decimal("0.76"),
+                }
+            ],
+            fail_tenant_plant_query=True,
+        )
+        repo = DashboardRepository(
+            state_table_name="mvp_asset_state_dev",
+            alerts_table_name="mvp_alerts_dev",
+            region_name="us-east-1",
+            dynamodb_resource=FakeDynamoResource(FakeTable(), alerts_table),
+        )
+
+        alerts = repo.list_alerts("cliente_demo", "lab_virtual", active_only=True)
+
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(len(alerts_table.query_requests), 1)
         self.assertEqual(len(alerts_table.scan_requests), 1)
 
     def test_put_latest_state_writes_item(self) -> None:
@@ -222,11 +261,16 @@ class DashboardRepositoryTest(unittest.TestCase):
             region_name="us-east-1",
             dynamodb_resource=FakeDynamoResource(state_table, FakeTable()),
         )
-        item = {"pk": "TENANT#cliente_demo#ASSET#motor_001", "sk": "LATEST"}
+        item = {
+            "pk": "TENANT#cliente_demo#ASSET#motor_001",
+            "sk": "LATEST",
+            "tenant_id": "cliente_demo",
+            "plant_id": "lab_virtual",
+        }
 
         repo.put_latest_state(item)
 
-        self.assertEqual(state_table.put_items, [item])
+        self.assertEqual(state_table.put_items[0]["tenant_plant"], "cliente_demo#lab_virtual")
 
     def test_normalize_active_alert_item_adds_condition_alert_keys(self) -> None:
         item = {
@@ -242,6 +286,7 @@ class DashboardRepositoryTest(unittest.TestCase):
         normalized = normalize_active_alert_item(item)
 
         self.assertEqual(normalized["tenant_asset"], "cliente_demo#motor_001")
+        self.assertEqual(normalized["tenant_plant"], "cliente_demo#lab_virtual")
         self.assertEqual(normalized["alert_key"], "open#demo#thermal_stress")
         self.assertEqual(normalized["metric"], "thermal_stress")
         self.assertEqual(normalized["status_label"], "ATENÇÃO")

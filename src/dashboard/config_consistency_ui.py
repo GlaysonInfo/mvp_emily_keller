@@ -56,13 +56,13 @@ def render_config_consistency_panel(data: dict[str, Any]) -> dict[str, Any]:
             visible_rows = [row for row in rows if not selected_levels or row["nível"] in selected_levels]
             df = pd.DataFrame(visible_rows)
 
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width="stretch", hide_index=True)
             st.download_button(
                 "Exportar checklist CSV",
                 data=pd.DataFrame(rows).to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig"),
                 file_name="checklist_configuracao.csv",
                 mime="text/csv",
-                use_container_width=True,
+                width="stretch",
             )
 
     return result

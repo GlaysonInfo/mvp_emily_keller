@@ -9,6 +9,11 @@ import boto3
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
+try:
+    from dashboard.dynamodb_repository import normalize_active_alert_item, tenant_plant_key
+except ImportError:  # pragma: no cover - supports streamlit run from repository root.
+    from src.dashboard.dynamodb_repository import normalize_active_alert_item, tenant_plant_key
+
 
 def now_utc() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
@@ -112,6 +117,13 @@ class AlertsRepository:
 
         return [from_decimal(item) for item in items]
 
+    @staticmethod
+    def _tenant_plant_index() -> str:
+        return os.getenv("CONDITION_ALERTS_TENANT_PLANT_INDEX") or os.getenv(
+            "ALERTS_TENANT_PLANT_INDEX",
+            "tenant_plant_index",
+        )
+
     def _query_by_asset(
         self,
         tenant_id: str,
@@ -148,6 +160,20 @@ class AlertsRepository:
     ) -> list[dict[str, Any]]:
         if asset_id:
             return self._query_by_asset(tenant_id, asset_id, status=status)
+
+        if plant_id:
+            query_kwargs: dict[str, Any] = {
+                "IndexName": self._tenant_plant_index(),
+                "KeyConditionExpression": Key("tenant_plant").eq(tenant_plant_key(tenant_id, plant_id)),
+            }
+            if status and status != "Todos":
+                query_kwargs["FilterExpression"] = Attr("status").eq(status)
+
+            try:
+                return self._collect_pages("query", query_kwargs)
+            except ClientError as exc:
+                if exc.response.get("Error", {}).get("Code") != "ValidationException":
+                    raise
 
         filter_expression = Attr("tenant_id").eq(tenant_id)
 
@@ -301,6 +327,7 @@ class AlertsRepository:
             "pk": self.legacy_pk(tenant_id, asset_id),
             "sk": f"ALERT#ACTIVE#MANUAL#{metric}#{ts}",
             "tenant_asset": tenant_asset,
+            "tenant_plant": tenant_plant_key(tenant_id, plant_id),
             "alert_key": alert_key,
             "alert_id": f"{tenant_id}#{asset_id}#{metric}#manual#{ts}",
             "tenant_id": tenant_id,
@@ -335,5 +362,18 @@ class AlertsRepository:
             ],
         }
 
-        self.table.put_item(Item=to_decimal(item))
-        return item
+        normalized_item = normalize_active_alert_item(item)
+        self.table.put_item(Item=to_decimal(normalized_item))
+        return normalized_item
+
+
+def create_alerts_repository_from_env() -> AlertsRepository:
+    try:
+        from dashboard.local_demo_repository import create_local_demo_repository, local_demo_enabled
+    except ImportError:  # pragma: no cover - supports streamlit run from repository root.
+        from src.dashboard.local_demo_repository import create_local_demo_repository, local_demo_enabled
+
+    if local_demo_enabled():
+        return create_local_demo_repository()  # type: ignore[return-value]
+
+    return AlertsRepository()

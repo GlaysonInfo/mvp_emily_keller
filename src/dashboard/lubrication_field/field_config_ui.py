@@ -6,6 +6,11 @@ import streamlit as st
 
 from .field_config_store import load_field_config, save_field_config, validate_field_config
 
+try:
+    from dashboard.audit_events import record_sensitive_action
+except ImportError:  # pragma: no cover - supports streamlit run from repo root.
+    from src.dashboard.audit_events import record_sensitive_action
+
 
 def render_lubrication_field_config_page(path: str = "config/field_lubrication_config.json") -> None:
     st.header("Configuração de Campo — Sistema de Lubrificação")
@@ -30,7 +35,7 @@ def render_lubrication_field_config_page(path: str = "config/field_lubrication_c
             st.warning(f"{len(warnings)} ponto(s) a revisar na configuração de campo.")
 
         with st.expander("Checklist da configuração de campo", expanded=True):
-            st.dataframe(pd.DataFrame(issues), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(issues), width="stretch", hide_index=True)
 
     tab_general, tab_gateway, tab_outlets, tab_links, tab_rules, tab_security, tab_report = st.tabs(
         [
@@ -114,7 +119,7 @@ def render_lubrication_field_config_page(path: str = "config/field_lubrication_c
 
         edited = st.data_editor(
             pd.DataFrame(rows),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             num_rows="dynamic",
         )
@@ -144,7 +149,7 @@ def render_lubrication_field_config_page(path: str = "config/field_lubrication_c
 
         edited_links = st.data_editor(
             pd.DataFrame(rows),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             num_rows="dynamic",
         )
@@ -191,7 +196,18 @@ def render_lubrication_field_config_page(path: str = "config/field_lubrication_c
         reporting["include_baseline"] = st.checkbox("Incluir baseline por saída", value=bool(reporting.get("include_baseline", True)))
         reporting["include_recommendations"] = st.checkbox("Incluir recomendações da IA", value=bool(reporting.get("include_recommendations", True)))
 
-    if st.button("Salvar configuração de campo", type="primary", use_container_width=True):
+    if st.button("Salvar configuração de campo", type="primary", width="stretch"):
         save_field_config(config, path)
+        record_sensitive_action(
+            "field_lubrication_config.save",
+            target=path,
+            tenant_id=str(config.get("client", {}).get("tenant_id") or ""),
+            details={
+                "plant_id": config.get("plant", {}).get("plant_id"),
+                "asset_id": config.get("lubrication_system", {}).get("asset_id"),
+                "outlets": len(config.get("outlets", [])),
+                "equipment_links": len(config.get("equipment_links", [])),
+            },
+        )
         st.success("Configuração de campo salva.")
         st.rerun()

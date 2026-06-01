@@ -14,6 +14,7 @@ from .condition_ingest_service import (
     state_table_name_from_env,
 )
 from .condition_security_middleware import validate_condition_ingest_security
+from .http_config import cors_origins_from_env
 
 app = FastAPI(
     title="Condition Monitoring Ingest API",
@@ -23,10 +24,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cors_origins_from_env("CONDITION_ALLOWED_ORIGINS") or cors_origins_from_env(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
 

@@ -163,7 +163,7 @@ def _render_cycle_registration(
             step=1.0,
         )
 
-        submitted = st.form_submit_button("Salvar dose no ciclo", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("Salvar dose no ciclo", type="primary", width="stretch")
 
     if submitted:
         repo.update_cycle_dose(
@@ -263,14 +263,14 @@ def render_motor_lubrication_efficiency_page(
             cycles=cycles,
         )
         st.divider()
-        st.dataframe(pd.DataFrame(_cycles_rows(cycles, link)), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(_cycles_rows(cycles, link)), width="stretch", hide_index=True)
 
     with tab_response:
         response_df = _response_dataframe(response_rows)
         if response_df.empty:
             st.info("Ainda não há ciclos com histórico antes/depois suficiente para calcular resposta.")
         else:
-            st.dataframe(response_df, use_container_width=True, hide_index=True)
+            st.dataframe(response_df, width="stretch", hide_index=True)
 
     with tab_dose:
         _render_recommendation(recommendation)
@@ -280,4 +280,4 @@ def render_motor_lubrication_efficiency_page(
         if comparison.empty:
             st.info("Comparativo será exibido após ciclos com dose e tipo de graxa registrados.")
         else:
-            st.dataframe(comparison, use_container_width=True, hide_index=True)
+            st.dataframe(comparison, width="stretch", hide_index=True)

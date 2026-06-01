@@ -54,15 +54,15 @@ def render_validation_panel(
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("Testar conexão selecionada", use_container_width=True):
+        if st.button("Testar conexão selecionada", width="stretch"):
             _show_result(validate_source_connection(selected_source), "conexão")
 
     with col2:
-        if st.button("Validar credencial", use_container_width=True):
+        if st.button("Validar credencial", width="stretch"):
             _show_result(validate_secret_reference(selected_source), "credencial")
 
     with col3:
-        if st.button("Validar tags mapeadas", use_container_width=True):
+        if st.button("Validar tags mapeadas", width="stretch"):
             _show_result(
                 validate_signal_map_for_source(
                     selected_source,
@@ -86,11 +86,11 @@ def render_validation_panel(
     col_csv1, col_csv2 = st.columns(2)
 
     with col_csv1:
-        if st.button("Ler CSV", use_container_width=True):
+        if st.button("Ler CSV", width="stretch"):
             _show_result(validate_csv_file(uploaded), "CSV")
 
     with col_csv2:
-        if st.button("Validar CSV contra mapeamento", use_container_width=True):
+        if st.button("Validar CSV contra mapeamento", width="stretch"):
             _show_result(
                 validate_signal_map_for_csv(
                     data.get("signal_map", []),

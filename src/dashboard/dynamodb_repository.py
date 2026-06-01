@@ -75,15 +75,23 @@ def _condition_alert_key(item: dict[str, Any], metric: str) -> str:
     return f"{status}#{source}#{metric}"
 
 
+def tenant_plant_key(tenant_id: Any, plant_id: Any) -> str:
+    return f"{tenant_id}#{plant_id}"
+
+
 def normalize_active_alert_item(item: dict[str, Any]) -> dict[str, Any]:
     normalized = dict(item)
     tenant_id = normalized.get("tenant_id")
+    plant_id = normalized.get("plant_id")
     asset_id = normalized.get("asset_id")
     metric = _metric_from_alert(normalized)
 
     if tenant_id and asset_id:
         normalized.setdefault("pk", f"TENANT#{tenant_id}#ASSET#{asset_id}")
         normalized.setdefault("tenant_asset", f"{tenant_id}#{asset_id}")
+
+    if tenant_id and plant_id:
+        normalized.setdefault("tenant_plant", tenant_plant_key(tenant_id, plant_id))
 
     normalized.setdefault("sk", f"ALERT#ACTIVE#{metric}")
     normalized.setdefault("alert_key", _condition_alert_key(normalized, metric))
@@ -136,6 +144,22 @@ class DashboardRepository:
         self.state_table = dynamodb_resource.Table(state_table_name)
         self.alerts_table = dynamodb_resource.Table(alerts_table_name)
 
+    @staticmethod
+    def _alerts_tenant_plant_index() -> str:
+        return os.getenv("ALERTS_TENANT_PLANT_INDEX") or os.getenv(
+            "CONDITION_ALERTS_TENANT_PLANT_INDEX",
+            "tenant_plant_index",
+        )
+
+    @staticmethod
+    def _normalize_latest_state_item(item: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(item)
+        tenant_id = normalized.get("tenant_id")
+        plant_id = normalized.get("plant_id")
+        if tenant_id and plant_id:
+            normalized.setdefault("tenant_plant", tenant_plant_key(tenant_id, plant_id))
+        return normalized
+
     def get_latest_state(self, tenant_id: str, asset_id: str) -> dict[str, Any] | None:
         key = {
             "pk": f"TENANT#{tenant_id}#ASSET#{asset_id}",
@@ -174,6 +198,28 @@ class DashboardRepository:
         if active_only:
             filter_expression = filter_expression & Attr("sk").begins_with("ALERT#ACTIVE#")
 
+        try:
+            query_kwargs: dict[str, Any] = {
+                "IndexName": self._alerts_tenant_plant_index(),
+                "KeyConditionExpression": Key("tenant_plant").eq(tenant_plant_key(tenant_id, plant_id)),
+            }
+            if active_only:
+                query_kwargs["FilterExpression"] = Attr("sk").begins_with("ALERT#ACTIVE#")
+            result = self.alerts_table.query(**query_kwargs)
+            items = list(result.get("Items", []))
+
+            while "LastEvaluatedKey" in result:
+                result = self.alerts_table.query(
+                    **query_kwargs,
+                    ExclusiveStartKey=result["LastEvaluatedKey"],
+                )
+                items.extend(result.get("Items", []))
+
+            return [decimal_to_native(item) for item in items]
+        except ClientError as exc:
+            if _client_error_code(exc) != "ValidationException":
+                raise
+
         result = self.alerts_table.scan(FilterExpression=filter_expression)
         items = list(result.get("Items", []))
 
@@ -187,7 +233,7 @@ class DashboardRepository:
         return [decimal_to_native(item) for item in items]
 
     def put_latest_state(self, item: dict[str, Any]) -> None:
-        self.state_table.put_item(Item=item)
+        self.state_table.put_item(Item=self._normalize_latest_state_item(item))
 
     def put_active_alert(self, item: dict[str, Any]) -> None:
         self.alerts_table.put_item(Item=normalize_active_alert_item(item))
@@ -226,6 +272,14 @@ def alerts_table_name_from_env() -> str:
 
 
 def create_repository_from_env() -> DashboardRepository:
+    try:
+        from dashboard.local_demo_repository import create_local_demo_repository, local_demo_enabled
+    except ImportError:  # pragma: no cover - supports streamlit run from repository root.
+        from src.dashboard.local_demo_repository import create_local_demo_repository, local_demo_enabled
+
+    if local_demo_enabled():
+        return create_local_demo_repository()  # type: ignore[return-value]
+
     return DashboardRepository(
         state_table_name=state_table_name_from_env(),
         alerts_table_name=alerts_table_name_from_env(),

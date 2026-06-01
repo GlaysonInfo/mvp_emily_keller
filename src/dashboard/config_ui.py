@@ -82,6 +82,15 @@ def _index(options: list[str], value: Any, default: int = 0) -> int:
 
 def _save(repo: ConfigRepository, data: dict[str, Any], message: str) -> None:
     repo.save(data)
+    try:
+        from dashboard.auth import audit
+    except ImportError:  # pragma: no cover - execução a partir da raiz do repo
+        try:
+            from src.dashboard.auth import audit
+        except ImportError:
+            audit = None
+    if audit is not None:
+        audit.record("config.save", target=message)
     st.success(message)
     st.rerun()
 
@@ -96,7 +105,7 @@ def _render_table(items: list[dict[str, Any]], columns: list[str]) -> None:
         return
 
     rows = [{column: item.get(column, "") for column in columns} for item in items]
-    st.dataframe(rows, use_container_width=True, hide_index=True)
+    st.dataframe(rows, width="stretch", hide_index=True)
 
 
 def render_config_page(config_path: str | None = None) -> None:
@@ -563,7 +572,7 @@ def _render_parameters_tab(repo: ConfigRepository, data: dict[str, Any]) -> None
             }
             for parameter in parameters
         ]
-        st.dataframe(rows, use_container_width=True, hide_index=True)
+        st.dataframe(rows, width="stretch", hide_index=True)
     else:
         st.info("Nenhuma regra cadastrada.")
 
@@ -585,7 +594,7 @@ def _render_parameters_tab(repo: ConfigRepository, data: dict[str, Any]) -> None
 
         st.caption(f"Preset sugerido: {preset.get('note', '')}")
 
-        if st.button("Aplicar preset da métrica", use_container_width=True):
+        if st.button("Aplicar preset da métrica", width="stretch"):
             _apply_parameter_preset_to_session(preset, context)
             st.rerun()
 

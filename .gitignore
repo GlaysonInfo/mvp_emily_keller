@@ -10,6 +10,7 @@ htmlcov/
 
 # Local runtime data
 .env
+.pids/
 *_credentials.csv
 *credentials*.csv
 *.pem
@@ -25,6 +26,8 @@ data/
 
 # Raw reference inputs kept outside version control by default
 *.pdf
+*.docx
+*.ogg
 *PROMPTS*.txt
 mermaid-diagram.png
 arqutetura de bancada do MVP.png

@@ -1,0 +1,45 @@
+# =====================================================================
+# oauth2-proxy — configuração OIDC contra AWS Cognito
+# Copie para /etc/oauth2-proxy/oauth2-proxy.cfg e preencha os valores.
+# Gere o cookie_secret com:  openssl rand -base64 32 | tr -- '+/' '-_'
+# =====================================================================
+
+http_address = "127.0.0.1:4180"
+reverse_proxy = true
+
+# --- Provedor OIDC (Cognito) ---
+provider = "oidc"
+# Issuer = https://cognito-idp.<REGIAO>.amazonaws.com/<USER_POOL_ID>
+oidc_issuer_url = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_XXXXXXXXX"
+client_id       = "PREENCHER_APP_CLIENT_ID"
+client_secret   = "PREENCHER_APP_CLIENT_SECRET"
+
+redirect_url = "https://app.sentinelaindustrial.com.br/oauth2/callback"
+
+# --- Sessão / cookies ---
+cookie_secret  = "PREENCHER_COOKIE_SECRET_32_BYTES"
+cookie_secure  = true
+cookie_domains = ".sentinelaindustrial.com.br"
+cookie_expire  = "8h"
+
+# --- Quem pode entrar ---
+email_domains = ["*"]          # o controle real é por grupo/RBAC no app
+
+# --- Claims repassados ao backend (lidos pelo nginx via auth_request) ---
+set_xauthrequest = true        # emite X-Auth-Request-Email / -User / -Groups
+pass_access_token = true
+oidc_groups_claim = "cognito:groups"
+
+# --- Escopos OIDC ---
+scope = "openid email profile"
+
+# --- PKCE (Authorization Code + PKCE), conforme recomendado na pesquisa ---
+code_challenge_method = "S256"
+
+# OBS sobre o tenant (X-Auth-Request-Tenant):
+# o atributo custom:tenant_id precisa chegar como header. Duas opções:
+#  (a) oauth2-proxy >= 7 com configuração alpha "injectRequestHeaders"
+#      mapeando o claim custom:tenant_id -> X-Auth-Request-Tenant; ou
+#  (b) uma Lambda de Pre Token Generation no Cognito que copie o
+#      custom:tenant_id para um claim padrão repassável.
+# Veja docs/implementacao_portal_acesso.md, seção "Tenant".

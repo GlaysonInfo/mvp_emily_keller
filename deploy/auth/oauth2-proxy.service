@@ -1,0 +1,20 @@
+[Unit]
+Description=oauth2-proxy (OIDC Cognito) para Sentinela Industrial
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=oauth2proxy
+Group=oauth2proxy
+# Baixe o binário em /usr/local/bin/oauth2-proxy
+# (https://github.com/oauth2-proxy/oauth2-proxy/releases)
+ExecStart=/usr/local/bin/oauth2-proxy --config=/etc/oauth2-proxy/oauth2-proxy.cfg
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

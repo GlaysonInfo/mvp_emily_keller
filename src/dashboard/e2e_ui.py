@@ -6,8 +6,10 @@ from typing import Any
 import streamlit as st
 
 try:
+    from dashboard.audit_events import record_sensitive_action
     from dashboard.e2e_engine import infer_test_mode, is_virtual_source, load_config, run_e2e_test
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
+    from src.dashboard.audit_events import record_sensitive_action
     from src.dashboard.e2e_engine import infer_test_mode, is_virtual_source, load_config, run_e2e_test
 
 
@@ -76,7 +78,7 @@ def render_e2e_test_page(config_path: str | None = None) -> None:
         "e faz leitura de volta para comprovar a cadeia completa."
     )
 
-    if not st.button("Executar teste ponta a ponta", type="primary", use_container_width=True):
+    if not st.button("Executar teste ponta a ponta", type="primary", width="stretch"):
         return
 
     result = run_e2e_test(
@@ -85,6 +87,18 @@ def render_e2e_test_page(config_path: str | None = None) -> None:
         asset_id=asset_id,
         mode=mode,
         csv_file=csv_file,
+    )
+    record_sensitive_action(
+        "e2e.run_test",
+        target=f"{source_id}#{asset_id}",
+        details={
+            "source_id": source_id,
+            "asset_id": asset_id,
+            "requested_mode": mode,
+            "effective_mode": effective_mode,
+            "ok": bool(result.get("ok")),
+            "status_label": result.get("status_label"),
+        },
     )
 
     if result["ok"]:
@@ -126,5 +140,5 @@ def render_e2e_test_page(config_path: str | None = None) -> None:
         data=export.encode("utf-8"),
         file_name=f"e2e_test_{asset_id}.json",
         mime="application/json",
-        use_container_width=True,
+        width="stretch",
     )

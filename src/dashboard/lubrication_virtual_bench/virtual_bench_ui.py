@@ -84,7 +84,7 @@ def render_lubrication_virtual_bench_page(config_path: str = "config/lubrication
     last_payload = payloads[-1]
 
     st.subheader("Prévia da sequência")
-    st.dataframe(pd.DataFrame(scenario_results_table(results)), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(scenario_results_table(results)), width="stretch", hide_index=True)
 
     col_status, col_pressure, col_anomaly, col_alerts = st.columns(4)
     col_status.metric("Status final", last_result.get("status_label"))
@@ -95,15 +95,15 @@ def render_lubrication_virtual_bench_page(config_path: str = "config/lubrication
     tab_outlets, tab_curves, tab_payload = st.tabs(["Último Ciclo", "Curva pressão x tempo", "Payload"])
 
     with tab_outlets:
-        st.dataframe(pd.DataFrame(_last_cycle_outlet_rows(last_result)), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(_last_cycle_outlet_rows(last_result)), width="stretch", hide_index=True)
 
     with tab_curves:
-        st.dataframe(_curves_table(last_payload), use_container_width=True, hide_index=True)
+        st.dataframe(_curves_table(last_payload), width="stretch", hide_index=True)
 
     with tab_payload:
         st.code(json.dumps(last_payload, ensure_ascii=False, indent=2), language="json")
 
-    if st.button("Aplicar sequência temporal", type="primary", use_container_width=True):
+    if st.button("Aplicar sequência temporal", type="primary", width="stretch"):
         if save_sequence:
             repo = LubricationRepository()
             for result in results:

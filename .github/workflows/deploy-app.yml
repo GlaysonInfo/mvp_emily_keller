@@ -1,0 +1,71 @@
+name: deploy-app
+
+# Implanta a aplicação (APIs de ingestão + dashboard Streamlit) na(s)
+# instância(s) EC2 via SSM, usando OIDC (sem segredos de longa duração).
+#   push em develop -> ambiente staging
+#   push em main    -> ambiente production (com aprovação, se configurada)
+#
+# Variáveis por ambiente (Settings -> Environments -> Variables):
+#   AWS_ROLE_ARN (role de app deploy), AWS_REGION, INSTANCE_TAG
+# A(s) instância(s) devem ter a tag App=<INSTANCE_TAG> e o SSM agent ativo.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "src/**"
+      - "requirements.txt"
+      - "deploy/app/**"
+      - ".github/workflows/deploy-app.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-app-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    steps:
+      - name: Configurar credenciais AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Disparar deploy via SSM
+        id: ssm
+        run: |
+          set -euo pipefail
+          CMD="sudo DEPLOY_REF=${{ github.sha }} bash /opt/automacaoapi/deploy/app/deploy_app.sh"
+          COMMAND_ID=$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --comment "deploy ${{ github.sha }}" \
+            --targets "Key=tag:App,Values=${{ vars.INSTANCE_TAG }}" \
+            --parameters commands=["\"$CMD\""] \
+            --query "Command.CommandId" --output text)
+          echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+          echo "Command enviado: $COMMAND_ID"
+
+      - name: Aguardar conclusão e validar
+        run: |
+          set -euo pipefail
+          CID="${{ steps.ssm.outputs.command_id }}"
+          for i in $(seq 1 40); do
+            sleep 15
+            STATUS=$(aws ssm list-command-invocations --command-id "$CID" \
+              --query "CommandInvocations[].Status" --output text || true)
+            echo "status: ${STATUS:-pendente}"
+            case "$STATUS" in
+              *Failed*|*Cancelled*|*TimedOut*) echo "Deploy falhou"; exit 1 ;;
+            esac
+            if [ -n "$STATUS" ] && ! echo "$STATUS" | grep -Eq "Pending|InProgress|Delayed"; then
+              echo "Deploy concluído com sucesso"; exit 0
+            fi
+          done
+          echo "Tempo esgotado aguardando o SSM"; exit 1

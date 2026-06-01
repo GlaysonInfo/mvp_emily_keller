@@ -216,6 +216,14 @@ class ConditionHistoryRepository:
 
 
 def create_history_repository_from_env() -> ConditionHistoryRepository:
+    try:
+        from dashboard.local_demo_repository import create_local_demo_history_repository, local_demo_enabled
+    except ImportError:  # pragma: no cover - supports streamlit run from repository root.
+        from src.dashboard.local_demo_repository import create_local_demo_history_repository, local_demo_enabled
+
+    if local_demo_enabled():
+        return create_local_demo_history_repository()  # type: ignore[return-value]
+
     return ConditionHistoryRepository(
         table_name=os.getenv("CONDITION_HISTORY_TABLE", "condition_history"),
         region_name=os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1")),

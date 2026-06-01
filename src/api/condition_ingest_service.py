@@ -10,7 +10,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 from src.aws_lambdas.ingest_lambda import build_dynamodb_latest_item
-from src.dashboard.dynamodb_repository import normalize_active_alert_item
+from src.dashboard.dynamodb_repository import normalize_active_alert_item, tenant_plant_key
 from src.dashboard.history_repository import build_history_item, resolve_status_label, to_dynamodb_safe
 from src.rules_engine.diagnostics import evaluate_payload
 
@@ -68,6 +68,7 @@ def _enrich_latest_state(state_item: dict[str, Any], payload: ConditionIngestPay
     enriched = {
         **state_item,
         "tenant_asset": f"{payload.tenant_id}#{payload.asset_id}",
+        "tenant_plant": tenant_plant_key(payload.tenant_id, payload.plant_id),
         "status_label": status_label,
         "ingest_source": "condition_ingest_api",
     }

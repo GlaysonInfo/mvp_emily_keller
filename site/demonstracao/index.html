@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demonstração | Sistema de Lubrificação</title>
+  <meta name="description" content="Agende uma demonstração do sistema de lubrificação e veja o fluxo gateway → API → AWS → HMI." />
+  <link rel="canonical" href="https://sentinelaindustrial.com.br/demonstracao/" />
+  <meta name="robots" content="index, follow" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="/">Sentinela<span>Industrial</span></a>
+      <nav class="nav-links">
+        <a href="/sistema-de-lubrificacao/">Sistema de Lubrificação</a>
+        <a href="/como-funciona/">Como funciona</a>
+        <a href="/demonstracao/">Demonstração</a>
+        <a href="/contato/">Contato</a>
+        <a class="btn btn-ghost" href="/acesso/">Acesso ao Sistema</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="kicker">Demonstração guiada</div>
+        <h1>Agende uma demonstração</h1>
+        <p class="sub">Mostramos o fluxo completo — gateway, ingestão, diagnóstico e HMI — em um ambiente de demonstração isolado, sem expor dados de clientes.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="container form-container">
+        <!-- TODO: trocar 'action' pelo endpoint do CRM (HubSpot/RD Station) ou webhook -->
+        <form class="card" method="post" action="#" onsubmit="alert('Configure o endpoint do CRM/webhook em action.'); return false;">
+          <h3>Seus dados</h3>
+          <p class="form-note">Retornamos em até 1 dia útil.</p>
+          <label>Nome<br><input name="nome" required></label>
+          <label>E-mail corporativo<br><input type="email" name="email" required></label>
+          <label>Empresa<br><input name="empresa"></label>
+          <label>Mensagem<br><textarea name="mensagem" rows="3"></textarea></label>
+          <label class="consent">
+            <input type="checkbox" required> Concordo com a <a href="/privacidade/">Política de Privacidade</a> (LGPD).
+          </label>
+          <button class="btn btn-primary" type="submit">Agendar demonstração</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container"><p><a href="/">Sentinela Industrial</a> &middot; <a href="/contato/">Contato</a> &middot; <a href="/privacidade/">Privacidade</a> &middot; <a href="/cookies/">Cookies</a> &middot; <a href="/termos/">Termos</a></p></div>
+  </footer>
+</body>
+</html>

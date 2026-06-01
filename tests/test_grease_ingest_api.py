@@ -86,7 +86,7 @@ def test_grease_ingest_rejects_disallowed_source_ip(monkeypatch) -> None:
         "/grease/ingest",
         headers={
             "X-API-Key": "token_do_piloto",
-            "X-Forwarded-For": "198.51.100.20",
+            "X-Trusted-Client-IP": "198.51.100.20",
         },
         json=_payload(),
     )
@@ -122,9 +122,37 @@ def test_grease_ingest_accepts_allowed_forwarded_ip(monkeypatch) -> None:
         "/grease/ingest",
         headers={
             "X-API-Key": "token_do_piloto",
-            "X-Forwarded-For": "198.51.100.20, 127.0.0.1",
+            "X-Trusted-Client-IP": "198.51.100.20",
         },
         json=_payload(),
     )
 
     assert response.status_code == 200
+
+
+def test_grease_ingest_does_not_trust_forwarded_for_by_default(monkeypatch) -> None:
+    monkeypatch.setenv("GREASE_INGEST_TOKEN", "token_do_piloto")
+    monkeypatch.setenv("GREASE_ALLOWED_SOURCE_IPS", "198.51.100.0/24")
+    monkeypatch.delenv("GREASE_TRUST_X_FORWARDED_FOR", raising=False)
+
+    response = TestClient(app).post(
+        "/grease/ingest",
+        headers={
+            "X-API-Key": "token_do_piloto",
+            "X-Forwarded-For": "198.51.100.20",
+        },
+        json=_payload(),
+    )
+
+    assert response.status_code == 403
+
+
+def test_grease_ingest_fails_closed_without_token(monkeypatch) -> None:
+    # Sem token configurado e com a exigência padrão (fail-closed) -> 503.
+    monkeypatch.delenv("GREASE_INGEST_TOKEN", raising=False)
+    monkeypatch.delenv("GREASE_REQUIRE_TOKEN", raising=False)
+    monkeypatch.delenv("GREASE_ALLOWED_SOURCE_IPS", raising=False)
+
+    response = TestClient(app).post("/grease/ingest", json=_payload())
+
+    assert response.status_code == 503

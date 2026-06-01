@@ -1,0 +1,42 @@
+# =====================================================================
+# oauth2-proxy — CONFIG ALPHA (opcional, Abordagem B do tenant)
+# Use SOMENTE se for repassar o tenant como CLAIM (em vez da convenção de
+# grupo TENANT_, que é a Abordagem A recomendada e não precisa disto).
+#
+# Execução:  oauth2-proxy --config=/etc/oauth2-proxy/oauth2-proxy.cfg \
+#                         --alpha-config=/etc/oauth2-proxy/oauth2-proxy.alpha.cfg
+#
+# ATENÇÃO: a config alpha é sensível à versão do oauth2-proxy. Valide com a
+# sua versão (oauth2-proxy --version) antes de produção. No fluxo nginx
+# auth_request, o que importa são os injectResponseHeaders (lidos pelo nginx
+# como $upstream_http_x_auth_request_*). Ao usar alpha, declare TODOS os
+# cabeçalhos — ela substitui o conjunto padrão do set_xauthrequest.
+# Pré-requisito: claim `tenant_id` no ID token (via Lambda Pre Token
+# Generation, ver infra/cognito/pre_token_generation_lambda.py).
+# =====================================================================
+
+injectResponseHeaders:
+  - name: X-Auth-Request-Email
+    values:
+      - claim: email
+  - name: X-Auth-Request-User
+    values:
+      - claim: cognito:username
+  - name: X-Auth-Request-Groups
+    values:
+      - claim: cognito:groups
+  - name: X-Auth-Request-Tenant
+    values:
+      - claim: tenant_id
+
+# Espelhar para o caso de o oauth2-proxy atuar como proxy direto do upstream.
+injectRequestHeaders:
+  - name: X-Forwarded-Email
+    values:
+      - claim: email
+  - name: X-Forwarded-Groups
+    values:
+      - claim: cognito:groups
+  - name: X-Forwarded-Tenant
+    values:
+      - claim: tenant_id

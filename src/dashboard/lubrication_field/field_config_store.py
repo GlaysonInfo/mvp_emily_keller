@@ -31,6 +31,15 @@ def save_field_config(config: dict[str, Any], path: str | None = None) -> None:
     p = config_path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        from dashboard.auth import audit
+    except ImportError:  # pragma: no cover - execução a partir da raiz do repo
+        try:
+            from src.dashboard.auth import audit
+        except ImportError:
+            audit = None
+    if audit is not None:
+        audit.record("field_config.save", target=str(p))
 
 
 def validate_field_config(config: dict[str, Any]) -> list[dict[str, str]]:

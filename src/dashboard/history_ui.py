@@ -78,7 +78,7 @@ def render_history_button(
     st.caption(f"{len(rows)} registro(s) encontrados.")
 
     if rows:
-        st.dataframe(rows, use_container_width=True, hide_index=True)
+        st.dataframe(rows, width="stretch", hide_index=True)
     else:
         st.info("Nenhum registro histórico encontrado para o período selecionado.")
 
@@ -93,7 +93,7 @@ def render_history_button(
         file_name=f"historico_{asset_id}_{file_suffix}.csv",
         mime="text/csv",
         disabled=not rows,
-        use_container_width=True,
+        width="stretch",
     )
     d2.download_button(
         "Exportar TXT",
@@ -101,5 +101,5 @@ def render_history_button(
         file_name=f"historico_{asset_id}_{file_suffix}.txt",
         mime="text/plain",
         disabled=not rows,
-        use_container_width=True,
+        width="stretch",
     )

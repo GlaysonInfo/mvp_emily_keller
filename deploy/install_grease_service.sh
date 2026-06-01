@@ -65,6 +65,9 @@ set_env "PYTHONUNBUFFERED" "1"
 if ! sudo grep -q "^GREASE_ALLOWED_SOURCE_IPS=" "${ENV_FILE}"; then
   echo "GREASE_ALLOWED_SOURCE_IPS=" | sudo tee -a "${ENV_FILE}" >/dev/null
 fi
+if ! sudo grep -q "^GREASE_ALLOWED_ORIGINS=" "${ENV_FILE}"; then
+  echo "GREASE_ALLOWED_ORIGINS=" | sudo tee -a "${ENV_FILE}" >/dev/null
+fi
 
 CURRENT_TOKEN="$(sudo grep '^GREASE_INGEST_TOKEN=' "${ENV_FILE}" | tail -1 | cut -d= -f2- || true)"
 if [ -z "${CURRENT_TOKEN}" ]; then

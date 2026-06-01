@@ -1,0 +1,40 @@
+# =====================================================================
+# Caddyfile — modo local (uma porta para tudo)
+# Sobe junto com `make local-up`. Roteia:
+#   /grease/*    -> 127.0.0.1:8000  (FastAPI grease_ingest)
+#   /condition/* -> 127.0.0.1:8001  (FastAPI condition_ingest)
+#   /...         -> 127.0.0.1:8501  (Streamlit dashboard, app_local.py)
+#
+# Não usa TLS local (HTTP simples na 8080) para zero fricção em dev.
+# WebSocket do Streamlit é tratado nativamente pelo reverse_proxy.
+# =====================================================================
+
+{
+	# Opções globais do servidor (Caddy v2)
+	admin off
+}
+
+:8080 {
+	encode gzip
+
+	# APIs FastAPI — a própria API valida token (em modo local fica desligado).
+	@grease path /grease /grease/*
+	handle @grease {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	@condition path /condition /condition/*
+	handle @condition {
+		reverse_proxy 127.0.0.1:8001
+	}
+
+	# Dashboard Streamlit (raiz e demais paths). WebSocket OK.
+	handle {
+		reverse_proxy 127.0.0.1:8501
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

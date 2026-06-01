@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .grease_ingest_models import GreaseHealthResponse, GreaseIngestPayload, GreaseIngestResponse
 from .grease_ingest_service import ensure_region, process_grease_ingest
 from .grease_security_middleware import validate_grease_ingest_security
+from .http_config import cors_origins_from_env
 
 app = FastAPI(
     title="Grease Lubrication Ingest API",
@@ -17,10 +18,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cors_origins_from_env("GREASE_ALLOWED_ORIGINS") or cors_origins_from_env(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
 

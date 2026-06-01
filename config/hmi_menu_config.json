@@ -2,6 +2,11 @@
   "default_mode": "operator",
   "operator_pages": [
     {
+      "id": "condition_monitoring",
+      "label": "Equipamentos",
+      "route": "Monitoramento de Equipamentos"
+    },
+    {
       "id": "operator_home",
       "label": "Painel da Planta",
       "route": "Visão Geral da Planta"
@@ -10,6 +15,11 @@
       "id": "asset_detail",
       "label": "Equipamento",
       "route": "Detalhe do Ativo"
+    },
+    {
+      "id": "lubrication_operation",
+      "label": "Operação Lub.",
+      "route": "Operação de Lubrificação"
     },
     {
       "id": "lubrication",
@@ -38,9 +48,11 @@
     }
   ],
   "technical_pages": [
+    "Monitoramento de Equipamentos",
     "Visão Geral da Planta",
     "Detalhe do Ativo",
     "Inteligência Operacional",
+    "Operação de Lubrificação",
     "Sistema de Lubrificação",
     "Eficiência da Lubrificação",
     "Eficiência da Lubrificação do Motor",
@@ -51,6 +63,9 @@
     "Notification Outbox",
     "Relatórios",
     "Configurações",
+    "Admin do Cliente",
+    "Admin da Plataforma",
+    "Arquitetura Modular",
     "Teste ponta a ponta"
   ]
 }

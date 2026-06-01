@@ -256,7 +256,7 @@ def render_status_summary(rows: list[dict[str, Any]]) -> None:
             }
         )
 
-    st.dataframe(summary, use_container_width=True, hide_index=True)
+    st.dataframe(summary, width="stretch", hide_index=True)
 
 
 def render_asset_cards(rows: list[dict[str, Any]]) -> str | None:
@@ -286,7 +286,7 @@ def render_asset_cards(rows: list[dict[str, Any]]) -> str | None:
                     unsafe_allow_html=True,
                 )
 
-                if st.button("Abrir detalhe", key=f"open_asset_{row['asset_id']}", use_container_width=True):
+                if st.button("Abrir detalhe", key=f"open_asset_{row['asset_id']}", width="stretch"):
                     selected = row["asset_id"]
 
     return selected
@@ -312,7 +312,7 @@ def render_assets_table(rows: list[dict[str, Any]]) -> None:
         }
         for row in rows
     ]
-    st.dataframe(table_rows, use_container_width=True, hide_index=True)
+    st.dataframe(table_rows, width="stretch", hide_index=True)
 
 
 def render_asset_priority_list(rows: list[dict[str, Any]]) -> str | None:
@@ -329,7 +329,7 @@ def render_asset_priority_list(rows: list[dict[str, Any]]) -> str | None:
         health = "-" if row["health_score"] is None else f"{row['health_score']:.1f}"
         cols = st.columns([3.2, 1.1, 1.2])
 
-        if cols[0].button(f"{index}º {row['asset_name']}", key=f"select_asset_{row['asset_id']}", use_container_width=True):
+        if cols[0].button(f"{index}º {row['asset_name']}", key=f"select_asset_{row['asset_id']}", width="stretch"):
             selected = row["asset_id"]
 
         cols[1].markdown(

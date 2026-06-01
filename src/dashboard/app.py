@@ -11,9 +11,14 @@ import streamlit as st
 
 try:
     from dashboard.alert_projection import alerts_for_state
+    from dashboard.alerts_repository import create_alerts_repository_from_env
     from dashboard.alerts_ui import render_alerts_center
     from dashboard.config_repository import ConfigRepository
     from dashboard.config_ui import render_config_page
+    from dashboard.client_admin_ui import PAGE_NAME as CLIENT_ADMIN_PAGE
+    from dashboard.client_admin_ui import render_client_admin_page
+    from dashboard.condition_monitoring_ui import PAGE_NAME as CONDITION_MONITORING_PAGE
+    from dashboard.condition_monitoring_ui import render_condition_monitoring_page
     from dashboard.dynamodb_repository import create_repository_from_env
     from dashboard.demo_cases import build_demo_alert_item, build_latest_state_item, load_demo_cases
     from dashboard.e2e_ui import render_e2e_test_page
@@ -26,20 +31,32 @@ try:
     from dashboard.hmi.hmi_sidebar import render_hmi_sidebar, set_operator_page_for_route
     from dashboard.hmi.hmi_style import apply_hmi_style
     from dashboard.multiasset_repository import create_multiasset_repository_from_env
+    from dashboard.modular_architecture_ui import PAGE_NAME as MODULAR_ARCHITECTURE_PAGE
+    from dashboard.modular_architecture_ui import render_modular_architecture_page
     from dashboard.notification_outbox_ui import render_notification_outbox_page
     from dashboard.operational_intelligence_ui import render_operational_intelligence_page
+    from dashboard.platform_admin_ui import PAGE_NAME as PLATFORM_ADMIN_PAGE
+    from dashboard.platform_admin_ui import render_platform_admin_page
+    from dashboard.module_registry import default_route_for_role
     from dashboard.plant_overview_ui import render_plant_overview
     from dashboard.reports_ui import render_reports_page
     from dashboard.lubrication.lubrication_ui import render_lubrication_page
     from dashboard.lubrication_efficiency.efficiency_ui import render_lubrication_efficiency_page
     from dashboard.lubrication_field.field_config_ui import render_lubrication_field_config_page
     from dashboard.lubrication_motor_efficiency.motor_efficiency_ui import render_motor_lubrication_efficiency_page
+    from dashboard.lubrication_operation_ui import PAGE_NAME as LUBRICATION_OPERATION_PAGE
+    from dashboard.lubrication_operation_ui import render_lubrication_operation_page
     from dashboard.lubrication_virtual_bench.virtual_bench_ui import render_lubrication_virtual_bench_page
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alert_projection import alerts_for_state
+    from src.dashboard.alerts_repository import create_alerts_repository_from_env
     from src.dashboard.alerts_ui import render_alerts_center
     from src.dashboard.config_repository import ConfigRepository
     from src.dashboard.config_ui import render_config_page
+    from src.dashboard.client_admin_ui import PAGE_NAME as CLIENT_ADMIN_PAGE
+    from src.dashboard.client_admin_ui import render_client_admin_page
+    from src.dashboard.condition_monitoring_ui import PAGE_NAME as CONDITION_MONITORING_PAGE
+    from src.dashboard.condition_monitoring_ui import render_condition_monitoring_page
     from src.dashboard.demo_cases import build_demo_alert_item, build_latest_state_item, load_demo_cases
     from src.dashboard.dynamodb_repository import create_repository_from_env
     from src.dashboard.e2e_ui import render_e2e_test_page
@@ -52,14 +69,21 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.hmi.hmi_sidebar import render_hmi_sidebar, set_operator_page_for_route
     from src.dashboard.hmi.hmi_style import apply_hmi_style
     from src.dashboard.multiasset_repository import create_multiasset_repository_from_env
+    from src.dashboard.modular_architecture_ui import PAGE_NAME as MODULAR_ARCHITECTURE_PAGE
+    from src.dashboard.modular_architecture_ui import render_modular_architecture_page
     from src.dashboard.notification_outbox_ui import render_notification_outbox_page
     from src.dashboard.operational_intelligence_ui import render_operational_intelligence_page
+    from src.dashboard.platform_admin_ui import PAGE_NAME as PLATFORM_ADMIN_PAGE
+    from src.dashboard.platform_admin_ui import render_platform_admin_page
+    from src.dashboard.module_registry import default_route_for_role
     from src.dashboard.plant_overview_ui import render_plant_overview
     from src.dashboard.reports_ui import render_reports_page
     from src.dashboard.lubrication.lubrication_ui import render_lubrication_page
     from src.dashboard.lubrication_efficiency.efficiency_ui import render_lubrication_efficiency_page
     from src.dashboard.lubrication_field.field_config_ui import render_lubrication_field_config_page
     from src.dashboard.lubrication_motor_efficiency.motor_efficiency_ui import render_motor_lubrication_efficiency_page
+    from src.dashboard.lubrication_operation_ui import PAGE_NAME as LUBRICATION_OPERATION_PAGE
+    from src.dashboard.lubrication_operation_ui import render_lubrication_operation_page
     from src.dashboard.lubrication_virtual_bench.virtual_bench_ui import render_lubrication_virtual_bench_page
 
 
@@ -100,6 +124,7 @@ STATUS_LABELS = {
 DEMO_PRESENTATION_INDEX_KEY = "demo_presentation_index"
 DASHBOARD_PAGE_KEY = "dashboard_page"
 PAGE_TARGET_KEY = "dashboard_page_target"
+ROLE_ROUTE_INIT_KEY = "dashboard_role_route_initialized"
 SELECTED_ASSET_ID_KEY = "selected_asset_id"
 
 
@@ -399,11 +424,11 @@ def render_demo_selector(repo: Any, tenant_id: str, plant_id: str, asset_id: str
     st.markdown(f"**{index + 1}/{len(cases)} - {selected_case['case_name']}**")
     st.caption(selected_case.get("demo_message", ""))
 
-    if st.button("⬅ Cenário anterior", disabled=index == 0, use_container_width=True):
+    if st.button("⬅ Cenário anterior", disabled=index == 0, width="stretch"):
         st.session_state[DEMO_PRESENTATION_INDEX_KEY] = clamp_demo_index(index - 1, len(cases))
         st.rerun()
 
-    if st.button("Aplicar cenário", type="primary", use_container_width=True):
+    if st.button("Aplicar cenário", type="primary", width="stretch"):
         try:
             apply_demo_case(repo, selected_case, tenant_id=tenant_id, plant_id=plant_id, asset_id=asset_id)
         except NoCredentialsError:
@@ -412,7 +437,7 @@ def render_demo_selector(repo: Any, tenant_id: str, plant_id: str, asset_id: str
             st.success(f"Cenário aplicado: {selected_case['case_name']}")
             st.rerun()
 
-    if st.button("Próximo cenário ➡", disabled=index == len(cases) - 1, use_container_width=True):
+    if st.button("Próximo cenário ➡", disabled=index == len(cases) - 1, width="stretch"):
         st.session_state[DEMO_PRESENTATION_INDEX_KEY] = clamp_demo_index(index + 1, len(cases))
         st.rerun()
 
@@ -451,7 +476,7 @@ def render_alerts(active_alerts: list[dict[str, Any]]) -> None:
         for alert in active_alerts
     ]
 
-    st.dataframe(alerts_df, use_container_width=True, hide_index=True)
+    st.dataframe(alerts_df, width="stretch", hide_index=True)
 
     for alert in active_alerts:
         severity = severity_badge(str(alert.get("severity", "")))
@@ -568,6 +593,39 @@ def render_aws_credentials_error(error: NoCredentialsError) -> None:
     st.caption(f"Detalhe técnico: {error}")
 
 
+def client_error_code(error: ClientError) -> str:
+    return str(error.response.get("Error", {}).get("Code") or "ClientError")
+
+
+def client_error_user_message(error: ClientError) -> str:
+    code = client_error_code(error)
+    if code in {"IncompleteSignatureException", "InvalidSignatureException", "SignatureDoesNotMatch"}:
+        return (
+            "As credenciais AWS configuradas para este ambiente parecem inválidas ou corrompidas. "
+            "Peça ao suporte para revisar `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, "
+            "`AWS_PROFILE` e a região configurada."
+        )
+    if code in {"ExpiredToken", "ExpiredTokenException"}:
+        return "A sessão AWS expirou. Renove as credenciais e tente novamente."
+    if code in {"UnrecognizedClientException", "InvalidClientTokenId"}:
+        return "A AWS não reconheceu as credenciais deste ambiente. Revise o profile ou as variáveis de ambiente."
+    if code in {"AccessDeniedException", "AccessDenied", "UnauthorizedOperation"}:
+        return "O usuário configurado não tem permissão para consultar estes dados."
+    if code == "ResourceNotFoundException":
+        return "A tabela ou recurso de dados necessário ainda não está disponível neste ambiente."
+    if code in {"ThrottlingException", "ProvisionedThroughputExceededException", "TooManyRequestsException"}:
+        return "O serviço de dados está temporariamente ocupado. Aguarde alguns instantes e tente novamente."
+    return "O serviço de dados não respondeu como esperado. Tente novamente ou acione o suporte se persistir."
+
+
+def render_client_error(context: str, error: ClientError) -> None:
+    st.error(context)
+    st.write(client_error_user_message(error))
+    with st.expander("Detalhes técnicos para suporte"):
+        st.write(f"Código: `{client_error_code(error)}`")
+        st.code(str(error), language="text")
+
+
 def render_history_unavailable(error: Exception) -> None:
     if isinstance(error, ClientError):
         error_code = error.response.get("Error", {}).get("Code")
@@ -581,7 +639,7 @@ def render_history_unavailable(error: Exception) -> None:
             )
             return
 
-    st.sidebar.warning(f"Histórico indisponível: {error}")
+    st.sidebar.warning("Histórico indisponível no momento. Verifique a conexão de dados ou credenciais.")
 
 
 def render_asset_detail(
@@ -648,6 +706,32 @@ def main() -> None:
     if SELECTED_ASSET_ID_KEY not in st.session_state:
         st.session_state[SELECTED_ASSET_ID_KEY] = default_asset_id
 
+    # --- Controle de acesso (RBAC) ---
+    # Inerte enquanto AUTH_ENABLED != "true". Quando ativo, exige login pelo
+    # proxy (oauth2-proxy + Cognito) e resolve o tenant a partir da identidade.
+    identity = None
+    _auth = None
+    try:
+        from dashboard.auth import guard as _auth
+    except ImportError:
+        try:
+            from src.dashboard.auth import guard as _auth
+        except ImportError:
+            _auth = None
+    if _auth is not None and _auth.auth_enabled():
+        identity = _auth.enforce_authentication()
+        tenant_id = _auth.resolve_tenant(identity, tenant_id)
+        # Define o ator da trilha de auditoria para esta sessão.
+        try:
+            from dashboard.auth import audit as _audit
+        except ImportError:
+            try:
+                from src.dashboard.auth import audit as _audit
+            except ImportError:
+                _audit = None
+        if _audit is not None:
+            _audit.set_actor(identity)
+
     page_target = st.session_state.pop(PAGE_TARGET_KEY, None)
     if page_target:
         st.session_state[DASHBOARD_PAGE_KEY] = page_target
@@ -658,11 +742,59 @@ def main() -> None:
 
     st.title("MVP Monitoramento de Condição")
     st.caption("Bancada virtual OPC UA -> Bridge HTTPS -> AWS -> Diagnóstico")
+    if os.getenv("DASHBOARD_DATA_MODE", "").strip().lower() in {"local", "demo", "offline"}:
+        st.info("Modo local ativo: usando dados demo do projeto, sem chamadas ao DynamoDB.")
 
-    hmi = render_hmi_sidebar(config=config)
+    allowed_routes = None
+    contracted_services = None
+    if _auth is not None and identity is not None:
+        contracted_services_fn = getattr(_auth, "contracted_services_for_context", None) or getattr(
+            _auth,
+            "contracted_services_for_identity",
+            None,
+        )
+        allowed_routes_fn = getattr(_auth, "allowed_routes_for_context", None) or getattr(
+            _auth,
+            "allowed_routes_for_identity",
+            None,
+        )
+        if contracted_services_fn is not None:
+            contracted_services = contracted_services_fn(identity, tenant_id, plant_id)
+        if allowed_routes_fn is not None:
+            allowed_routes = allowed_routes_fn(identity, tenant_id, plant_id)
+
+    if identity is not None and allowed_routes:
+        route_signature = f"{identity.role}:{tenant_id}:{plant_id}:{','.join(allowed_routes)}"
+        if st.session_state.get(ROLE_ROUTE_INIT_KEY) != route_signature:
+            initial_route = default_route_for_role(identity.role, allowed_routes)
+            st.session_state[ROLE_ROUTE_INIT_KEY] = route_signature
+            if initial_route:
+                if identity.role in {"admin", "cliente_admin", "tecnico"}:
+                    st.session_state["hmi_mode"] = "technical"
+                    st.session_state["hmi_mode_radio"] = "Técnico"
+                else:
+                    st.session_state["hmi_mode"] = "operator"
+                    st.session_state["hmi_mode_radio"] = "Operador"
+                set_operator_page_for_route(initial_route)
+
+    hmi = render_hmi_sidebar(
+        config=config,
+        allowed_routes=allowed_routes,
+        user_role=identity.role if identity is not None else None,
+    )
     page = hmi["page"]
     mode = hmi["mode"]
     st.session_state[DASHBOARD_PAGE_KEY] = page
+
+    # Identidade na barra lateral e bloqueio de páginas fora do perfil.
+    if _auth is not None and identity is not None:
+        _auth.render_identity_badge(identity)
+        # Admin pode escolher o cliente (tenant) a visualizar; cliente fica no seu.
+        tenant_id = _auth.admin_tenant_selector(identity, tenant_id)
+        enforce_page_access_fn = getattr(_auth, "enforce_modular_page_access", None) or getattr(_auth, "enforce_page_access", None)
+        if enforce_page_access_fn is not None:
+            enforce_page_access_fn(identity, page, contracted_services)
+
     auto_refresh = bool(hmi.get("auto_refresh"))
     refresh_seconds = int(hmi.get("refresh_interval") or os.getenv("DASHBOARD_REFRESH_SECONDS", "5"))
 
@@ -670,6 +802,48 @@ def main() -> None:
 
     if page == "Ajuda do Operador":
         render_operator_help()
+        st.stop()
+        return
+
+    if page == CONDITION_MONITORING_PAGE:
+        try:
+            multi_repo = create_multiasset_repository_from_env()
+            states = multi_repo.list_current_states(tenant_id=tenant_id, plant_id=plant_id)
+            alerts_repo = create_alerts_repository_from_env()
+            condition_alerts = alerts_repo.list_alerts(tenant_id=tenant_id, plant_id=plant_id, active_only=True)
+            history_repo = create_history_repository_from_env()
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            render_client_error("Não foi possível carregar o monitoramento de equipamentos.", exc)
+            st.stop()
+
+        action = render_condition_monitoring_page(
+            mode=mode,
+            tenant_id=tenant_id,
+            plant_id=plant_id,
+            assets=config_repo.assets(config),
+            current_states=[
+                {
+                    **state,
+                    "status_label": state.get("status_label") or derive_status_label(state),
+                    "mode_label": state.get("mode_label") or mode_label(state.get("mode") or state.get("diagnosis")),
+                }
+                for state in states
+            ],
+            active_alerts=condition_alerts,
+            alerts_repo=alerts_repo,
+            history_repo=history_repo,
+            operator_name=identity.display_name if identity is not None else "operador_demo",
+        )
+        if action:
+            st.session_state[SELECTED_ASSET_ID_KEY] = action["asset_id"]
+            st.session_state[PAGE_TARGET_KEY] = action["route"]
+            st.rerun()
         st.stop()
         return
 
@@ -684,7 +858,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar o painel da planta: {exc}")
+            render_client_error("Não foi possível carregar o painel da planta.", exc)
             st.stop()
 
         operator_states = [
@@ -709,6 +883,21 @@ def main() -> None:
         st.stop()
         return
 
+    elif page == CLIENT_ADMIN_PAGE:
+        render_client_admin_page(tenant_id, os.getenv("PLATFORM_ADMIN_STORE"))
+        st.stop()
+        return
+
+    elif page == PLATFORM_ADMIN_PAGE:
+        render_platform_admin_page(os.getenv("PLATFORM_ADMIN_STORE"))
+        st.stop()
+        return
+
+    elif page == MODULAR_ARCHITECTURE_PAGE:
+        render_modular_architecture_page()
+        st.stop()
+        return
+
     elif page == "Teste ponta a ponta":
         render_e2e_test_page(config_store_path)
         st.stop()
@@ -729,13 +918,23 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar a inteligência operacional: {exc}")
+            render_client_error("Não foi possível carregar a inteligência operacional.", exc)
             st.stop()
 
         if auto_refresh:
             time.sleep(float(refresh_seconds))
             st.rerun()
 
+        st.stop()
+        return
+
+    elif page == LUBRICATION_OPERATION_PAGE:
+        render_lubrication_operation_page(
+            mode=mode,
+            tenant_id=tenant_id,
+            plant_id=plant_id,
+            config_path=os.getenv("LUBRICATION_CONFIG_PATH", "config/lubrication_pilot_config.json"),
+        )
         st.stop()
         return
 
@@ -749,7 +948,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar o sistema de lubrificação: {exc}")
+            render_client_error("Não foi possível carregar o sistema de lubrificação.", exc)
             st.stop()
 
         st.stop()
@@ -769,7 +968,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar a eficiência da lubrificação: {exc}")
+            render_client_error("Não foi possível carregar a eficiência da lubrificação.", exc)
             st.stop()
 
         if auto_refresh:
@@ -793,7 +992,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar a eficiência da lubrificação do motor: {exc}")
+            render_client_error("Não foi possível carregar a eficiência da lubrificação do motor.", exc)
             st.stop()
 
         if auto_refresh:
@@ -815,7 +1014,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar a bancada virtual de lubrificação: {exc}")
+            render_client_error("Não foi possível carregar a bancada virtual de lubrificação.", exc)
             st.stop()
 
         st.stop()
@@ -843,7 +1042,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar a central de alertas: {exc}")
+            render_client_error("Não foi possível carregar a central de alertas.", exc)
             st.stop()
 
         if auto_refresh:
@@ -867,7 +1066,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar a matriz de escalonamento: {exc}")
+            render_client_error("Não foi possível carregar a matriz de escalonamento.", exc)
             st.stop()
 
         if auto_refresh:
@@ -895,7 +1094,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar a Notification Outbox: {exc}")
+            render_client_error("Não foi possível carregar a Notification Outbox.", exc)
             st.stop()
 
         if auto_refresh:
@@ -916,7 +1115,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar a visão geral da planta: {exc}")
+            render_client_error("Não foi possível carregar a visão geral da planta.", exc)
             st.stop()
 
         selected_asset_id = render_plant_overview(states)
@@ -946,7 +1145,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar os dados para relatórios: {exc}")
+            render_client_error("Não foi possível carregar os dados para relatórios.", exc)
             st.stop()
 
         history_repo = None
@@ -982,7 +1181,7 @@ def main() -> None:
             render_aws_credentials_error(exc)
             st.stop()
         except ClientError as exc:
-            st.error(f"Não foi possível carregar o detalhe do ativo: {exc}")
+            render_client_error("Não foi possível carregar o detalhe do ativo.", exc)
             st.stop()
 
         if not latest_state:

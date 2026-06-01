@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import pandas as pd
 import streamlit as st
 
@@ -11,6 +13,10 @@ from .lubrication_repository import LubricationRepository
 
 
 OUTLET_IDS = ("saida_graxa_01", "saida_graxa_02", "saida_graxa_03", "saida_graxa_04")
+
+
+def local_demo_enabled() -> bool:
+    return os.getenv("DASHBOARD_DATA_MODE", "").strip().lower() in {"local", "demo", "offline"}
 
 
 def _pretty_text(value: object) -> str:
@@ -108,12 +114,18 @@ def sample_payload_from_config(config: dict) -> dict:
     }
 
 
+def local_demo_lubrication_snapshot(config: dict) -> tuple[dict, list[dict], list[dict]]:
+    state = evaluate_lubrication_cycle(sample_payload_from_config(config), config)
+    cycles = [state]
+    alerts = list(state.get("active_alerts", []))
+    return state, cycles, alerts
+
+
 def render_lubrication_page(config_path: str = "config/lubrication_pilot_config.json") -> None:
     st.header("Sistema de Lubrificação")
     st.caption("Monitoramento inteligente de pressão por saída de graxa.")
 
     config = load_lubrication_config(config_path)
-    repo = LubricationRepository()
 
     tenant_id = config.get("tenant_id")
     asset_id = config.get("asset_id")
@@ -124,13 +136,17 @@ def render_lubrication_page(config_path: str = "config/lubrication_pilot_config.
     col_sensor.metric("Sensor sugerido", f"0-{config.get('sensor_range_bar', 250)} bar")
     col_source.metric("Fonte", config.get("source_id"))
 
-    state = repo.get_state(tenant_id, asset_id)
-    cycles = repo.list_cycles(tenant_id, asset_id, limit=30)
-    alerts = repo.list_alerts(tenant_id, asset_id)
+    if local_demo_enabled():
+        state, cycles, alerts = local_demo_lubrication_snapshot(config)
+    else:
+        repo = LubricationRepository()
+        state = repo.get_state(tenant_id, asset_id)
+        cycles = repo.list_cycles(tenant_id, asset_id, limit=30)
+        alerts = repo.list_alerts(tenant_id, asset_id)
 
     if not state:
         st.warning("Ainda não há ciclo salvo para este sistema de lubrificação.")
-        if st.button("Gerar ciclo demonstrativo", type="primary", use_container_width=True):
+        if st.button("Gerar ciclo demonstrativo", type="primary", width="stretch"):
             result = evaluate_lubrication_cycle(sample_payload_from_config(config), config)
             repo.save_cycle_result(result)
             st.success("Ciclo demonstrativo salvo.")
@@ -153,8 +169,8 @@ def render_lubrication_page(config_path: str = "config/lubrication_pilot_config.
 
     with tab_overview:
         st.subheader("Ciclo atual")
-        st.dataframe(outlets_df(state), use_container_width=True, hide_index=True)
-        if st.button("Gerar novo ciclo demonstrativo", use_container_width=True):
+        st.dataframe(outlets_df(state), width="stretch", hide_index=True)
+        if not local_demo_enabled() and st.button("Gerar novo ciclo demonstrativo", width="stretch"):
             result = evaluate_lubrication_cycle(sample_payload_from_config(config), config)
             repo.save_cycle_result(result)
             st.success("Novo ciclo demonstrativo salvo.")
@@ -165,13 +181,13 @@ def render_lubrication_page(config_path: str = "config/lubrication_pilot_config.
         render_pressure_gauges(state, sensor_range_bar=float(config.get("sensor_range_bar", 250) or 250))
         st.subheader("Dados por saída")
         df = outlets_df(state)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, width="stretch", hide_index=True)
         st.download_button(
             "Exportar pressão por saída CSV",
             df.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig"),
             "pressao_por_saida.csv",
             "text/csv",
-            use_container_width=True,
+            width="stretch",
         )
 
     with tab_cycles:
@@ -179,14 +195,14 @@ def render_lubrication_page(config_path: str = "config/lubrication_pilot_config.
         if df_cycles.empty:
             st.info("Nenhum ciclo histórico encontrado.")
         else:
-            st.dataframe(df_cycles, use_container_width=True, hide_index=True)
+            st.dataframe(df_cycles, width="stretch", hide_index=True)
 
     with tab_alerts:
         df_alerts = alerts_df(alerts)
         if df_alerts.empty:
             st.success("Nenhum alerta ativo registrado para o sistema de lubrificação.")
         else:
-            st.dataframe(df_alerts, use_container_width=True, hide_index=True)
+            st.dataframe(df_alerts, width="stretch", hide_index=True)
 
     with tab_ai:
         rec = state.get("recommendation", {})
