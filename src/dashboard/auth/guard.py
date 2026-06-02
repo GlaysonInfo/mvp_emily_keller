@@ -55,14 +55,10 @@ def _signout_url() -> str:
     if explicit_url:
         return explicit_url
 
-    institutional_url = os.getenv("INSTITUTIONAL_SITE_URL")
-    if institutional_url:
-        return institutional_url
-
     if os.getenv("AUTH_DEV_IDENTITY") or os.getenv("DASHBOARD_DATA_MODE", "").strip().lower() in {"local", "demo", "offline"}:
         return "http://127.0.0.1:8081/"
 
-    return "https://sentinelaindustrial.com.br/"
+    return "https://app.sentinelaindustrial.com.br/oauth2/sign_out"
 
 
 def _login_url() -> str:

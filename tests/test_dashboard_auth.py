@@ -166,13 +166,13 @@ def test_configured_header_names_are_normalized(monkeypatch) -> None:
     importlib.reload(identity_module)
 
 
-def test_signout_url_defaults_to_institutional_site(monkeypatch) -> None:
+def test_signout_url_defaults_to_app_logout(monkeypatch) -> None:
     monkeypatch.delenv("AUTH_SIGNOUT_URL", raising=False)
     monkeypatch.delenv("INSTITUTIONAL_SITE_URL", raising=False)
     monkeypatch.delenv("AUTH_DEV_IDENTITY", raising=False)
     monkeypatch.delenv("DASHBOARD_DATA_MODE", raising=False)
 
-    assert guard_module._signout_url() == "https://sentinelaindustrial.com.br/"
+    assert guard_module._signout_url() == "https://app.sentinelaindustrial.com.br/oauth2/sign_out"
 
 
 def test_signout_url_returns_local_site_in_dev_identity(monkeypatch) -> None:

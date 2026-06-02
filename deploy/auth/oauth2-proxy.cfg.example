@@ -21,6 +21,10 @@ cookie_secret  = "PREENCHER_COOKIE_SECRET_32_BYTES"
 cookie_secure  = true
 cookie_domains = ".sentinelaindustrial.com.br"
 cookie_expire  = "8h"
+whitelist_domains = [
+  ".sentinelaindustrial.com.br",
+  "sentinela-industrial-login.auth.us-east-1.amazoncognito.com",
+]
 
 # --- Quem pode entrar ---
 email_domains = ["*"]          # o controle real é por grupo/RBAC no app

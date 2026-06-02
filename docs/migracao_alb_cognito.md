@@ -18,8 +18,8 @@ O ALB injeta na requisição:
 - `x-amzn-oidc-accesstoken` — access token do Cognito, que **carrega
   `cognito:groups`** (de onde sai o perfil).
 
-Por isso o **mesmo modelo de grupos** (`ADMIN_SERVER`, `CLIENTE_TECNICO`,
-`CLIENTE_OPERADOR`, `TENANT_<id>`) continua valendo — sem precisar de
+Por isso o **mesmo modelo de grupos** (`ADMIN_SERVER`, `CLIENTE_ADMIN`,
+`CLIENTE_TECNICO`, `CLIENTE_OPERADOR`, `TENANT_<id>`) continua valendo — sem precisar de
 `custom:role`. A app lê isso em `AUTH_PROVIDER=alb`
 (`src/dashboard/auth/identity.py`).
 

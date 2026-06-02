@@ -72,7 +72,8 @@ verificação. Marque as caixas conforme avança.
         --user-attributes Name=email,Value=tecnico@cliente.com Name=custom:tenant_id,Value=cliente_demo
       aws cognito-idp admin-add-user-to-group --user-pool-id $POOL \
         --username tecnico@cliente.com --group-name CLIENTE_TECNICO
-      # Repita para operador@cliente.com (CLIENTE_OPERADOR) e admin@suaempresa.com (ADMIN_SERVER)
+      # Repita para operador@cliente.com (CLIENTE_OPERADOR),
+      # admin.cliente@cliente.com (CLIENTE_ADMIN) e admin@suaempresa.com (ADMIN_SERVER)
       ```
 
 ### 2.2. Garantir o tenant do cliente (passo que exige atenção)
@@ -144,7 +145,9 @@ Detalhes e comandos em **`docs/tenant_claim_setup.md`**. Escolha **uma**:
 - [ ] Atualizar `/opt/automacaoapi/.env`:
       ```ini
       AUTH_ENABLED=true
-      AUTH_SIGNOUT_URL=/oauth2/sign_out
+      AUTH_SIGNOUT_URL=https://app.sentinelaindustrial.com.br/oauth2/sign_out
+      AUTH_LOGIN_URL=https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F
+      INSTITUTIONAL_SITE_URL=https://sentinelaindustrial.com.br/
       GREASE_INGEST_TOKEN=<token forte>
       CONDITION_INGEST_TOKEN=<token forte>
       # opcional: GREASE_ALLOWED_SOURCE_IPS / CONDITION_ALLOWED_SOURCE_IPS
@@ -215,7 +218,7 @@ Reverter é rápido e seguro:
 | API graxa | `127.0.0.1:8000` |
 | API condição | `127.0.0.1:8001` |
 | oauth2-proxy | `127.0.0.1:4180` |
-| `.env` chaves | `AUTH_ENABLED`, `AUTH_SIGNOUT_URL`, `GREASE_INGEST_TOKEN`, `CONDITION_INGEST_TOKEN`, `ADMIN_TENANTS` (opcional) |
+| `.env` chaves | `AUTH_ENABLED`, `AUTH_LOGIN_URL`, `AUTH_SIGNOUT_URL`, `INSTITUTIONAL_SITE_URL`, `GREASE_INGEST_TOKEN`, `CONDITION_INGEST_TOKEN`, `ADMIN_TENANTS` (opcional) |
 | `ADMIN_TENANTS` | Lista (vírgula) de clientes que o Admin pode visualizar no seletor da IHM |
-| Grupos Cognito | `ADMIN_SERVER`, `CLIENTE_TECNICO`, `CLIENTE_OPERADOR` |
+| Grupos Cognito | `ADMIN_SERVER`, `CLIENTE_ADMIN`, `CLIENTE_TECNICO`, `CLIENTE_OPERADOR` |
 | Atributo tenant | `custom:tenant_id` → cabeçalho `X-Forwarded-Tenant` |

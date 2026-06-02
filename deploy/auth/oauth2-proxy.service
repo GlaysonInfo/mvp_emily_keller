@@ -9,6 +9,7 @@ User=oauth2proxy
 Group=oauth2proxy
 # Baixe o binário em /usr/local/bin/oauth2-proxy
 # (https://github.com/oauth2-proxy/oauth2-proxy/releases)
+EnvironmentFile=-/etc/oauth2-proxy/oauth2-proxy.env
 ExecStart=/usr/local/bin/oauth2-proxy --config=/etc/oauth2-proxy/oauth2-proxy.cfg
 Restart=always
 RestartSec=5

@@ -4,8 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Acesso ao Sistema | Sentinela Industrial</title>
-  <meta name="description" content="Hub de acesso ao sistema Sentinela Industrial por perfil." />
-  <!-- Área de acesso NÃO deve ser indexada -->
+  <meta name="description" content="Hub de acesso seguro ao sistema Sentinela Industrial." />
   <meta name="robots" content="noindex, nofollow" />
   <link rel="stylesheet" href="/assets/styles.css" />
 </head>
@@ -22,51 +21,48 @@
   <main>
     <div class="container access-wrap">
       <h1>Acesso ao Sistema</h1>
-      <p class="lead">Escolha o tipo de acesso. A autenticação é feita com segurança pelo provedor de identidade (AWS Cognito) e o acesso é controlado por perfil.</p>
+      <p class="lead">Entre pelo acesso seguro. O perfil exibido no sistema e definido automaticamente pelo usuario autenticado no AWS Cognito.</p>
 
       <div class="access-card">
-        <span class="badge">Área de Clientes</span>
+        <span class="badge">Login seguro</span>
+        <h3>Entrar no sistema</h3>
+        <p>Use seu e-mail corporativo para acessar a area operacional. O menu sera ajustado conforme seu perfil, cliente e servicos contratados.</p>
+        <p class="access-action">
+          <a class="btn btn-primary" data-app-link data-local-target="http://127.0.0.1:8502/" href="https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F">Entrar no Sistema</a>
+        </p>
+      </div>
+
+      <div class="access-card">
+        <span class="badge">Area de Clientes</span>
         <h3>Operador</h3>
-        <p>Acesso à operação diária dos serviços contratados, status da planta, alertas, relatórios e ações recomendadas.</p>
-        <p class="access-action">
-          <a class="btn btn-primary" data-app-link data-local-target="http://127.0.0.1:8502/" href="https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F">Entrar como Operador</a>
-        </p>
+        <p>Operacao diaria dos servicos contratados, status da planta, alertas, relatorios e acoes recomendadas.</p>
       </div>
 
       <div class="access-card">
-        <span class="badge">Área de Clientes</span>
-        <h3>Técnico</h3>
-        <p>Acesso técnico para configuração de campo, validação de sinais, regras, escalonamento e análise operacional.</p>
-        <p class="access-action">
-          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8503/" href="https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F">Entrar como Técnico</a>
-        </p>
+        <span class="badge">Area de Clientes</span>
+        <h3>Tecnico</h3>
+        <p>Configuracao de campo, validacao de sinais, regras, escalonamento e analise operacional.</p>
       </div>
 
       <div class="access-card">
-        <span class="badge">Administração do Cliente</span>
+        <span class="badge">Administracao do Cliente</span>
         <h3>Cliente Admin</h3>
-        <p>Gestão do próprio tenant: plantas, usuários, serviços contratados e configurações locais do cliente.</p>
-        <p class="access-action">
-          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8505/" href="https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F">Entrar como Cliente Admin</a>
-        </p>
+        <p>Gestao do proprio tenant: plantas, usuarios, servicos contratados e configuracoes locais do cliente.</p>
       </div>
 
       <div class="access-card">
-        <span class="badge">Administração da Plataforma</span>
+        <span class="badge">Administracao da Plataforma</span>
         <h3>Admin do Sistema</h3>
-        <p>Gestão da plataforma, clientes (tenants), usuários e parâmetros globais.</p>
-        <p class="access-action">
-          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8504/" href="https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F">Entrar como Admin</a>
-        </p>
+        <p>Gestao da plataforma, clientes, tenants, usuarios e parametros globais.</p>
       </div>
 
       <div class="access-card" id="local-auth-preview" hidden>
-        <span class="badge">Prévia local</span>
+        <span class="badge">Previa local</span>
         <h3>Perfis simulados</h3>
-        <p>Use estes acessos apenas no ambiente local para validar a separação real de menus e permissões antes do Cognito.</p>
+        <p>Use estes acessos apenas no ambiente local para validar a separacao real de menus e permissoes antes do Cognito.</p>
         <p class="access-action access-actions">
           <a class="btn btn-primary" href="http://127.0.0.1:8502/">Operador</a>
-          <a class="btn btn-ghost" href="http://127.0.0.1:8503/">Técnico</a>
+          <a class="btn btn-ghost" href="http://127.0.0.1:8503/">Tecnico</a>
           <a class="btn btn-ghost" href="http://127.0.0.1:8505/">Cliente Admin</a>
           <a class="btn btn-ghost" href="http://127.0.0.1:8504/">Admin</a>
         </p>

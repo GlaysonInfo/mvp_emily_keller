@@ -37,7 +37,7 @@ cliente um grupo que carrega o tenant. **Nenhuma config alpha, nenhuma Lambda.**
 A aplicação extrai `cliente_demo` do grupo `TENANT_cliente_demo`. O prefixo é
 configurável por `AUTH_TENANT_GROUP_PREFIX` (padrão `TENANT_`). Os grupos
 `TENANT_*` são ignorados na resolução de perfil (só contam `ADMIN_SERVER`,
-`CLIENTE_TECNICO`, `CLIENTE_OPERADOR`).
+`CLIENTE_ADMIN`, `CLIENTE_TECNICO`, `CLIENTE_OPERADOR`).
 
 > Observação: manter também o atributo `custom:tenant_id` no usuário é útil para
 > relatórios/admin, mesmo usando a convenção de grupo.

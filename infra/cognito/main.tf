@@ -1,6 +1,6 @@
 # =====================================================================
 # AWS Cognito — Portal de acesso da Sentinela Industrial
-# Cria: User Pool, 3 grupos (perfis), atributo custom:tenant_id,
+# Cria: User Pool, 4 grupos (perfis), atributo custom:tenant_id,
 # domínio do Hosted UI e um App Client (confidencial) para o oauth2-proxy.
 #
 #   cd infra/cognito
@@ -76,6 +76,13 @@ resource "aws_cognito_user_group" "admin_server" {
   precedence   = 1
 }
 
+resource "aws_cognito_user_group" "cliente_admin" {
+  name         = "CLIENTE_ADMIN"
+  user_pool_id = aws_cognito_user_pool.sentinela.id
+  description  = "Admin do cliente (usuarios, plantas e contratos do proprio tenant)"
+  precedence   = 5
+}
+
 resource "aws_cognito_user_group" "cliente_tecnico" {
   name         = "CLIENTE_TECNICO"
   user_pool_id = aws_cognito_user_pool.sentinela.id
@@ -108,7 +115,10 @@ resource "aws_cognito_user_pool_client" "app" {
   supported_identity_providers         = ["COGNITO"]
 
   callback_urls = ["https://${var.app_domain}/oauth2/callback"]
-  logout_urls   = ["https://${var.app_domain}/"]
+  logout_urls   = [
+    "https://${var.app_domain}/",
+    "https://${var.institutional_domain}/",
+  ]
 
   explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",

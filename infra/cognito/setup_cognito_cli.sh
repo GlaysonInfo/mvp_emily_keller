@@ -4,12 +4,14 @@
 # Requer: aws cli v2 configurado com credenciais e permissão em cognito-idp.
 # Uso:
 #   REGION=us-east-1 APP_DOMAIN=app.sentinelaindustrial.com.br \
+#   INSTITUTIONAL_DOMAIN=sentinelaindustrial.com.br \
 #   HOSTED_PREFIX=sentinela-industrial-login bash setup_cognito_cli.sh
 # =====================================================================
 set -euo pipefail
 
 REGION="${REGION:-us-east-1}"
 APP_DOMAIN="${APP_DOMAIN:-app.sentinelaindustrial.com.br}"
+INSTITUTIONAL_DOMAIN="${INSTITUTIONAL_DOMAIN:-sentinelaindustrial.com.br}"
 HOSTED_PREFIX="${HOSTED_PREFIX:-sentinela-industrial-login}"
 POOL_NAME="${POOL_NAME:-sentinela-industrial-prod}"
 
@@ -25,7 +27,7 @@ POOL_ID=$(aws cognito-idp create-user-pool \
 echo "   User Pool: ${POOL_ID}"
 
 echo ">> Criando grupos (perfis)..."
-for g in ADMIN_SERVER:1 CLIENTE_TECNICO:10 CLIENTE_OPERADOR:20; do
+for g in ADMIN_SERVER:1 CLIENTE_ADMIN:5 CLIENTE_TECNICO:10 CLIENTE_OPERADOR:20; do
   NAME="${g%%:*}"; PREC="${g##*:}"
   aws cognito-idp create-group --region "$REGION" \
     --user-pool-id "$POOL_ID" --group-name "$NAME" --precedence "$PREC" >/dev/null
@@ -47,7 +49,10 @@ CLIENT_JSON=$(aws cognito-idp create-user-pool-client --region "$REGION" \
   --allowed-o-auth-flows-user-pool-client \
   --supported-identity-providers COGNITO \
   --callback-urls "https://${APP_DOMAIN}/oauth2/callback" \
-  --logout-urls "https://${APP_DOMAIN}/" \
+  --logout-urls "https://${APP_DOMAIN}/" "https://${INSTITUTIONAL_DOMAIN}/" \
+  --explicit-auth-flows ALLOW_USER_SRP_AUTH ALLOW_REFRESH_TOKEN_AUTH \
+  --read-attributes email custom:tenant_id \
+  --write-attributes email custom:tenant_id \
   --output json)
 
 CLIENT_ID=$(echo "$CLIENT_JSON" | python3 -c 'import sys,json;print(json.load(sys.stdin)["UserPoolClient"]["ClientId"])')

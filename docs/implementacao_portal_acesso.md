@@ -25,7 +25,7 @@ ingestão protegida. Decisões escolhidas (a melhor combinação descrita):
 | Proxy de auth (agora) | **oauth2-proxy + nginx** no EC2 atual (baixa fricção) | "implementar no que já existe" |
 | Proxy de auth (evolução) | ALB + Cognito nativo + WAF | pesquisa |
 | Vitrine | Site **estático** (S3 + CloudFront) | pesquisa |
-| Perfis | `ADMIN_SERVER`, `CLIENTE_TECNICO`, `CLIENTE_OPERADOR` | consenso |
+| Perfis | `ADMIN_SERVER`, `CLIENTE_ADMIN`, `CLIENTE_TECNICO`, `CLIENTE_OPERADOR` | consenso |
 | Ingestão | Token **obrigatório** (fail-closed) + allowlist | consenso |
 
 > **Nota importante de reconciliação.** O relatório de pesquisa lista caminhos
@@ -179,7 +179,7 @@ No `.env` do app (serviço do Streamlit):
 
 ```bash
 AUTH_ENABLED=true
-AUTH_SIGNOUT_URL=/oauth2/sign_out
+AUTH_SIGNOUT_URL=https://app.sentinelaindustrial.com.br/oauth2/sign_out
 # (opcional) nomes de cabeçalho, se mudar no nginx:
 # AUTH_HEADER_EMAIL=x-forwarded-email
 # AUTH_HEADER_GROUPS=x-forwarded-groups

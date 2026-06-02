@@ -16,6 +16,12 @@ variable "app_domain" {
   default     = "app.sentinelaindustrial.com.br"
 }
 
+variable "institutional_domain" {
+  description = "Dominio publico da vitrine institucional"
+  type        = string
+  default     = "sentinelaindustrial.com.br"
+}
+
 variable "hosted_ui_domain_prefix" {
   description = "Prefixo do dominio do Hosted UI do Cognito (precisa ser unico na regiao)"
   type        = string

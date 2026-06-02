@@ -2,6 +2,7 @@
 
 Perfis:
     - ADMIN_SERVER     -> admin do sistema (toda a plataforma, todos os tenants)
+    - CLIENTE_ADMIN    -> admin do cliente (usuarios, plantas e contratos do tenant)
     - CLIENTE_TECNICO  -> técnico do cliente (configura o que é do seu tenant)
     - CLIENTE_OPERADOR -> operador do cliente (opera, sem editar configuração)
 

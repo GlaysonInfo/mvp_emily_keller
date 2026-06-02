@@ -80,19 +80,17 @@ def test_access_page_is_noindex():
 def test_access_page_exposes_local_profile_previews():
     access_html = (SITE_ROOT / "acesso" / "index.html").read_text(encoding="utf-8")
 
-    assert "Entrar como Operador" in access_html
-    assert "Entrar como Técnico" in access_html
-    assert "Entrar como Cliente Admin" in access_html
-    assert "Entrar como Admin" in access_html
+    assert "Entrar no Sistema" in access_html
+    assert "Operador" in access_html
+    assert "Tecnico" in access_html
+    assert "Cliente Admin" in access_html
+    assert "Admin do Sistema" in access_html
     assert "http://127.0.0.1:8502/" in access_html
     assert "http://127.0.0.1:8503/" in access_html
     assert "http://127.0.0.1:8505/" in access_html
     assert "http://127.0.0.1:8504/" in access_html
     assert 'data-local-target="http://127.0.0.1:8502/"' in access_html
-    assert 'data-local-target="http://127.0.0.1:8503/"' in access_html
-    assert 'data-local-target="http://127.0.0.1:8505/"' in access_html
-    assert 'data-local-target="http://127.0.0.1:8504/"' in access_html
-    assert "Cliente Admin" in access_html
+    assert "local-auth-preview" in access_html
 
 
 def test_access_page_starts_login_on_app_subdomain():
@@ -100,3 +98,5 @@ def test_access_page_starts_login_on_app_subdomain():
 
     assert "https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F" in access_html
     assert 'link.href = "https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F";' in access_html
+    assert "Entrar como Operador" not in access_html
+    assert "Entrar como Admin" not in access_html

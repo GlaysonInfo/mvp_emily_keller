@@ -134,8 +134,8 @@ Entrega 1A - mitigação imediata:
 
 Entrega 1B - Cognito + oauth2-proxy:
 
-1. Criar User Pool Cognito e grupos `ADMIN_SERVER`, `CLIENTE_TECNICO`,
-   `CLIENTE_OPERADOR`.
+1. Criar User Pool Cognito e grupos `ADMIN_SERVER`, `CLIENTE_ADMIN`,
+   `CLIENTE_TECNICO`, `CLIENTE_OPERADOR`.
 2. Configurar app client com Authorization Code + PKCE.
 3. Instalar `oauth2-proxy` na EC2.
 4. Aplicar `deploy/auth/nginx_app_auth.conf`, garantindo que o NGINX sobrescreve
@@ -144,10 +144,10 @@ Entrega 1B - Cognito + oauth2-proxy:
 
 ```bash
 AUTH_ENABLED=true
-AUTH_SIGNOUT_URL=/oauth2/sign_out
+AUTH_SIGNOUT_URL=https://app.sentinelaindustrial.com.br/oauth2/sign_out
 ```
 
-6. Criar três usuários de teste, um por perfil.
+6. Criar quatro usuários de teste, um por perfil.
 
 Validação local sem proxy:
 
