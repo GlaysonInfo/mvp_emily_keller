@@ -42,6 +42,31 @@ DEFAULT_TECH_PAGES = [
 ]
 
 OPERATOR_LABEL_BY_ROUTE = {item["route"]: item["label"] for item in DEFAULT_OPERATOR_PAGES}
+OPERATOR_LABEL_BY_ROUTE.update(
+    {
+        "Monitoramento de Equipamentos": "Equipamentos",
+        "Visão Geral da Planta": "Painel da planta",
+        "Detalhe do Ativo": "Equipamento",
+        "Operação de Lubrificação": "Operação Lub.",
+        "Sistema de Lubrificação": "Lubrificação",
+        "Eficiência da Lubrificação": "Eficiência",
+        "Alertas e Eventos": "Alertas",
+        "Relatórios": "Relatórios",
+        "Ajuda do Operador": "Ajuda",
+    }
+)
+OPERATOR_GROUPS = [
+    (
+        "Monitoramento de Equipamentos",
+        ["Monitoramento de Equipamentos", "Visão Geral da Planta", "Detalhe do Ativo"],
+    ),
+    (
+        "Sistema de Lubrificação",
+        ["Operação de Lubrificação", "Sistema de Lubrificação", "Eficiência da Lubrificação"],
+    ),
+    ("Alertas e Relatórios", ["Alertas e Eventos", "Relatórios"]),
+    ("Suporte", ["Ajuda do Operador"]),
+]
 TECHNICAL_LABEL_BY_ROUTE = {
     "Monitoramento de Equipamentos": "Ativos monitorados",
     "Visão Geral da Planta": "Visão da planta",
@@ -158,6 +183,44 @@ def _technical_page_label(route: str) -> str:
     return TECHNICAL_LABEL_BY_ROUTE.get(route, route)
 
 
+def _operator_navigation_groups(pages: list[dict[str, str]]) -> list[dict[str, Any]]:
+    page_by_route = {page["route"]: page for page in pages}
+    remaining = set(page_by_route)
+    groups: list[dict[str, Any]] = []
+
+    for group_label, routes in OPERATOR_GROUPS:
+        items = []
+        for route in routes:
+            page = page_by_route.get(route)
+            if page is None:
+                continue
+            items.append(
+                {
+                    "route": page["route"],
+                    "label": OPERATOR_LABEL_BY_ROUTE.get(page["route"], page["label"]),
+                    "state_label": page["label"],
+                }
+            )
+        if not items:
+            continue
+        groups.append({"label": group_label, "items": items})
+        for item in items:
+            remaining.discard(item["route"])
+
+    leftovers = [
+        {
+            "route": page["route"],
+            "label": OPERATOR_LABEL_BY_ROUTE.get(page["route"], page["label"]),
+            "state_label": page["label"],
+        }
+        for page in pages
+        if page["route"] in remaining
+    ]
+    if leftovers:
+        groups.append({"label": "Outros", "items": leftovers})
+    return groups
+
+
 def _technical_navigation_groups(pages: list[str], user_role: str | None = None) -> list[dict[str, Any]]:
     available = list(dict.fromkeys(pages))
     remaining = set(available)
@@ -267,7 +330,22 @@ def render_hmi_sidebar(
             st.session_state["hmi_operator_page"] = pending_label
         if st.session_state.get("hmi_operator_page") not in labels:
             st.session_state["hmi_operator_page"] = labels[0]
-        selected_label = st.sidebar.radio("Menu do operador", labels, key="hmi_operator_page")
+        st.sidebar.markdown("Menu do operador")
+        groups = _operator_navigation_groups(page_map)
+        for group in groups:
+            st.sidebar.caption(str(group["label"]))
+            for item in group["items"]:
+                state_label = str(item["state_label"])
+                selected = st.session_state.get("hmi_operator_page") == state_label
+                if st.sidebar.button(
+                    str(item["label"]),
+                    key=f"hmi_operator_button_{item['route']}",
+                    type="primary" if selected else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state["hmi_operator_page"] = state_label
+                    st.rerun()
+        selected_label = st.session_state["hmi_operator_page"]
         selected_item = page_map[labels.index(selected_label)]
         page = selected_item["route"]
         visible_label = selected_item["label"]

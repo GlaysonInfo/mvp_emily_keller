@@ -11,6 +11,7 @@ from src.dashboard.hmi.hmi_sidebar import (
     _forced_mode_for_role,
     _is_administrative_role,
     _mode_caption_for_role,
+    _operator_navigation_groups,
     _technical_navigation_label,
     _technical_navigation_groups,
     load_hmi_menu_config,
@@ -68,6 +69,8 @@ def test_operator_route_changes_are_applied_before_sidebar_widget_is_created() -
     assert "st.session_state[PENDING_OPERATOR_PAGE_KEY] = label" in setter_body
     assert 'st.session_state["hmi_operator_page"] = label' not in setter_body
     assert "pending_label = st.session_state.pop(PENDING_OPERATOR_PAGE_KEY, None)" in source
+    assert "hmi_operator_button_" in source
+    assert 'st.sidebar.radio("Menu do operador"' not in source
 
 
 def test_sidebar_pages_can_be_filtered_by_allowed_routes() -> None:
@@ -92,6 +95,38 @@ def test_sidebar_pages_can_be_filtered_by_allowed_routes() -> None:
         "Sistema de Lubrificação",
         "Configurações",
     ]
+
+
+def test_operator_navigation_groups_routes_by_operational_domain() -> None:
+    pages = _filter_operator_pages(
+        DEFAULT_OPERATOR_PAGES,
+        [
+            "Monitoramento de Equipamentos",
+            "Detalhe do Ativo",
+            "Operação de Lubrificação",
+            "Sistema de Lubrificação",
+            "Alertas e Eventos",
+            "Relatórios",
+        ],
+    )
+
+    groups = _operator_navigation_groups(pages)
+
+    assert [group["label"] for group in groups] == [
+        "Monitoramento de Equipamentos",
+        "Sistema de Lubrificação",
+        "Alertas e Relatórios",
+    ]
+    assert groups[0]["items"][0] == {
+        "route": "Monitoramento de Equipamentos",
+        "label": "Equipamentos",
+        "state_label": "Equipamentos",
+    }
+    assert {
+        "route": "Operação de Lubrificação",
+        "label": "Operação Lub.",
+        "state_label": "Operação Lub.",
+    } in groups[1]["items"]
 
 
 def test_technical_navigation_groups_routes_by_professional_domain() -> None:
