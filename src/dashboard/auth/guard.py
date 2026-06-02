@@ -66,7 +66,7 @@ def _signout_url() -> str:
 
 
 def _login_url() -> str:
-    return os.getenv("AUTH_LOGIN_URL", "/oauth2/start?rd=/")
+    return os.getenv("AUTH_LOGIN_URL", "https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F")
 
 
 def _institutional_url() -> str:

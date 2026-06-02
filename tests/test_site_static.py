@@ -93,3 +93,10 @@ def test_access_page_exposes_local_profile_previews():
     assert 'data-local-target="http://127.0.0.1:8505/"' in access_html
     assert 'data-local-target="http://127.0.0.1:8504/"' in access_html
     assert "Cliente Admin" in access_html
+
+
+def test_access_page_starts_login_on_app_subdomain():
+    access_html = (SITE_ROOT / "acesso" / "index.html").read_text(encoding="utf-8")
+
+    assert "https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F" in access_html
+    assert 'link.href = "https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F";' in access_html
