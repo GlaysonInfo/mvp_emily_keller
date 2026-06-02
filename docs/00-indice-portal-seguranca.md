@@ -59,6 +59,7 @@ Documentos de contexto (na raiz do repositório):
 |---|---|
 | `docs/implementacao_portal_acesso.md` | Visão completa do portal e estrutura de pastas |
 | `docs/runbook_ativacao_portal.md` | Checklist operacional de ativação no servidor |
+| `docs/baseline_producao_portal_acesso.md` | Aceite final por perfil, tenant, login e logout |
 | `docs/tenant_claim_setup.md` | Isolamento por cliente (grupo `TENANT_` ou claim) |
 | `docs/migracao_alb_cognito.md` | Migração do oauth2-proxy para ALB nativo |
 | `docs/cicd_iac.md` | CI/CD e IaC (site e app) |
