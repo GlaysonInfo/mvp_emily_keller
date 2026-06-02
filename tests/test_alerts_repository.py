@@ -135,6 +135,31 @@ class AlertsRepositoryTest(unittest.TestCase):
         self.assertEqual(table.query_requests[0]["IndexName"], "tenant_plant_index")
         self.assertEqual(table.scan_requests, [])
 
+    def test_list_alerts_accepts_active_only_for_plant_view(self) -> None:
+        table = FakeTable(
+            items=[
+                {
+                    "tenant_id": "cliente_demo",
+                    "plant_id": "lab_virtual",
+                    "asset_id": "motor_001",
+                    "alert_key": "open#dashboard#vibration",
+                    "status": "open",
+                },
+                {
+                    "tenant_id": "cliente_demo",
+                    "plant_id": "lab_virtual",
+                    "asset_id": "motor_001",
+                    "alert_key": "resolved#dashboard#temperature",
+                    "status": "resolved",
+                },
+            ],
+        )
+
+        alerts = self.repo(table).list_alerts("cliente_demo", plant_id="lab_virtual", active_only=True)
+
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]["alert_key"], "open#dashboard#vibration")
+
     def test_list_alerts_falls_back_to_scan_when_tenant_plant_index_is_missing(self) -> None:
         table = FakeTable(
             fail_tenant_plant_query=True,

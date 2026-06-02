@@ -129,6 +129,7 @@ class AlertsRepository:
         tenant_id: str,
         asset_id: str,
         status: str | None = None,
+        active_only: bool = False,
     ) -> list[dict[str, Any]]:
         filter_expression = None if not status or status == "Todos" else Attr("status").eq(status)
         tenant_asset = self.tenant_asset(tenant_id, asset_id)
@@ -138,7 +139,7 @@ class AlertsRepository:
             kwargs["FilterExpression"] = filter_expression
 
         try:
-            return self._collect_pages("query", kwargs)
+            return self._filter_active_alerts(self._collect_pages("query", kwargs), active_only=active_only)
         except ClientError as exc:
             if exc.response.get("Error", {}).get("Code") != "ValidationException":
                 raise
@@ -149,7 +150,29 @@ class AlertsRepository:
         if filter_expression is not None:
             legacy_kwargs["FilterExpression"] = filter_expression
 
-        return self._collect_pages("query", legacy_kwargs)
+        return self._filter_active_alerts(self._collect_pages("query", legacy_kwargs), active_only=active_only)
+
+    @staticmethod
+    def _filter_active_alerts(items: list[dict[str, Any]], *, active_only: bool) -> list[dict[str, Any]]:
+        if not active_only:
+            return items
+
+        active_items: list[dict[str, Any]] = []
+        for item in items:
+            status = str(item.get("status") or "").strip().lower()
+            if status in {"resolved", "closed"}:
+                continue
+
+            sk = str(item.get("sk") or "")
+            alert_key = str(item.get("alert_key") or "")
+            if sk.startswith("ALERT#ACTIVE#") or alert_key.startswith(("open#", "acknowledged#", "in_progress#")):
+                active_items.append(item)
+                continue
+
+            if status in {"open", "acknowledged", "in_progress", "active"}:
+                active_items.append(item)
+
+        return active_items
 
     def list_alerts(
         self,
@@ -157,9 +180,10 @@ class AlertsRepository:
         plant_id: str | None = None,
         asset_id: str | None = None,
         status: str | None = None,
+        active_only: bool = False,
     ) -> list[dict[str, Any]]:
         if asset_id:
-            return self._query_by_asset(tenant_id, asset_id, status=status)
+            return self._query_by_asset(tenant_id, asset_id, status=status, active_only=active_only)
 
         if plant_id:
             query_kwargs: dict[str, Any] = {
@@ -170,7 +194,10 @@ class AlertsRepository:
                 query_kwargs["FilterExpression"] = Attr("status").eq(status)
 
             try:
-                return self._collect_pages("query", query_kwargs)
+                return self._filter_active_alerts(
+                    self._collect_pages("query", query_kwargs),
+                    active_only=active_only,
+                )
             except ClientError as exc:
                 if exc.response.get("Error", {}).get("Code") != "ValidationException":
                     raise
@@ -183,7 +210,10 @@ class AlertsRepository:
         if status and status != "Todos":
             filter_expression = filter_expression & Attr("status").eq(status)
 
-        return self._collect_pages("scan", {"FilterExpression": filter_expression})
+        return self._filter_active_alerts(
+            self._collect_pages("scan", {"FilterExpression": filter_expression}),
+            active_only=active_only,
+        )
 
     def get_alert(
         self,
