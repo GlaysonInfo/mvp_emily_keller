@@ -42,17 +42,17 @@ OPERATOR_PAGES = {
 TECNICO_EXTRA_PAGES = {
     "Monitoramento de Equipamentos",
     "Inteligência Operacional",
-    "Eficiência da Lubrificação do Motor",
-    "Bancada Virtual — Lubrificação",
     "Configuração de Campo — Lubrificação",
-    "Matriz de Escalonamento",
-    "Notification Outbox",
 }
 
 # Páginas exclusivas do Admin do Sistema (configuração global do servidor).
 ADMIN_EXTRA_PAGES = {
     "Configurações",
     "Admin da Plataforma",
+    "Matriz de Escalonamento",
+    "Notification Outbox",
+    "Eficiência da Lubrificação do Motor",
+    "Bancada Virtual — Lubrificação",
     "Arquitetura Modular",
     "Teste ponta a ponta",
 }

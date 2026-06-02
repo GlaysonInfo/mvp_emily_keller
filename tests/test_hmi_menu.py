@@ -12,6 +12,7 @@ from src.dashboard.hmi.hmi_sidebar import (
     _is_administrative_role,
     _mode_caption_for_role,
     _technical_navigation_label,
+    _technical_navigation_groups,
     load_hmi_menu_config,
 )
 
@@ -91,6 +92,63 @@ def test_sidebar_pages_can_be_filtered_by_allowed_routes() -> None:
         "Sistema de Lubrificação",
         "Configurações",
     ]
+
+
+def test_technical_navigation_groups_routes_by_professional_domain() -> None:
+    pages = [
+        "Monitoramento de Equipamentos",
+        "Detalhe do Ativo",
+        "Operação de Lubrificação",
+        "Configuração de Campo — Lubrificação",
+        "Inteligência Operacional",
+        "Alertas e Eventos",
+        "Relatórios",
+    ]
+
+    groups = _technical_navigation_groups(pages, "tecnico")
+
+    assert [group["label"] for group in groups] == [
+        "Monitoramento de Equipamentos",
+        "Sistema de Lubrificação",
+        "Inteligência Operacional",
+        "Alertas e Notificações",
+        "Relatórios",
+    ]
+    assert groups[0]["items"][0] == {
+        "route": "Monitoramento de Equipamentos",
+        "label": "Ativos monitorados",
+    }
+    assert {
+        "route": "Configuração de Campo — Lubrificação",
+        "label": "Parâmetros de campo",
+    } in groups[1]["items"]
+
+
+def test_admin_navigation_groups_keep_demo_and_support_tools_separate() -> None:
+    pages = [
+        "Admin da Plataforma",
+        "Configurações",
+        "Matriz de Escalonamento",
+        "Notification Outbox",
+        "Eficiência da Lubrificação do Motor",
+        "Bancada Virtual — Lubrificação",
+    ]
+
+    groups = _technical_navigation_groups(pages, "admin")
+
+    assert [group["label"] for group in groups] == [
+        "Alertas e Notificações",
+        "Administração da Plataforma",
+        "Demonstrações e Suporte",
+    ]
+    assert {
+        "route": "Notification Outbox",
+        "label": "Fila de notificações",
+    } in groups[0]["items"]
+    assert {
+        "route": "Bancada Virtual — Lubrificação",
+        "label": "Bancada virtual",
+    } in groups[2]["items"]
 
 
 def test_authenticated_roles_force_expected_sidebar_mode() -> None:

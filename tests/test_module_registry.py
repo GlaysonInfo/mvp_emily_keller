@@ -41,6 +41,8 @@ def test_operational_intelligence_requires_both_services() -> None:
 def test_routes_are_filtered_by_role_and_contract() -> None:
     condition_operator = routes_for_context(ROLE_OPERADOR, [SERVICE_CONDITION])
     lubrication_operator = routes_for_context(ROLE_OPERADOR, [SERVICE_LUBRICATION])
+    condition_technician = routes_for_context(ROLE_TECNICO, [SERVICE_CONDITION])
+    lubrication_technician = routes_for_context(ROLE_TECNICO, [SERVICE_LUBRICATION])
     dual_technician = routes_for_context(ROLE_TECNICO, [SERVICE_CONDITION, SERVICE_LUBRICATION])
     client_admin = routes_for_context(ROLE_CLIENTE_ADMIN, [SERVICE_CONDITION])
     system_admin = routes_for_context(ROLE_ADMIN, [SERVICE_CONDITION, SERVICE_LUBRICATION])
@@ -50,7 +52,14 @@ def test_routes_are_filtered_by_role_and_contract() -> None:
     assert "Sistema de Lubrificação" not in condition_operator
     assert "Operação de Lubrificação" in lubrication_operator
     assert "Sistema de Lubrificação" in lubrication_operator
+    assert "Inteligência Operacional" not in condition_technician
+    assert "Inteligência Operacional" not in lubrication_technician
     assert "Inteligência Operacional" in dual_technician
+    assert "Bancada Virtual — Lubrificação" not in dual_technician
+    assert "Eficiência da Lubrificação do Motor" not in dual_technician
+    assert "Matriz de Escalonamento" not in dual_technician
+    assert "Notification Outbox" not in dual_technician
+    assert "Configuração de Campo — Lubrificação" in lubrication_technician
     assert "Configurações" in client_admin
     assert "Admin do Cliente" in client_admin
     assert "Monitoramento de Equipamentos" not in client_admin
@@ -60,6 +69,8 @@ def test_routes_are_filtered_by_role_and_contract() -> None:
     assert "Arquitetura Modular" not in client_admin
     assert "Admin da Plataforma" in system_admin
     assert "Configurações" in system_admin
+    assert "Bancada Virtual — Lubrificação" in system_admin
+    assert "Notification Outbox" in system_admin
     assert "Admin do Cliente" not in system_admin
     assert "Monitoramento de Equipamentos" not in system_admin
     assert "Configuração de Campo — Lubrificação" not in system_admin

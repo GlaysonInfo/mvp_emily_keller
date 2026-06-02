@@ -28,10 +28,7 @@ SERVICE_BLUEPRINTS: list[dict[str, Any]] = [
             "Monitoramento de Equipamentos",
             "Visão Geral da Planta",
             "Detalhe do Ativo",
-            "Inteligência Operacional",
             "Alertas e Eventos",
-            "Matriz de Escalonamento",
-            "Notification Outbox",
             "Relatórios",
         ],
         "operator_view": [
@@ -67,12 +64,8 @@ SERVICE_BLUEPRINTS: list[dict[str, Any]] = [
             "Operação de Lubrificação",
             "Sistema de Lubrificação",
             "Eficiência da Lubrificação",
-            "Eficiência da Lubrificação do Motor",
-            "Bancada Virtual — Lubrificação",
             "Configuração de Campo — Lubrificação",
             "Alertas e Eventos",
-            "Matriz de Escalonamento",
-            "Notification Outbox",
             "Relatórios",
         ],
         "operator_view": [
@@ -167,6 +160,12 @@ INCREMENTAL_DELIVERY_STEPS = [
 ]
 
 GLOBAL_ADMIN_PAGES = ["Admin da Plataforma", "Configurações"]
+ADMIN_SUPPORT_PAGES = [
+    "Matriz de Escalonamento",
+    "Notification Outbox",
+    "Eficiência da Lubrificação do Motor",
+    "Bancada Virtual — Lubrificação",
+]
 ADMIN_DEV_PAGES = ["Arquitetura Modular", "Teste ponta a ponta"]
 CLIENT_ADMIN_PAGES = ["Configurações", "Admin do Cliente"]
 ALWAYS_OPERATOR_PAGES = ["Ajuda do Operador"]
@@ -222,6 +221,8 @@ def routes_for_context(role: str | None, contracted_services: Iterable[str] | st
     if role == ROLE_TECNICO:
         for service in services:
             _append_unique(routes, service["technician_pages"])
+        if has_operational_intelligence(contracted_services):
+            _append_unique(routes, ["Inteligência Operacional"])
         return routes
 
     if role == ROLE_CLIENTE_ADMIN:
@@ -230,6 +231,7 @@ def routes_for_context(role: str | None, contracted_services: Iterable[str] | st
 
     if role == ROLE_ADMIN:
         _append_unique(routes, GLOBAL_ADMIN_PAGES)
+        _append_unique(routes, ADMIN_SUPPORT_PAGES)
         if admin_dev_pages_enabled():
             _append_unique(routes, ADMIN_DEV_PAGES)
         return routes

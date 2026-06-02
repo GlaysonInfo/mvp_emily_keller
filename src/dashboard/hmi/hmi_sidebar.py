@@ -42,6 +42,62 @@ DEFAULT_TECH_PAGES = [
 ]
 
 OPERATOR_LABEL_BY_ROUTE = {item["route"]: item["label"] for item in DEFAULT_OPERATOR_PAGES}
+TECHNICAL_LABEL_BY_ROUTE = {
+    "Monitoramento de Equipamentos": "Ativos monitorados",
+    "Visão Geral da Planta": "Visão da planta",
+    "Detalhe do Ativo": "Diagnóstico do ativo",
+    "Inteligência Operacional": "Correlação e recomendações",
+    "Operação de Lubrificação": "Operação de campo",
+    "Sistema de Lubrificação": "Painel do sistema",
+    "Eficiência da Lubrificação": "Ciclos e eficiência",
+    "Eficiência da Lubrificação do Motor": "Eficiência integrada do ativo",
+    "Bancada Virtual — Lubrificação": "Bancada virtual",
+    "Configuração de Campo — Lubrificação": "Parâmetros de campo",
+    "Alertas e Eventos": "Alertas ativos",
+    "Matriz de Escalonamento": "Escalonamento de alertas",
+    "Notification Outbox": "Fila de notificações",
+    "Relatórios": "Relatórios",
+    "Configurações": "Configurações",
+    "Admin do Cliente": "Admin do Cliente",
+    "Admin da Plataforma": "Admin da Plataforma",
+    "Arquitetura Modular": "Arquitetura modular",
+    "Teste ponta a ponta": "Teste ponta a ponta",
+}
+TECHNICAL_GROUPS = [
+    (
+        "Monitoramento de Equipamentos",
+        ["Monitoramento de Equipamentos", "Visão Geral da Planta", "Detalhe do Ativo"],
+    ),
+    (
+        "Sistema de Lubrificação",
+        [
+            "Operação de Lubrificação",
+            "Sistema de Lubrificação",
+            "Eficiência da Lubrificação",
+            "Configuração de Campo — Lubrificação",
+        ],
+    ),
+    (
+        "Inteligência Operacional",
+        ["Inteligência Operacional"],
+    ),
+    (
+        "Alertas e Notificações",
+        ["Alertas e Eventos", "Matriz de Escalonamento", "Notification Outbox"],
+    ),
+    ("Relatórios", ["Relatórios"]),
+    ("Administração do Cliente", ["Admin do Cliente", "Configurações"]),
+    ("Administração da Plataforma", ["Admin da Plataforma", "Configurações"]),
+    (
+        "Demonstrações e Suporte",
+        [
+            "Eficiência da Lubrificação do Motor",
+            "Bancada Virtual — Lubrificação",
+            "Arquitetura Modular",
+            "Teste ponta a ponta",
+        ],
+    ),
+]
 PENDING_OPERATOR_PAGE_KEY = "hmi_pending_operator_page"
 PENDING_TECHNICAL_PAGE_KEY = "hmi_pending_technical_page"
 
@@ -96,6 +152,41 @@ def _filter_technical_pages(pages: list[str], allowed_routes: list[str] | None) 
         return pages
     allowed = set(allowed_routes)
     return [page for page in pages if page in allowed]
+
+
+def _technical_page_label(route: str) -> str:
+    return TECHNICAL_LABEL_BY_ROUTE.get(route, route)
+
+
+def _technical_navigation_groups(pages: list[str], user_role: str | None = None) -> list[dict[str, Any]]:
+    available = list(dict.fromkeys(pages))
+    remaining = set(available)
+    role = (user_role or "").strip().lower()
+    groups: list[dict[str, Any]] = []
+
+    for group_label, routes in TECHNICAL_GROUPS:
+        if group_label == "Administração do Cliente" and role not in {"cliente_admin"}:
+            continue
+        if group_label == "Administração da Plataforma" and role not in {"admin"}:
+            continue
+        if group_label == "Demonstrações e Suporte" and role not in {"admin"}:
+            continue
+
+        items = [
+            {"route": route, "label": _technical_page_label(route)}
+            for route in routes
+            if route in remaining
+        ]
+        if not items:
+            continue
+        groups.append({"label": group_label, "items": items})
+        for item in items:
+            remaining.discard(item["route"])
+
+    leftovers = [{"route": route, "label": _technical_page_label(route)} for route in available if route in remaining]
+    if leftovers:
+        groups.append({"label": "Outros", "items": leftovers})
+    return groups
 
 
 def _forced_mode_for_role(user_role: str | None) -> str | None:
@@ -193,7 +284,22 @@ def render_hmi_sidebar(
             st.session_state["hmi_technical_page"] = pending_page
         if st.session_state.get("hmi_technical_page") not in technical_pages:
             st.session_state["hmi_technical_page"] = technical_pages[0]
-        page = st.sidebar.radio(_technical_navigation_label(user_role), technical_pages, key="hmi_technical_page")
+        st.sidebar.markdown(_technical_navigation_label(user_role))
+        groups = _technical_navigation_groups(technical_pages, user_role)
+        for group in groups:
+            st.sidebar.caption(str(group["label"]))
+            for item in group["items"]:
+                route = str(item["route"])
+                selected = st.session_state.get("hmi_technical_page") == route
+                if st.sidebar.button(
+                    str(item["label"]),
+                    key=f"hmi_technical_button_{route}",
+                    type="primary" if selected else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state["hmi_technical_page"] = route
+                    st.rerun()
+        page = st.session_state["hmi_technical_page"]
         visible_label = page
         if _is_administrative_role(user_role):
             auto_refresh = False
