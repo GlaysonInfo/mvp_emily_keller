@@ -29,7 +29,7 @@
         <h3>Operador</h3>
         <p>Acesso à operação diária dos serviços contratados, status da planta, alertas, relatórios e ações recomendadas.</p>
         <p class="access-action">
-          <a class="btn btn-primary" data-app-link data-local-target="http://127.0.0.1:8502/" href="https://app.sentinelaindustrial.com.br/">Entrar como Operador</a>
+          <a class="btn btn-primary" data-app-link data-local-target="http://127.0.0.1:8502/" href="https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F">Entrar como Operador</a>
         </p>
       </div>
 
@@ -38,7 +38,7 @@
         <h3>Técnico</h3>
         <p>Acesso técnico para configuração de campo, validação de sinais, regras, escalonamento e análise operacional.</p>
         <p class="access-action">
-          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8503/" href="https://app.sentinelaindustrial.com.br/">Entrar como Técnico</a>
+          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8503/" href="https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F">Entrar como Técnico</a>
         </p>
       </div>
 
@@ -47,7 +47,7 @@
         <h3>Cliente Admin</h3>
         <p>Gestão do próprio tenant: plantas, usuários, serviços contratados e configurações locais do cliente.</p>
         <p class="access-action">
-          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8505/" href="https://app.sentinelaindustrial.com.br/">Entrar como Cliente Admin</a>
+          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8505/" href="https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F">Entrar como Cliente Admin</a>
         </p>
       </div>
 
@@ -56,7 +56,7 @@
         <h3>Admin do Sistema</h3>
         <p>Gestão da plataforma, clientes (tenants), usuários e parâmetros globais.</p>
         <p class="access-action">
-          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8504/" href="https://app.sentinelaindustrial.com.br/">Entrar como Admin</a>
+          <a class="btn btn-ghost" data-app-link data-local-target="http://127.0.0.1:8504/" href="https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F">Entrar como Admin</a>
         </p>
       </div>
 
@@ -88,7 +88,7 @@
         if (localHosts.has(window.location.hostname) && link.dataset.localTarget) {
           link.href = link.dataset.localTarget;
         } else {
-          link.href = "https://app.sentinelaindustrial.com.br/";
+          link.href = "https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F";
         }
       });
       const preview = document.getElementById("local-auth-preview");

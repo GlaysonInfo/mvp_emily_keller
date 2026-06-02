@@ -65,6 +65,14 @@ def _signout_url() -> str:
     return "https://sentinelaindustrial.com.br/"
 
 
+def _login_url() -> str:
+    return os.getenv("AUTH_LOGIN_URL", "/oauth2/start?rd=/")
+
+
+def _institutional_url() -> str:
+    return os.getenv("INSTITUTIONAL_SITE_URL", "https://sentinelaindustrial.com.br/")
+
+
 def enforce_authentication() -> Identity:
     """Garante login válido; se não houver, renderiza aviso e interrompe a página."""
     identity = resolve_identity()
@@ -77,6 +85,11 @@ def enforce_authentication() -> Identity:
                 "ou Admin do Sistema). Entre pelo botão “Acesso ao Sistema” ou "
                 "contate o administrador da plataforma."
             )
+            col_login, col_site = st.columns(2)
+            with col_login:
+                st.link_button("Entrar pelo acesso seguro", _login_url(), type="primary", use_container_width=True)
+            with col_site:
+                st.link_button("Voltar para a vitrine", _institutional_url(), use_container_width=True)
             st.stop()
         raise PermissionError("Usuário não autenticado.")
     return identity
