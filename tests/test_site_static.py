@@ -118,7 +118,7 @@ def test_home_positions_operational_intelligence_and_efficiency():
     assert "/monitoramento-de-equipamentos/" in home_html
     assert "/inteligencia-operacional/" in home_html
     assert "/eficiencia-industrial/" in home_html
-    assert "hero-operational-intelligence.svg" in home_html
+    assert "hero-sentinela-inteligencia-operacional.png" in home_html
 
 
 def test_indexed_pages_expose_descriptive_images():

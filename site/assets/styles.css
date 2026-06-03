@@ -269,7 +269,7 @@ p { margin: 0; }
   align-items: center;
   background:
     linear-gradient(90deg, rgba(6, 20, 39, .95), rgba(6, 20, 39, .72) 52%, rgba(6, 20, 39, .35)),
-    url('/assets/hero-operational-intelligence.svg') center right / cover no-repeat;
+    url('/assets/hero-sentinela-inteligencia-operacional.png') center right / cover no-repeat;
 }
 .hero-image h1,
 .hero-image p.sub {
@@ -718,7 +718,7 @@ section .grid > * {
     min-height: 560px;
     background:
       linear-gradient(180deg, rgba(6, 20, 39, .96), rgba(6, 20, 39, .84)),
-      url('/assets/hero-operational-intelligence.svg') center / cover no-repeat;
+      url('/assets/hero-sentinela-inteligencia-operacional.png') center / cover no-repeat;
   }
   .metric-strip {
     grid-template-columns: 1fr;
