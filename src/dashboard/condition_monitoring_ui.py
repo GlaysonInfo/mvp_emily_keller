@@ -7,9 +7,11 @@ import streamlit as st
 
 try:
     from dashboard.history_export import summary_rows
+    from dashboard.navigation import render_navigation_icon
     from dashboard.plant_overview_ui import get_metric, plant_kpis, states_to_rows, status_color, status_rank
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.history_export import summary_rows
+    from src.dashboard.navigation import render_navigation_icon
     from src.dashboard.plant_overview_ui import get_metric, plant_kpis, states_to_rows, status_color, status_rank
 
 
@@ -737,10 +739,20 @@ def _render_actionable_alert_queue(alerts: list[dict[str, Any]]) -> dict[str, st
         row[3].write(alert.get("recommended_action") or "-")
         row[4].write(alert.get("updated_at") or alert.get("last_detected_at") or "-")
         actions = row[5].columns(2)
-        if actions[0].button("Ativo", key=f"condition_alert_asset_{index}_{asset_id}", use_container_width=True):
-            return {"route": "Detalhe do Ativo", "asset_id": asset_id}
-        if actions[1].button("Tratar", key=f"condition_alert_treat_{index}_{asset_id}", use_container_width=True):
-            return {"route": "Alertas e Eventos", "asset_id": asset_id}
+        with actions[0]:
+            render_navigation_icon(
+                "Detalhe do Ativo",
+                label="Abrir ativo",
+                icon=":material/manage_search:",
+                asset_id=asset_id,
+            )
+        with actions[1]:
+            render_navigation_icon(
+                "Alertas e Eventos",
+                label="Tratar alerta",
+                icon=":material/notifications_active:",
+                asset_id=asset_id,
+            )
     return None
 
 
@@ -751,7 +763,7 @@ def _render_actionable_assets_view(rows: list[dict[str, Any]], assets: list[dict
         st.warning("Nenhum ativo cadastrado para esta planta no modo local.")
         return None
 
-    header = st.columns([1.0, 1.45, 0.95, 1.0, 0.85, 0.75, 0.75, 1.8])
+    header = st.columns([1.0, 1.45, 0.95, 1.0, 0.85, 0.75, 0.75, 0.8])
     header[0].caption("Ativo")
     header[1].caption("Nome")
     header[2].caption("Área")
@@ -763,7 +775,7 @@ def _render_actionable_assets_view(rows: list[dict[str, Any]], assets: list[dict
 
     for row in normalized_rows:
         asset_id = str(row["asset_id"])
-        item = st.columns([1.0, 1.45, 0.95, 1.0, 0.85, 0.75, 0.75, 1.8])
+        item = st.columns([1.0, 1.45, 0.95, 1.0, 0.85, 0.75, 0.75, 0.8])
         item[0].write(asset_id)
         item[1].write(str(row["asset_name"]))
         item[2].write(str(row["area"]))
@@ -772,12 +784,27 @@ def _render_actionable_assets_view(rows: list[dict[str, Any]], assets: list[dict
         item[5].write(_metric_display(row["health_score"]))
         item[6].write(_metric_display(row["severity_score"]))
         actions = item[7].columns(3)
-        if actions[0].button("Monitorar", key=f"condition_assets_monitor_{asset_id}", use_container_width=True):
-            return {"route": "Monitoramento de Equipamentos", "asset_id": asset_id}
-        if actions[1].button("Detalhe", key=f"condition_assets_detail_{asset_id}", use_container_width=True):
-            return {"route": "Detalhe do Ativo", "asset_id": asset_id}
-        if actions[2].button("Alertas", key=f"condition_assets_alerts_{asset_id}", use_container_width=True):
-            return {"route": "Alertas e Eventos", "asset_id": asset_id}
+        with actions[0]:
+            render_navigation_icon(
+                "Monitoramento de Equipamentos",
+                label="Monitorar ativo",
+                icon=":material/monitoring:",
+                asset_id=asset_id,
+            )
+        with actions[1]:
+            render_navigation_icon(
+                "Detalhe do Ativo",
+                label="Abrir detalhe do ativo",
+                icon=":material/manage_search:",
+                asset_id=asset_id,
+            )
+        with actions[2]:
+            render_navigation_icon(
+                "Alertas e Eventos",
+                label="Ver alertas do ativo",
+                icon=":material/notifications_active:",
+                asset_id=asset_id,
+            )
     return None
 
 

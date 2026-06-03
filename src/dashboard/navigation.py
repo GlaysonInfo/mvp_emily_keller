@@ -84,3 +84,22 @@ def render_navigation_link(
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_navigation_icon(
+    route: str,
+    *,
+    label: str,
+    icon: str,
+    asset_id: str | None = None,
+    outlet_id: str | None = None,
+    primary: bool = False,
+) -> None:
+    st.link_button(
+        " ",
+        navigation_url(route, asset_id=asset_id, outlet_id=outlet_id),
+        help=label,
+        type="primary" if primary else "secondary",
+        icon=icon,
+        width="stretch",
+    )

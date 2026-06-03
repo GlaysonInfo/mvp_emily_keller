@@ -9,6 +9,7 @@ try:
     from dashboard.alerts_repository import AlertsRepository, create_alerts_repository_from_env
     from dashboard.audit_events import record_sensitive_action
     from dashboard.hmi.hmi_sidebar import set_operator_page_for_route
+    from dashboard.navigation import render_navigation_icon
     from dashboard.escalation_engine import (
         apply_escalation_rule,
         escalation_matrix_rows as engine_escalation_matrix_rows,
@@ -21,6 +22,7 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.alerts_repository import AlertsRepository, create_alerts_repository_from_env
     from src.dashboard.audit_events import record_sensitive_action
     from src.dashboard.hmi.hmi_sidebar import set_operator_page_for_route
+    from src.dashboard.navigation import render_navigation_icon
     from src.dashboard.escalation_engine import (
         apply_escalation_rule,
         escalation_matrix_rows as engine_escalation_matrix_rows,
@@ -287,10 +289,20 @@ def render_cards(df: pd.DataFrame) -> None:
         )
         asset_id = str(getattr(row, "asset_id", "") or "")
         action_cols = st.columns(2)
-        if action_cols[0].button("Abrir ativo", key=f"alerts_card_asset_{index}_{asset_id}", use_container_width=True):
-            _navigate_to("Detalhe do Ativo", asset_id=asset_id)
-        if action_cols[1].button("Monitorar ativo", key=f"alerts_card_monitor_{index}_{asset_id}", use_container_width=True):
-            _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
+        with action_cols[0]:
+            render_navigation_icon(
+                "Detalhe do Ativo",
+                label="Abrir ativo",
+                icon=":material/manage_search:",
+                asset_id=asset_id,
+            )
+        with action_cols[1]:
+            render_navigation_icon(
+                "Monitoramento de Equipamentos",
+                label="Monitorar ativo",
+                icon=":material/monitoring:",
+                asset_id=asset_id,
+            )
 
 
 def render_detail(repo: AlertsRepository, df: pd.DataFrame) -> None:
@@ -325,10 +337,20 @@ def render_detail(repo: AlertsRepository, df: pd.DataFrame) -> None:
 
     asset_id = str(full.get("asset_id") or row.get("asset_id") or "")
     action_cols = st.columns(2)
-    if action_cols[0].button("Abrir detalhe do ativo", key=f"alert_detail_asset_{asset_id}", use_container_width=True):
-        _navigate_to("Detalhe do Ativo", asset_id=asset_id)
-    if action_cols[1].button("Monitorar ativo", key=f"alert_detail_monitor_{asset_id}", use_container_width=True):
-        _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
+    with action_cols[0]:
+        render_navigation_icon(
+            "Detalhe do Ativo",
+            label="Abrir detalhe do ativo",
+            icon=":material/manage_search:",
+            asset_id=asset_id,
+        )
+    with action_cols[1]:
+        render_navigation_icon(
+            "Monitoramento de Equipamentos",
+            label="Monitorar ativo",
+            icon=":material/monitoring:",
+            asset_id=asset_id,
+        )
 
     with st.expander("Timeline do evento", expanded=False):
         timeline = full.get("timeline", [])

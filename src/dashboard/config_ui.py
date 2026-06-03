@@ -10,12 +10,14 @@ try:
     from dashboard.config_repository import ConfigRepository
     from dashboard.config_validation_ui import render_validation_panel
     from dashboard.hmi.hmi_sidebar import set_operator_page_for_route
+    from dashboard.navigation import render_navigation_icon
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alert_parameter_presets import get_metric_label, get_parameter_preset, validate_parameter_rule
     from src.dashboard.config_consistency_ui import render_config_consistency_panel
     from src.dashboard.config_repository import ConfigRepository
     from src.dashboard.config_validation_ui import render_validation_panel
     from src.dashboard.hmi.hmi_sidebar import set_operator_page_for_route
+    from src.dashboard.navigation import render_navigation_icon
 
 
 PROTOCOLS = [
@@ -127,7 +129,7 @@ def _render_asset_navigation_table(assets: list[dict[str, Any]]) -> None:
         st.info("Nenhum registro cadastrado.")
         return
 
-    header = st.columns([1.05, 1.55, 1.15, 1.0, 0.8, 0.95, 1.8])
+    header = st.columns([1.05, 1.7, 1.2, 1.05, 0.8, 1.05, 0.8])
     header[0].caption("asset_id")
     header[1].caption("asset_name")
     header[2].caption("asset_type")
@@ -140,7 +142,7 @@ def _render_asset_navigation_table(assets: list[dict[str, Any]]) -> None:
         asset_id = str(asset.get("asset_id") or "").strip()
         if not asset_id:
             continue
-        row = st.columns([1.05, 1.55, 1.15, 1.0, 0.8, 0.95, 1.8])
+        row = st.columns([1.05, 1.7, 1.2, 1.05, 0.8, 1.05, 0.8])
         row[0].write(asset_id)
         row[1].write(_text(asset.get("asset_name"), "-"))
         row[2].write(_text(asset.get("asset_type"), "-"))
@@ -148,12 +150,27 @@ def _render_asset_navigation_table(assets: list[dict[str, Any]]) -> None:
         row[4].write(_text(asset.get("status"), "Ativo"))
         row[5].write(_text(asset.get("source_id"), "-"))
         action_cols = row[6].columns(3)
-        if action_cols[0].button("Monitorar", key=f"config_asset_open_monitoring_{asset_id}", use_container_width=True):
-            _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
-        if action_cols[1].button("Detalhe", key=f"config_asset_open_detail_{asset_id}", use_container_width=True):
-            _navigate_to("Detalhe do Ativo", asset_id=asset_id)
-        if action_cols[2].button("Alertas", key=f"config_asset_open_alerts_{asset_id}", use_container_width=True):
-            _navigate_to("Alertas e Eventos", asset_id=asset_id)
+        with action_cols[0]:
+            render_navigation_icon(
+                "Monitoramento de Equipamentos",
+                label="Monitorar ativo",
+                icon=":material/monitoring:",
+                asset_id=asset_id,
+            )
+        with action_cols[1]:
+            render_navigation_icon(
+                "Detalhe do Ativo",
+                label="Abrir detalhe do ativo",
+                icon=":material/manage_search:",
+                asset_id=asset_id,
+            )
+        with action_cols[2]:
+            render_navigation_icon(
+                "Alertas e Eventos",
+                label="Ver alertas do ativo",
+                icon=":material/notifications_active:",
+                asset_id=asset_id,
+            )
 
 
 def render_config_page(config_path: str | None = None) -> None:

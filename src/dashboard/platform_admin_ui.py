@@ -9,11 +9,13 @@ try:
     from dashboard.config_repository import ConfigRepository
     from dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
+    from dashboard.navigation import render_navigation_icon
     from dashboard.platform_admin_repository import PlatformAdminRepository
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.config_repository import ConfigRepository
     from src.dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from src.dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
+    from src.dashboard.navigation import render_navigation_icon
     from src.dashboard.platform_admin_repository import PlatformAdminRepository
 
 
@@ -200,7 +202,7 @@ def _render_inventory_action_table(inventory_rows: list[dict[str, Any]]) -> None
         st.info("Nenhum ativo cadastrado para esta planta.")
         return
 
-    header = st.columns([1.0, 1.5, 1.1, 1.0, 0.85, 0.75, 0.75, 1.8])
+    header = st.columns([1.0, 1.5, 1.1, 1.0, 0.85, 0.75, 0.75, 0.8])
     header[0].caption("Ativo")
     header[1].caption("Nome")
     header[2].caption("Tipo")
@@ -214,7 +216,7 @@ def _render_inventory_action_table(inventory_rows: list[dict[str, Any]]) -> None
         asset_id = str(item.get("Ativo") or "").strip()
         if not asset_id:
             continue
-        row = st.columns([1.0, 1.5, 1.1, 1.0, 0.85, 0.75, 0.75, 1.8])
+        row = st.columns([1.0, 1.5, 1.1, 1.0, 0.85, 0.75, 0.75, 0.8])
         row[0].write(asset_id)
         row[1].write(str(item.get("Nome") or "-"))
         row[2].write(str(item.get("Tipo") or "-"))
@@ -223,12 +225,27 @@ def _render_inventory_action_table(inventory_rows: list[dict[str, Any]]) -> None
         row[5].write(str(item.get("Sinais") or 0))
         row[6].write(str(item.get("Parâmetros") or item.get("ParÃ¢metros") or 0))
         actions = row[7].columns(3)
-        if actions[0].button("Monitorar", key=f"platform_inventory_monitor_{asset_id}", use_container_width=True):
-            _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
-        if actions[1].button("Detalhe", key=f"platform_inventory_detail_{asset_id}", use_container_width=True):
-            _navigate_to("Detalhe do Ativo", asset_id=asset_id)
-        if actions[2].button("Alertas", key=f"platform_inventory_alerts_{asset_id}", use_container_width=True):
-            _navigate_to("Alertas e Eventos", asset_id=asset_id)
+        with actions[0]:
+            render_navigation_icon(
+                "Monitoramento de Equipamentos",
+                label="Monitorar ativo",
+                icon=":material/monitoring:",
+                asset_id=asset_id,
+            )
+        with actions[1]:
+            render_navigation_icon(
+                "Detalhe do Ativo",
+                label="Abrir detalhe do ativo",
+                icon=":material/manage_search:",
+                asset_id=asset_id,
+            )
+        with actions[2]:
+            render_navigation_icon(
+                "Alertas e Eventos",
+                label="Ver alertas do ativo",
+                icon=":material/notifications_active:",
+                asset_id=asset_id,
+            )
 
 
 def _asset_inventory_rows(
