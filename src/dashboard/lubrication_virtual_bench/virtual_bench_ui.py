@@ -6,10 +6,12 @@ import pandas as pd
 import streamlit as st
 
 try:
+    from dashboard.navigation import navigate_to, render_navigation_link
     from dashboard.lubrication.lubrication_config import load_lubrication_config
     from dashboard.lubrication.lubrication_labels import outlet_label, status_label
     from dashboard.lubrication.lubrication_repository import LubricationRepository
 except ImportError:  # pragma: no cover - supports local test imports.
+    from src.dashboard.navigation import navigate_to, render_navigation_link
     from src.dashboard.lubrication.lubrication_config import load_lubrication_config
     from src.dashboard.lubrication.lubrication_labels import outlet_label, status_label
     from src.dashboard.lubrication.lubrication_repository import LubricationRepository
@@ -102,9 +104,7 @@ def render_lubrication_virtual_bench_page(config_path: str = "config/lubrication
             outlet_id = str(outlet.get("outlet_id") or "")
             label = outlet_label(outlet_id)
             with outlet_cols[index % 4]:
-                if st.button(label, key=f"open_lubrication_outlet_{outlet_id}", use_container_width=True):
-                    st.session_state["selected_outlet_id"] = outlet_id
-                    return {"route": "Sistema de Lubrificação", "outlet_id": outlet_id}
+                render_navigation_link(label, "Sistema de Lubrificação", outlet_id=outlet_id)
 
     with tab_curves:
         st.dataframe(_curves_table(last_payload), width="stretch", hide_index=True)
@@ -129,10 +129,9 @@ def render_lubrication_virtual_bench_page(config_path: str = "config/lubrication
             for result in results:
                 repo.save_cycle_result(result)
         selected_outlet = str((last_result.get("outlets") or [{}])[0].get("outlet_id") or "")
-        st.session_state["selected_outlet_id"] = selected_outlet
-        return {"route": "Sistema de Lubrificação", "outlet_id": selected_outlet}
-    if action_cols[1].button("Ver alertas de lubrificação", use_container_width=True):
-        return {"route": "Alertas e Eventos"}
-    if action_cols[2].button("Ver eficiência", use_container_width=True):
-        return {"route": "Eficiência da Lubrificação"}
+        navigate_to("Sistema de Lubrificação", outlet_id=selected_outlet)
+    with action_cols[1]:
+        render_navigation_link("Ver alertas de lubrificação", "Alertas e Eventos")
+    with action_cols[2]:
+        render_navigation_link("Ver eficiência", "Eficiência da Lubrificação")
     return None

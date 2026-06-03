@@ -36,6 +36,7 @@ try:
     from dashboard.modular_architecture_ui import PAGE_NAME as MODULAR_ARCHITECTURE_PAGE
     from dashboard.modular_architecture_ui import render_modular_architecture_page
     from dashboard.notification_outbox_ui import render_notification_outbox_page
+    from dashboard.navigation import consume_query_navigation
     from dashboard.operational_intelligence_ui import render_operational_intelligence_page
     from dashboard.platform_admin_ui import PAGE_NAME as PLATFORM_ADMIN_PAGE
     from dashboard.platform_admin_ui import render_platform_admin_page
@@ -76,6 +77,7 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.modular_architecture_ui import PAGE_NAME as MODULAR_ARCHITECTURE_PAGE
     from src.dashboard.modular_architecture_ui import render_modular_architecture_page
     from src.dashboard.notification_outbox_ui import render_notification_outbox_page
+    from src.dashboard.navigation import consume_query_navigation
     from src.dashboard.operational_intelligence_ui import render_operational_intelligence_page
     from src.dashboard.platform_admin_ui import PAGE_NAME as PLATFORM_ADMIN_PAGE
     from src.dashboard.platform_admin_ui import render_platform_admin_page
@@ -737,7 +739,8 @@ def main() -> None:
         if _audit is not None:
             _audit.set_actor(identity)
 
-    requested_page_target = st.session_state.pop(PAGE_TARGET_KEY, None)
+    query_page_target = consume_query_navigation()
+    requested_page_target = query_page_target or st.session_state.pop(PAGE_TARGET_KEY, None)
     if requested_page_target:
         st.session_state[DASHBOARD_PAGE_KEY] = requested_page_target
         set_operator_page_for_route(requested_page_target)

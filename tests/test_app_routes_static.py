@@ -158,7 +158,8 @@ def test_app_uses_hmi_sidebar_instead_of_raw_technical_menu() -> None:
 def test_page_target_overrides_sidebar_page_after_hmi_render() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
 
-    assert "requested_page_target = st.session_state.pop(PAGE_TARGET_KEY, None)" in source
+    assert "query_page_target = consume_query_navigation()" in source
+    assert "requested_page_target = query_page_target or st.session_state.pop(PAGE_TARGET_KEY, None)" in source
     after_sidebar = source.split("hmi = render_hmi_sidebar(", 1)[1].split(
         "# Identidade na barra lateral",
         1,

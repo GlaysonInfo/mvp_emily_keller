@@ -7,8 +7,10 @@ import streamlit as st
 
 try:
     from dashboard.demo_cases import build_demo_alert_item, build_latest_state_item, load_demo_cases
+    from dashboard.navigation import navigate_to, render_navigation_link
 except ImportError:  # pragma: no cover - supports local test imports.
     from src.dashboard.demo_cases import build_demo_alert_item, build_latest_state_item, load_demo_cases
+    from src.dashboard.navigation import navigate_to, render_navigation_link
 
 
 PAGE_NAME = "Bancada Virtual — Equipamentos"
@@ -152,12 +154,11 @@ def render_condition_virtual_bench_page(
             plant_id=plant_id,
             asset_id=selected_asset["asset_id"],
         )
-        st.session_state["selected_asset_id"] = selected_asset["asset_id"]
-        return {"route": "Monitoramento de Equipamentos", "asset_id": selected_asset["asset_id"]}
-    if b2.button("Ver monitoramento", use_container_width=True):
-        return {"route": "Monitoramento de Equipamentos", "asset_id": selected_asset["asset_id"]}
-    if b3.button("Abrir detalhe do ativo", use_container_width=True):
-        return {"route": "Detalhe do Ativo", "asset_id": selected_asset["asset_id"]}
-    if b4.button("Ver alertas", use_container_width=True):
-        return {"route": "Alertas e Eventos", "asset_id": selected_asset["asset_id"]}
+        navigate_to("Monitoramento de Equipamentos", asset_id=selected_asset["asset_id"])
+    with b2:
+        render_navigation_link("Ver monitoramento", "Monitoramento de Equipamentos", asset_id=selected_asset["asset_id"])
+    with b3:
+        render_navigation_link("Abrir detalhe do ativo", "Detalhe do Ativo", asset_id=selected_asset["asset_id"])
+    with b4:
+        render_navigation_link("Ver alertas", "Alertas e Eventos", asset_id=selected_asset["asset_id"])
     return None
