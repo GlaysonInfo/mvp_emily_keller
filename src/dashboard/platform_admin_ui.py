@@ -28,6 +28,7 @@ SERVICE_DISPLAY_NAMES = {
     "lubrication": "Sistema de Lubrificação",
 }
 PAGE_TARGET_KEY = "dashboard_page_target"
+PENDING_CONDITION_ASSET_KEY = "condition_pending_selected_asset_id"
 
 ONBOARDING_STEPS = [
     {
@@ -186,6 +187,7 @@ def _render_table(items: list[dict[str, Any]], empty_message: str) -> None:
 def _navigate_to(route: str, *, asset_id: str | None = None, outlet_id: str | None = None) -> None:
     if asset_id:
         st.session_state["selected_asset_id"] = asset_id
+        st.session_state[PENDING_CONDITION_ASSET_KEY] = asset_id
     if outlet_id:
         st.session_state["selected_outlet_id"] = outlet_id
     st.session_state[PAGE_TARGET_KEY] = route

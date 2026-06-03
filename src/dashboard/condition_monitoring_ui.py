@@ -14,6 +14,8 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
 
 
 PAGE_NAME = "Monitoramento de Equipamentos"
+SELECTED_ASSET_ID_KEY = "selected_asset_id"
+PENDING_SELECTED_ASSET_ID_KEY = "condition_pending_selected_asset_id"
 
 OPERATOR_WORKFLOWS = [
     {
@@ -398,8 +400,15 @@ def _selected_asset_id(rows: list[dict[str, Any]]) -> str | None:
     if not rows:
         return None
     options = [f"{row['asset_id']} - {row['asset_name']}" for row in rows]
+    pending_asset_id = st.session_state.pop(PENDING_SELECTED_ASSET_ID_KEY, None)
+    if pending_asset_id:
+        pending_option = next((option for option in options if option.startswith(f"{pending_asset_id} - ")), None)
+        if pending_option:
+            st.session_state["condition_operator_asset"] = pending_option
     selected = st.selectbox("Ativo para ação", options, key="condition_operator_asset")
-    return selected.split(" - ", 1)[0]
+    asset_id = selected.split(" - ", 1)[0]
+    st.session_state[SELECTED_ASSET_ID_KEY] = asset_id
+    return asset_id
 
 
 def _find_row(rows: list[dict[str, Any]], asset_id: str | None) -> dict[str, Any] | None:
@@ -554,8 +563,15 @@ def _render_technical_ranking(rows: list[dict[str, Any]]) -> str | None:
     st.dataframe(table_rows, width="stretch", hide_index=True)
 
     options = [f"{row['asset_id']} - {row['asset_name']}" for row in diagnostics]
+    pending_asset_id = st.session_state.pop(PENDING_SELECTED_ASSET_ID_KEY, None)
+    if pending_asset_id:
+        pending_option = next((option for option in options if option.startswith(f"{pending_asset_id} - ")), None)
+        if pending_option:
+            st.session_state["condition_technical_asset"] = pending_option
     selected = st.selectbox("Ativo para análise técnica", options, key="condition_technical_asset")
-    return selected.split(" - ", 1)[0]
+    asset_id = selected.split(" - ", 1)[0]
+    st.session_state[SELECTED_ASSET_ID_KEY] = asset_id
+    return asset_id
 
 
 def _render_technical_asset_detail(rows: list[dict[str, Any]], selected_asset_id: str | None) -> dict[str, str] | None:

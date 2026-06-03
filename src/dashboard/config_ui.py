@@ -9,11 +9,13 @@ try:
     from dashboard.config_consistency_ui import render_config_consistency_panel
     from dashboard.config_repository import ConfigRepository
     from dashboard.config_validation_ui import render_validation_panel
+    from dashboard.hmi.hmi_sidebar import set_operator_page_for_route
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alert_parameter_presets import get_metric_label, get_parameter_preset, validate_parameter_rule
     from src.dashboard.config_consistency_ui import render_config_consistency_panel
     from src.dashboard.config_repository import ConfigRepository
     from src.dashboard.config_validation_ui import render_validation_panel
+    from src.dashboard.hmi.hmi_sidebar import set_operator_page_for_route
 
 
 PROTOCOLS = [
@@ -50,6 +52,9 @@ METRICS = [
     "health_score",
     "severity_score",
 ]
+PAGE_TARGET_KEY = "dashboard_page_target"
+SELECTED_ASSET_ID_KEY = "selected_asset_id"
+PENDING_CONDITION_ASSET_KEY = "condition_pending_selected_asset_id"
 
 
 def _text(value: Any, default: str = "") -> str:
@@ -106,6 +111,48 @@ def _render_table(items: list[dict[str, Any]], columns: list[str]) -> None:
 
     rows = [{column: item.get(column, "") for column in columns} for item in items]
     st.dataframe(rows, width="stretch", hide_index=True)
+
+
+def _navigate_to(route: str, *, asset_id: str | None = None) -> None:
+    if asset_id:
+        st.session_state[SELECTED_ASSET_ID_KEY] = asset_id
+        st.session_state[PENDING_CONDITION_ASSET_KEY] = asset_id
+    st.session_state[PAGE_TARGET_KEY] = route
+    set_operator_page_for_route(route)
+    st.rerun()
+
+
+def _render_asset_navigation_table(assets: list[dict[str, Any]]) -> None:
+    if not assets:
+        st.info("Nenhum registro cadastrado.")
+        return
+
+    header = st.columns([1.05, 1.65, 1.25, 1.05, 0.85, 1.05, 1.35])
+    header[0].caption("asset_id")
+    header[1].caption("asset_name")
+    header[2].caption("asset_type")
+    header[3].caption("area")
+    header[4].caption("status")
+    header[5].caption("source_id")
+    header[6].caption("Ações")
+
+    for asset in assets:
+        asset_id = str(asset.get("asset_id") or "").strip()
+        if not asset_id:
+            continue
+        row = st.columns([1.05, 1.65, 1.25, 1.05, 0.85, 1.05, 1.35])
+        if row[0].button(asset_id, key=f"config_asset_open_monitoring_{asset_id}", use_container_width=True):
+            _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
+        row[1].write(_text(asset.get("asset_name"), "-"))
+        row[2].write(_text(asset.get("asset_type"), "-"))
+        row[3].write(_text(asset.get("area"), "-"))
+        row[4].write(_text(asset.get("status"), "Ativo"))
+        row[5].write(_text(asset.get("source_id"), "-"))
+        action_cols = row[6].columns(2)
+        if action_cols[0].button("Detalhe", key=f"config_asset_open_detail_{asset_id}", use_container_width=True):
+            _navigate_to("Detalhe do Ativo", asset_id=asset_id)
+        if action_cols[1].button("Alertas", key=f"config_asset_open_alerts_{asset_id}", use_container_width=True):
+            _navigate_to("Alertas e Eventos", asset_id=asset_id)
 
 
 def render_config_page(config_path: str | None = None) -> None:
@@ -373,19 +420,7 @@ def _render_assets_tab(repo: ConfigRepository, data: dict[str, Any]) -> None:
     sources = repo.data_sources(data)
     source_ids = [source.get("source_id") for source in sources if source.get("source_id")]
 
-    _render_table(
-        assets,
-        [
-            "asset_id",
-            "asset_name",
-            "asset_type",
-            "area",
-            "criticality",
-            "source_id",
-            "nominal_rpm",
-            "status",
-        ],
-    )
+    _render_asset_navigation_table(assets)
 
     with st.expander("Cadastrar ou atualizar ativo"):
         asset_ids = [asset.get("asset_id") for asset in assets if asset.get("asset_id")]

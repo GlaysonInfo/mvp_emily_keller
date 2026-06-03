@@ -130,6 +130,7 @@ DASHBOARD_PAGE_KEY = "dashboard_page"
 PAGE_TARGET_KEY = "dashboard_page_target"
 ROLE_ROUTE_INIT_KEY = "dashboard_role_route_initialized"
 SELECTED_ASSET_ID_KEY = "selected_asset_id"
+PENDING_CONDITION_ASSET_KEY = "condition_pending_selected_asset_id"
 
 
 def render_global_styles() -> None:
@@ -846,6 +847,7 @@ def main() -> None:
         )
         if action:
             st.session_state[SELECTED_ASSET_ID_KEY] = action["asset_id"]
+            st.session_state[PENDING_CONDITION_ASSET_KEY] = action["asset_id"]
             st.session_state[PAGE_TARGET_KEY] = action["route"]
             st.rerun()
         st.stop()
@@ -928,6 +930,7 @@ def main() -> None:
 
         if action:
             st.session_state[SELECTED_ASSET_ID_KEY] = action["asset_id"]
+            st.session_state[PENDING_CONDITION_ASSET_KEY] = action["asset_id"]
             st.session_state[PAGE_TARGET_KEY] = action["route"]
             st.rerun()
 
@@ -1051,6 +1054,7 @@ def main() -> None:
         if action:
             if action.get("asset_id"):
                 st.session_state[SELECTED_ASSET_ID_KEY] = action["asset_id"]
+                st.session_state[PENDING_CONDITION_ASSET_KEY] = action["asset_id"]
             if action.get("outlet_id"):
                 st.session_state["selected_outlet_id"] = action["outlet_id"]
             st.session_state[PAGE_TARGET_KEY] = action["route"]
@@ -1161,6 +1165,7 @@ def main() -> None:
 
         if selected_asset_id:
             st.session_state[SELECTED_ASSET_ID_KEY] = selected_asset_id
+            st.session_state[PENDING_CONDITION_ASSET_KEY] = selected_asset_id
             st.session_state[PAGE_TARGET_KEY] = "Detalhe do Ativo"
             st.rerun()
 
