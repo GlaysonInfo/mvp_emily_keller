@@ -8,6 +8,7 @@ import streamlit as st
 try:
     from dashboard.alerts_repository import AlertsRepository, create_alerts_repository_from_env
     from dashboard.audit_events import record_sensitive_action
+    from dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from dashboard.escalation_engine import (
         apply_escalation_rule,
         escalation_matrix_rows as engine_escalation_matrix_rows,
@@ -19,6 +20,7 @@ try:
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alerts_repository import AlertsRepository, create_alerts_repository_from_env
     from src.dashboard.audit_events import record_sensitive_action
+    from src.dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from src.dashboard.escalation_engine import (
         apply_escalation_rule,
         escalation_matrix_rows as engine_escalation_matrix_rows,
@@ -69,6 +71,18 @@ FALLBACK_RECOMMENDED_ACTION = (
     "Realizar inspeção técnica no ativo, registrar evidências visuais, verificar vibração anormal, ruído, "
     "temperatura, fixação, lubrificação e necessidade de intervenção corretiva ou preventiva."
 )
+PAGE_TARGET_KEY = "dashboard_page_target"
+SELECTED_ASSET_ID_KEY = "selected_asset_id"
+PENDING_CONDITION_ASSET_KEY = "condition_pending_selected_asset_id"
+
+
+def _navigate_to(route: str, *, asset_id: str | None = None) -> None:
+    if asset_id:
+        st.session_state[SELECTED_ASSET_ID_KEY] = asset_id
+        st.session_state[PENDING_CONDITION_ASSET_KEY] = asset_id
+    st.session_state[PAGE_TARGET_KEY] = route
+    set_operator_page_for_route(route)
+    st.rerun()
 
 
 def escalation_rule(status_label: Any, data: dict[str, Any] | None = None) -> dict[str, str]:
@@ -252,7 +266,7 @@ def render_escalation_matrix(escalation_data: dict[str, Any]) -> None:
 def render_cards(df: pd.DataFrame) -> None:
     st.subheader("Eventos priorizados")
 
-    for row in df.head(8).itertuples():
+    for index, row in enumerate(df.head(8).itertuples(), start=1):
         color = STATUS_COLORS.get(str(row.status_label).upper(), "#7F8C8D")
         st.markdown(
             f"""
@@ -271,6 +285,12 @@ def render_cards(df: pd.DataFrame) -> None:
             """,
             unsafe_allow_html=True,
         )
+        asset_id = str(getattr(row, "asset_id", "") or "")
+        action_cols = st.columns(2)
+        if action_cols[0].button("Abrir ativo", key=f"alerts_card_asset_{index}_{asset_id}", use_container_width=True):
+            _navigate_to("Detalhe do Ativo", asset_id=asset_id)
+        if action_cols[1].button("Monitorar ativo", key=f"alerts_card_monitor_{index}_{asset_id}", use_container_width=True):
+            _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
 
 
 def render_detail(repo: AlertsRepository, df: pd.DataFrame) -> None:
@@ -302,6 +322,13 @@ def render_detail(repo: AlertsRepository, df: pd.DataFrame) -> None:
     st.markdown(f"**Matriz de escalonamento:** {row.get('escalation_recipients', '-')}")
     st.markdown(f"**Canais previstos:** {row.get('escalation_channels', '-')}")
     st.markdown(f"**Política:** {row.get('escalation_repeat_policy', '-')}")
+
+    asset_id = str(full.get("asset_id") or row.get("asset_id") or "")
+    action_cols = st.columns(2)
+    if action_cols[0].button("Abrir detalhe do ativo", key=f"alert_detail_asset_{asset_id}", use_container_width=True):
+        _navigate_to("Detalhe do Ativo", asset_id=asset_id)
+    if action_cols[1].button("Monitorar ativo", key=f"alert_detail_monitor_{asset_id}", use_container_width=True):
+        _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
 
     with st.expander("Timeline do evento", expanded=False):
         timeline = full.get("timeline", [])

@@ -714,6 +714,73 @@ def _render_technician_view(
     return action
 
 
+def _render_actionable_alert_queue(alerts: list[dict[str, Any]]) -> dict[str, str] | None:
+    st.subheader("Alertas e eventos em aberto")
+    if not alerts:
+        st.success("Nenhum alerta ativo para os ativos monitorados.")
+        return None
+
+    header = st.columns([1.35, 0.85, 1.0, 2.0, 1.0, 1.25])
+    header[0].caption("Ativo")
+    header[1].caption("Status")
+    header[2].caption("Métrica")
+    header[3].caption("Ação recomendada")
+    header[4].caption("Atualizado")
+    header[5].caption("Ações")
+
+    for index, alert in enumerate(alerts[:8], start=1):
+        asset_id = str(alert.get("asset_id") or "").strip()
+        row = st.columns([1.35, 0.85, 1.0, 2.0, 1.0, 1.25])
+        row[0].write(alert.get("asset_name") or asset_id or "-")
+        row[1].write(alert.get("status_label") or alert.get("severity") or "-")
+        row[2].write(alert.get("metric") or alert.get("alert_type") or "-")
+        row[3].write(alert.get("recommended_action") or "-")
+        row[4].write(alert.get("updated_at") or alert.get("last_detected_at") or "-")
+        actions = row[5].columns(2)
+        if actions[0].button("Ativo", key=f"condition_alert_asset_{index}_{asset_id}", use_container_width=True):
+            return {"route": "Detalhe do Ativo", "asset_id": asset_id}
+        if actions[1].button("Tratar", key=f"condition_alert_treat_{index}_{asset_id}", use_container_width=True):
+            return {"route": "Alertas e Eventos", "asset_id": asset_id}
+    return None
+
+
+def _render_actionable_assets_view(rows: list[dict[str, Any]], assets: list[dict[str, Any]]) -> dict[str, str] | None:
+    st.subheader("Ativos do serviço")
+    normalized_rows = rows or _rows_from_assets(assets)
+    if not normalized_rows:
+        st.warning("Nenhum ativo cadastrado para esta planta no modo local.")
+        return None
+
+    header = st.columns([1.0, 1.45, 0.95, 1.0, 0.85, 0.75, 0.75, 1.8])
+    header[0].caption("Ativo")
+    header[1].caption("Nome")
+    header[2].caption("Área")
+    header[3].caption("Tipo")
+    header[4].caption("Status")
+    header[5].caption("Health")
+    header[6].caption("Severity")
+    header[7].caption("Ações")
+
+    for row in normalized_rows:
+        asset_id = str(row["asset_id"])
+        item = st.columns([1.0, 1.45, 0.95, 1.0, 0.85, 0.75, 0.75, 1.8])
+        item[0].write(asset_id)
+        item[1].write(str(row["asset_name"]))
+        item[2].write(str(row["area"]))
+        item[3].write(str(row["asset_type"]))
+        item[4].write(str(row["status_label"]))
+        item[5].write(_metric_display(row["health_score"]))
+        item[6].write(_metric_display(row["severity_score"]))
+        actions = item[7].columns(3)
+        if actions[0].button("Monitorar", key=f"condition_assets_monitor_{asset_id}", use_container_width=True):
+            return {"route": "Monitoramento de Equipamentos", "asset_id": asset_id}
+        if actions[1].button("Detalhe", key=f"condition_assets_detail_{asset_id}", use_container_width=True):
+            return {"route": "Detalhe do Ativo", "asset_id": asset_id}
+        if actions[2].button("Alertas", key=f"condition_assets_alerts_{asset_id}", use_container_width=True):
+            return {"route": "Alertas e Eventos", "asset_id": asset_id}
+    return None
+
+
 def _render_operator_view(
     *,
     rows: list[dict[str, Any]],
@@ -733,7 +800,7 @@ def _render_operator_view(
         action = _render_asset_action_panel(rows)
 
     st.divider()
-    _render_alert_queue(active_alerts)
+    alert_action = _render_actionable_alert_queue(active_alerts)
     _render_quick_alert_treatment(
         alerts=active_alerts,
         repo=alerts_repo,
@@ -741,7 +808,7 @@ def _render_operator_view(
         plant_id=plant_id,
         operator_name=operator_name,
     )
-    return action
+    return action or alert_action
 
 
 def _render_assets_view(rows: list[dict[str, Any]], assets: list[dict[str, Any]]) -> None:
@@ -827,7 +894,8 @@ def render_condition_monitoring_page(
             )
             action = action or operator_action
         with tab_assets:
-            _render_assets_view(rows, assets)
+            asset_action = _render_actionable_assets_view(rows, assets)
+            action = action or asset_action
         return action
 
     tab_operation, tab_technical, tab_assets = st.tabs(["Operação", "Técnico", "Ativos"])
@@ -849,5 +917,6 @@ def render_condition_monitoring_page(
         )
         action = action or technical_action
     with tab_assets:
-        _render_assets_view(rows, assets)
+        asset_action = _render_actionable_assets_view(rows, assets)
+        action = action or asset_action
     return action

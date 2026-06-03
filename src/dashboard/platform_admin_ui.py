@@ -195,6 +195,42 @@ def _navigate_to(route: str, *, asset_id: str | None = None, outlet_id: str | No
     st.rerun()
 
 
+def _render_inventory_action_table(inventory_rows: list[dict[str, Any]]) -> None:
+    if not inventory_rows:
+        st.info("Nenhum ativo cadastrado para esta planta.")
+        return
+
+    header = st.columns([1.0, 1.5, 1.1, 1.0, 0.85, 0.75, 0.75, 1.8])
+    header[0].caption("Ativo")
+    header[1].caption("Nome")
+    header[2].caption("Tipo")
+    header[3].caption("Área")
+    header[4].caption("Status")
+    header[5].caption("Sinais")
+    header[6].caption("Parâmetros")
+    header[7].caption("Ações")
+
+    for item in inventory_rows:
+        asset_id = str(item.get("Ativo") or "").strip()
+        if not asset_id:
+            continue
+        row = st.columns([1.0, 1.5, 1.1, 1.0, 0.85, 0.75, 0.75, 1.8])
+        row[0].write(asset_id)
+        row[1].write(str(item.get("Nome") or "-"))
+        row[2].write(str(item.get("Tipo") or "-"))
+        row[3].write(str(item.get("Área") or item.get("Ãrea") or "-"))
+        row[4].write(str(item.get("Status") or "-"))
+        row[5].write(str(item.get("Sinais") or 0))
+        row[6].write(str(item.get("Parâmetros") or item.get("ParÃ¢metros") or 0))
+        actions = row[7].columns(3)
+        if actions[0].button("Monitorar", key=f"platform_inventory_monitor_{asset_id}", use_container_width=True):
+            _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
+        if actions[1].button("Detalhe", key=f"platform_inventory_detail_{asset_id}", use_container_width=True):
+            _navigate_to("Detalhe do Ativo", asset_id=asset_id)
+        if actions[2].button("Alertas", key=f"platform_inventory_alerts_{asset_id}", use_container_width=True):
+            _navigate_to("Alertas e Eventos", asset_id=asset_id)
+
+
 def _asset_inventory_rows(
     data: dict[str, Any],
     operational_config: dict[str, Any],
@@ -428,7 +464,7 @@ def _render_plants_tab(
         st.caption(
             "Visão administrativa para suporte e configuração remota. Não exibe payload bruto, histórico sensível ou dados de produção fora do contexto selecionado."
         )
-        _render_table(inventory_rows, "Nenhum ativo cadastrado para esta planta.")
+        _render_inventory_action_table(inventory_rows)
         if inventory_rows:
             selected_asset = st.selectbox(
                 "Ativo para suporte remoto",

@@ -127,7 +127,7 @@ def _render_asset_navigation_table(assets: list[dict[str, Any]]) -> None:
         st.info("Nenhum registro cadastrado.")
         return
 
-    header = st.columns([1.05, 1.65, 1.25, 1.05, 0.85, 1.05, 1.35])
+    header = st.columns([1.05, 1.55, 1.15, 1.0, 0.8, 0.95, 1.8])
     header[0].caption("asset_id")
     header[1].caption("asset_name")
     header[2].caption("asset_type")
@@ -140,18 +140,19 @@ def _render_asset_navigation_table(assets: list[dict[str, Any]]) -> None:
         asset_id = str(asset.get("asset_id") or "").strip()
         if not asset_id:
             continue
-        row = st.columns([1.05, 1.65, 1.25, 1.05, 0.85, 1.05, 1.35])
-        if row[0].button(asset_id, key=f"config_asset_open_monitoring_{asset_id}", use_container_width=True):
-            _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
+        row = st.columns([1.05, 1.55, 1.15, 1.0, 0.8, 0.95, 1.8])
+        row[0].write(asset_id)
         row[1].write(_text(asset.get("asset_name"), "-"))
         row[2].write(_text(asset.get("asset_type"), "-"))
         row[3].write(_text(asset.get("area"), "-"))
         row[4].write(_text(asset.get("status"), "Ativo"))
         row[5].write(_text(asset.get("source_id"), "-"))
-        action_cols = row[6].columns(2)
-        if action_cols[0].button("Detalhe", key=f"config_asset_open_detail_{asset_id}", use_container_width=True):
+        action_cols = row[6].columns(3)
+        if action_cols[0].button("Monitorar", key=f"config_asset_open_monitoring_{asset_id}", use_container_width=True):
+            _navigate_to("Monitoramento de Equipamentos", asset_id=asset_id)
+        if action_cols[1].button("Detalhe", key=f"config_asset_open_detail_{asset_id}", use_container_width=True):
             _navigate_to("Detalhe do Ativo", asset_id=asset_id)
-        if action_cols[1].button("Alertas", key=f"config_asset_open_alerts_{asset_id}", use_container_width=True):
+        if action_cols[2].button("Alertas", key=f"config_asset_open_alerts_{asset_id}", use_container_width=True):
             _navigate_to("Alertas e Eventos", asset_id=asset_id)
 
 
