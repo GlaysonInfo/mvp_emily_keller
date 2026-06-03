@@ -247,6 +247,20 @@ def _contract_for(data: dict[str, Any], tenant_id: str, plant_id: str) -> dict[s
     return None
 
 
+def _tenant_for(data: dict[str, Any], tenant_id: str) -> dict[str, Any] | None:
+    for tenant in data.get("tenants") or []:
+        if tenant.get("tenant_id") == tenant_id:
+            return tenant
+    return None
+
+
+def _plant_for(data: dict[str, Any], tenant_id: str, plant_id: str) -> dict[str, Any] | None:
+    for plant in data.get("plants") or []:
+        if plant.get("tenant_id") == tenant_id and plant.get("plant_id") == plant_id:
+            return plant
+    return None
+
+
 def _operational_assets_for(
     data: dict[str, Any],
     operational_config: dict[str, Any],
@@ -532,6 +546,166 @@ def _render_overview_tab(data: dict[str, Any], summary: dict[str, int]) -> None:
     _render_table(ONBOARDING_STEPS, "Nenhuma etapa de onboarding configurada.")
 
 
+def _render_onboarding_registration_forms(
+    repo: PlatformAdminRepository,
+    data: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> None:
+    st.markdown("#### Cadastro guiado")
+    st.caption("Cadastre ou ajuste os dados mínimos para liberar o cliente sem sair do fluxo de onboarding.")
+
+    tenant = _tenant_for(data, tenant_id) or {}
+    plant = _plant_for(data, tenant_id, plant_id) or {}
+    contract = _contract_for(data, tenant_id, plant_id) or {}
+    service_labels = _service_options()
+
+    with st.expander("1. Cliente", expanded=not bool(tenant)):
+        with st.form("platform_onboarding_tenant_form"):
+            left, right = st.columns(2)
+            with left:
+                tenant_input = st.text_input(
+                    "Tenant ID",
+                    value=str(tenant.get("tenant_id") or tenant_id or "cliente_novo"),
+                    key="platform_onboarding_tenant_id",
+                )
+                company_name = st.text_input(
+                    "Nome da empresa",
+                    value=str(tenant.get("company_name") or ""),
+                    key="platform_onboarding_company_name",
+                )
+            with right:
+                tenant_status = st.selectbox(
+                    "Status do cliente",
+                    TENANT_STATUS,
+                    index=_index(TENANT_STATUS, tenant.get("status") or "Piloto", 1),
+                    key="platform_onboarding_tenant_status",
+                )
+                environment = st.selectbox(
+                    "Ambiente",
+                    ENVIRONMENTS,
+                    index=_index(ENVIRONMENTS, tenant.get("environment") or "Piloto", 1),
+                    key="platform_onboarding_environment",
+                )
+            if st.form_submit_button("Salvar cliente", type="primary"):
+                try:
+                    repo.upsert_tenant(
+                        {
+                            "tenant_id": tenant_input,
+                            "company_name": company_name,
+                            "status": tenant_status,
+                            "environment": environment,
+                        }
+                    )
+                except ValueError as error:
+                    st.error(str(error))
+                else:
+                    st.success("Cliente salvo no onboarding.")
+                    st.rerun()
+
+    with st.expander("2. Planta", expanded=bool(tenant) and not bool(plant)):
+        tenant_ids = [str(item.get("tenant_id")) for item in data.get("tenants") or [] if item.get("tenant_id")]
+        if tenant_id and tenant_id not in tenant_ids:
+            tenant_ids.append(tenant_id)
+        with st.form("platform_onboarding_plant_form"):
+            left, right = st.columns(2)
+            with left:
+                plant_tenant = st.selectbox(
+                    "Cliente da planta",
+                    tenant_ids or [tenant_id or "cliente_novo"],
+                    index=_index(tenant_ids or [tenant_id or "cliente_novo"], tenant_id, 0),
+                    key="platform_onboarding_plant_tenant",
+                )
+                plant_input = st.text_input(
+                    "Plant ID",
+                    value=str(plant.get("plant_id") or plant_id or "planta_1"),
+                    key="platform_onboarding_plant_id",
+                )
+                plant_name = st.text_input(
+                    "Nome da planta",
+                    value=str(plant.get("plant_name") or ""),
+                    key="platform_onboarding_plant_name",
+                )
+            with right:
+                city = st.text_input(
+                    "Cidade",
+                    value=str(plant.get("city") or ""),
+                    key="platform_onboarding_city",
+                )
+                plant_status = st.selectbox(
+                    "Status da planta",
+                    PLANT_STATUS,
+                    index=_index(PLANT_STATUS, plant.get("status") or "Piloto", 1),
+                    key="platform_onboarding_plant_status",
+                )
+            if st.form_submit_button("Salvar planta", type="primary"):
+                try:
+                    repo.upsert_plant(
+                        {
+                            "tenant_id": plant_tenant,
+                            "plant_id": plant_input,
+                            "plant_name": plant_name,
+                            "city": city,
+                            "status": plant_status,
+                        }
+                    )
+                except ValueError as error:
+                    st.error(str(error))
+                else:
+                    st.success("Planta salva no onboarding.")
+                    st.rerun()
+
+    with st.expander("3. Contrato e módulos", expanded=bool(plant) and not bool(contract)):
+        plant_options = [f"{item['tenant_id']}#{item['plant_id']}" for item in data.get("plants") or []]
+        selected_contract_plant = f"{tenant_id}#{plant_id}" if tenant_id and plant_id else ""
+        if selected_contract_plant and selected_contract_plant not in plant_options:
+            plant_options.append(selected_contract_plant)
+        default_services = list(contract.get("services") or [])
+        with st.form("platform_onboarding_contract_form"):
+            selected_plant = st.selectbox(
+                "Planta contratada",
+                plant_options or [selected_contract_plant or "cliente_novo#planta_1"],
+                index=_index(
+                    plant_options or [selected_contract_plant or "cliente_novo#planta_1"],
+                    selected_contract_plant,
+                    0,
+                ),
+                key="platform_onboarding_contract_plant",
+            )
+            selected_services = st.multiselect(
+                "Módulos contratados",
+                options=list(service_labels.keys()),
+                default=default_services or ["condition"],
+                format_func=lambda value: service_labels.get(value, value),
+                key="platform_onboarding_contract_services",
+            )
+            contract_status = st.selectbox(
+                "Status do contrato",
+                CONTRACT_STATUS,
+                index=_index(CONTRACT_STATUS, contract.get("status") or "Piloto", 1),
+                key="platform_onboarding_contract_status",
+            )
+            intelligence_label = "habilitada" if has_operational_intelligence(selected_services) else "parcial"
+            st.caption(f"Inteligência Operacional: {intelligence_label}")
+            if st.form_submit_button("Salvar contrato", type="primary"):
+                contract_tenant, _, contract_plant = selected_plant.partition("#")
+                try:
+                    repo.upsert_contract(
+                        {
+                            "tenant_id": contract_tenant,
+                            "plant_id": contract_plant,
+                            "services": selected_services,
+                            "status": contract_status,
+                        }
+                    )
+                except ValueError as error:
+                    st.error(str(error))
+                else:
+                    st.success("Contrato salvo no onboarding.")
+                    st.rerun()
+
+
 def _render_onboarding_tab(
     repo: PlatformAdminRepository,
     data: dict[str, Any],
@@ -543,11 +717,13 @@ def _render_onboarding_tab(
     )
 
     plant_options = [f"{plant['tenant_id']}#{plant['plant_id']}" for plant in data.get("plants") or []]
-    if not plant_options:
-        st.info("Cadastre o cliente e a planta para iniciar o onboarding.")
-        return
-
-    selected_plant = st.selectbox("Cliente e planta", plant_options, key="platform_onboarding_plant")
+    tenant_options = [str(tenant.get("tenant_id")) for tenant in data.get("tenants") or [] if tenant.get("tenant_id")]
+    default_focus = f"{tenant_options[0]}#planta_1" if tenant_options else "cliente_novo#planta_1"
+    selected_plant = st.selectbox(
+        "Cliente e planta",
+        plant_options or [default_focus],
+        key="platform_onboarding_plant",
+    )
     tenant_id, _, plant_id = selected_plant.partition("#")
     run = repo.onboarding_run_for(tenant_id, plant_id)
     rows = _onboarding_step_rows(data, operational_config, run, tenant_id=tenant_id, plant_id=plant_id)
@@ -565,6 +741,8 @@ def _render_onboarding_tab(
         for row in rows
     ]
     _render_table(checklist_rows, "Nenhuma etapa de onboarding configurada.")
+
+    _render_onboarding_registration_forms(repo, data, tenant_id=tenant_id, plant_id=plant_id)
 
     st.markdown("#### Registro de comissionamento")
     manual_steps = dict(run.get("manual_steps") or {})

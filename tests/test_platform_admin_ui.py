@@ -8,9 +8,14 @@ from src.dashboard.platform_admin_ui import (
     _contract_rows,
     _onboarding_step_rows,
     _onboarding_summary,
+    _plant_for,
     _platform_summary,
+    _tenant_for,
     _tenant_onboarding_rows,
 )
+
+
+PLATFORM_ADMIN_UI_SOURCE = "src/dashboard/platform_admin_ui.py"
 
 
 def _sample_platform_data() -> dict:
@@ -191,3 +196,23 @@ def test_onboarding_step_rows_combine_admin_store_and_operational_config() -> No
     assert rows[-1]["Status"] == "Pendente"
     assert rows[4]["Evidência"] == "Ativos: 1 | Fontes: 1 | Sinais: 1 | Parâmetros: 1"
     assert summary == {"percent": 86, "done": 6, "total": 7, "status": "Em implantação"}
+
+
+def test_onboarding_lookup_helpers_find_focused_tenant_and_plant() -> None:
+    data = _sample_platform_data()
+
+    assert _tenant_for(data, "cliente_a")["company_name"] == "Cliente A"
+    assert _plant_for(data, "cliente_a", "planta_1")["plant_name"] == "Planta 1"
+    assert _tenant_for(data, "cliente_x") is None
+    assert _plant_for(data, "cliente_a", "planta_x") is None
+
+
+def test_onboarding_page_exposes_guided_registration_forms() -> None:
+    from pathlib import Path
+
+    source = Path(PLATFORM_ADMIN_UI_SOURCE).read_text(encoding="utf-8")
+
+    assert "Cadastro guiado" in source
+    assert "platform_onboarding_tenant_form" in source
+    assert "platform_onboarding_plant_form" in source
+    assert "platform_onboarding_contract_form" in source
