@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import streamlit as st
 
 try:
+    from dashboard.config_repository import ConfigRepository
     from dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
     from dashboard.platform_admin_repository import PlatformAdminRepository
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
+    from src.dashboard.config_repository import ConfigRepository
     from src.dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
     from src.dashboard.platform_admin_repository import PlatformAdminRepository
 
@@ -177,9 +180,65 @@ def _render_table(items: list[dict[str, Any]], empty_message: str) -> None:
     st.dataframe(items, width="stretch", hide_index=True)
 
 
-def render_platform_admin_page(path: str | None = None) -> None:
+def _asset_inventory_rows(
+    data: dict[str, Any],
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> list[dict[str, Any]]:
+    assets = list(data.get("assets") or []) + list(operational_config.get("assets") or [])
+    signal_map = list(operational_config.get("signal_map") or operational_config.get("asset_signal_map") or [])
+    parameters = list(operational_config.get("parameters_alerts") or [])
+
+    rows = []
+    seen: set[str] = set()
+    for asset in assets:
+        asset_tenant = str(asset.get("tenant_id") or tenant_id)
+        asset_plant = str(asset.get("plant_id") or plant_id)
+        if asset_tenant != tenant_id or asset_plant != plant_id:
+            continue
+        asset_id = str(asset.get("asset_id") or "").strip()
+        if not asset_id or asset_id in seen:
+            continue
+        seen.add(asset_id)
+        asset_signals = [item for item in signal_map if str(item.get("asset_id") or "") == asset_id]
+        asset_parameters = [item for item in parameters if str(item.get("asset_id") or "") == asset_id]
+        rows.append(
+            {
+                "Ativo": asset_id,
+                "Nome": asset.get("asset_name") or asset.get("name") or asset_id,
+                "Tipo": asset.get("asset_type") or asset.get("type") or "-",
+                "Área": asset.get("area") or "-",
+                "Criticidade": asset.get("criticality") or "-",
+                "Fonte": asset.get("source_id") or "-",
+                "Sinais": len(asset_signals),
+                "Parâmetros": len(asset_parameters),
+                "Status": asset.get("status") or "Ativo",
+            }
+        )
+    return rows
+
+
+def _data_source_rows(operational_config: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for source in operational_config.get("data_sources") or []:
+        rows.append(
+            {
+                "Fonte": source.get("source_id"),
+                "Nome": source.get("source_name"),
+                "Tipo": source.get("source_type"),
+                "Protocolo": source.get("protocol"),
+                "Status": source.get("status"),
+            }
+        )
+    return rows
+
+
+def render_platform_admin_page(path: str | None = None, config_path: str | None = None) -> None:
     repo = PlatformAdminRepository(path)
     data = repo.load()
+    operational_config = ConfigRepository(config_path or os.getenv("DASHBOARD_CONFIG_STORE") or None).load()
     summary = _platform_summary(data)
 
     st.header("Admin Sentinela")
@@ -208,7 +267,7 @@ def render_platform_admin_page(path: str | None = None) -> None:
     with tabs[1]:
         _render_tenants_tab(repo, data)
     with tabs[2]:
-        _render_plants_tab(repo, data)
+        _render_plants_tab(repo, data, operational_config)
     with tabs[3]:
         _render_contracts_tab(repo, data)
     with tabs[4]:
@@ -298,10 +357,40 @@ def _render_tenants_tab(repo: PlatformAdminRepository, data: dict[str, Any]) -> 
                 st.rerun()
 
 
-def _render_plants_tab(repo: PlatformAdminRepository, data: dict[str, Any]) -> None:
+def _render_plants_tab(
+    repo: PlatformAdminRepository,
+    data: dict[str, Any],
+    operational_config: dict[str, Any],
+) -> None:
     st.subheader("Plantas")
     _render_table(data["plants"], "Nenhuma planta cadastrada.")
     tenant_ids = [tenant["tenant_id"] for tenant in data["tenants"]]
+    plant_options = [f"{plant['tenant_id']}#{plant['plant_id']}" for plant in data["plants"]]
+
+    if plant_options:
+        st.subheader("Inventário operacional da planta")
+        selected_inventory = st.selectbox("Planta para suporte", plant_options, key="platform_admin_inventory_plant")
+        tenant_id_inventory, _, plant_id_inventory = selected_inventory.partition("#")
+        inventory_rows = _asset_inventory_rows(
+            data,
+            operational_config,
+            tenant_id=tenant_id_inventory,
+            plant_id=plant_id_inventory,
+        )
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Ativos", str(len(inventory_rows)))
+        c2.metric("Fontes", str(len(_data_source_rows(operational_config))))
+        c3.metric("Sinais", str(len(operational_config.get("signal_map") or operational_config.get("asset_signal_map") or [])))
+        c4.metric("Parâmetros", str(len(operational_config.get("parameters_alerts") or [])))
+
+        st.caption(
+            "Visão administrativa para suporte e configuração remota. Não exibe payload bruto, histórico sensível ou dados de produção fora do contexto selecionado."
+        )
+        _render_table(inventory_rows, "Nenhum ativo cadastrado para esta planta.")
+
+        with st.expander("Fontes de dados e conectores da planta"):
+            _render_table(_data_source_rows(operational_config), "Nenhuma fonte de dados cadastrada.")
 
     with st.form("platform_admin_plant_form"):
         left, right = st.columns(2)

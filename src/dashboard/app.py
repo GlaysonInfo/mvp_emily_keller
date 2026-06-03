@@ -19,6 +19,8 @@ try:
     from dashboard.client_admin_ui import render_client_admin_page
     from dashboard.condition_monitoring_ui import PAGE_NAME as CONDITION_MONITORING_PAGE
     from dashboard.condition_monitoring_ui import render_condition_monitoring_page
+    from dashboard.condition_virtual_bench_ui import PAGE_NAME as CONDITION_VIRTUAL_BENCH_PAGE
+    from dashboard.condition_virtual_bench_ui import render_condition_virtual_bench_page
     from dashboard.dynamodb_repository import create_repository_from_env
     from dashboard.demo_cases import build_demo_alert_item, build_latest_state_item, load_demo_cases
     from dashboard.e2e_ui import render_e2e_test_page
@@ -57,6 +59,8 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.client_admin_ui import render_client_admin_page
     from src.dashboard.condition_monitoring_ui import PAGE_NAME as CONDITION_MONITORING_PAGE
     from src.dashboard.condition_monitoring_ui import render_condition_monitoring_page
+    from src.dashboard.condition_virtual_bench_ui import PAGE_NAME as CONDITION_VIRTUAL_BENCH_PAGE
+    from src.dashboard.condition_virtual_bench_ui import render_condition_virtual_bench_page
     from src.dashboard.demo_cases import build_demo_alert_item, build_latest_state_item, load_demo_cases
     from src.dashboard.dynamodb_repository import create_repository_from_env
     from src.dashboard.e2e_ui import render_e2e_test_page
@@ -889,7 +893,7 @@ def main() -> None:
         return
 
     elif page == PLATFORM_ADMIN_PAGE:
-        render_platform_admin_page(os.getenv("PLATFORM_ADMIN_STORE"))
+        render_platform_admin_page(os.getenv("PLATFORM_ADMIN_STORE"), config_store_path)
         st.stop()
         return
 
@@ -900,6 +904,33 @@ def main() -> None:
 
     elif page == "Teste ponta a ponta":
         render_e2e_test_page(config_store_path)
+        st.stop()
+        return
+
+    elif page == CONDITION_VIRTUAL_BENCH_PAGE:
+        try:
+            repo = create_repository_from_env()
+            action = render_condition_virtual_bench_page(
+                repo=repo,
+                tenant_id=tenant_id,
+                plant_id=plant_id,
+                assets=config_repo.assets(config),
+            )
+        except ProfileNotFound as exc:
+            render_aws_profile_error(exc)
+            st.stop()
+        except NoCredentialsError as exc:
+            render_aws_credentials_error(exc)
+            st.stop()
+        except ClientError as exc:
+            render_client_error("Não foi possível carregar a bancada virtual de equipamentos.", exc)
+            st.stop()
+
+        if action:
+            st.session_state[SELECTED_ASSET_ID_KEY] = action["asset_id"]
+            st.session_state[PAGE_TARGET_KEY] = action["route"]
+            st.rerun()
+
         st.stop()
         return
 

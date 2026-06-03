@@ -26,6 +26,7 @@ def test_rbac_covers_default_hmi_routes() -> None:
     assert operator_routes <= allowed_pages(ROLE_OPERADOR)
     assert technical_routes - {
         "Eficiência da Lubrificação do Motor",
+        "Bancada Virtual — Equipamentos",
         "Bancada Virtual — Lubrificação",
         "Matriz de Escalonamento",
         "Notification Outbox",
@@ -37,6 +38,7 @@ def test_rbac_covers_default_hmi_routes() -> None:
     } <= allowed_pages(ROLE_TECNICO)
     assert not can_access(ROLE_OPERADOR, "Configurações")
     assert not can_access(ROLE_TECNICO, "Arquitetura Modular")
+    assert not can_access(ROLE_TECNICO, "Bancada Virtual — Equipamentos")
     assert not can_access(ROLE_TECNICO, "Bancada Virtual — Lubrificação")
     assert not can_access(ROLE_TECNICO, "Notification Outbox")
     assert can_access(ROLE_CLIENTE_ADMIN, "Configurações")
@@ -48,6 +50,7 @@ def test_rbac_covers_default_hmi_routes() -> None:
     assert not can_access(ROLE_CLIENTE_ADMIN, "Arquitetura Modular")
     assert can_access(ROLE_ADMIN, "Admin da Plataforma")
     assert can_access(ROLE_ADMIN, "Configurações")
+    assert can_access(ROLE_ADMIN, "Bancada Virtual — Equipamentos")
     assert can_access(ROLE_ADMIN, "Bancada Virtual — Lubrificação")
     assert can_access(ROLE_ADMIN, "Notification Outbox")
     assert not can_access(ROLE_ADMIN, "Admin do Cliente")

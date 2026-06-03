@@ -47,6 +47,7 @@ def test_hmi_menu_config_exposes_operator_and_technical_modes() -> None:
 def test_default_technical_pages_keep_support_routes() -> None:
     assert "Monitoramento de Equipamentos" in DEFAULT_TECH_PAGES
     assert "Operação de Lubrificação" in DEFAULT_TECH_PAGES
+    assert "Bancada Virtual — Equipamentos" in DEFAULT_TECH_PAGES
     assert "Eficiência da Lubrificação do Motor" in DEFAULT_TECH_PAGES
     assert "Bancada Virtual — Lubrificação" in DEFAULT_TECH_PAGES
     assert "Matriz de Escalonamento" in DEFAULT_TECH_PAGES
@@ -165,6 +166,7 @@ def test_admin_navigation_groups_keep_demo_and_support_tools_separate() -> None:
         "Configurações",
         "Matriz de Escalonamento",
         "Notification Outbox",
+        "Bancada Virtual — Equipamentos",
         "Eficiência da Lubrificação do Motor",
         "Bancada Virtual — Lubrificação",
     ]
@@ -180,6 +182,10 @@ def test_admin_navigation_groups_keep_demo_and_support_tools_separate() -> None:
         "route": "Notification Outbox",
         "label": "Fila de notificações",
     } in groups[0]["items"]
+    assert {
+        "route": "Bancada Virtual — Equipamentos",
+        "label": "Bancada de equipamentos",
+    } in groups[2]["items"]
     assert {
         "route": "Bancada Virtual — Lubrificação",
         "label": "Bancada virtual",

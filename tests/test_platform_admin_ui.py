@@ -3,6 +3,7 @@ from __future__ import annotations
 from src.dashboard.platform_admin_ui import (
     ONBOARDING_STEPS,
     SUPPORT_SCOPES,
+    _asset_inventory_rows,
     _contract_rows,
     _platform_summary,
     _tenant_onboarding_rows,
@@ -103,3 +104,49 @@ def test_admin_sentinela_guidance_has_onboarding_and_support_scope() -> None:
     ]
     assert any(scope["Domínio"] == "Suporte remoto" for scope in SUPPORT_SCOPES)
     assert any("auditoria" in scope["Controle exigido"].lower() for scope in SUPPORT_SCOPES)
+
+
+def test_asset_inventory_rows_scope_assets_to_selected_plant() -> None:
+    data = _sample_platform_data()
+    operational_config = {
+        "assets": [
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "asset_id": "motor_001",
+                "asset_name": "Motor 001",
+                "asset_type": "Motor",
+                "area": "Linha 1",
+                "criticality": "Alta",
+                "source_id": "opcua_01",
+                "status": "Ativo",
+            },
+            {
+                "tenant_id": "cliente_b",
+                "plant_id": "planta_2",
+                "asset_id": "esteira_001",
+                "asset_name": "Esteira 001",
+            },
+        ],
+        "signal_map": [
+            {"asset_id": "motor_001", "metric": "vibration_rms_mm_s"},
+            {"asset_id": "motor_001", "metric": "temperature_c"},
+        ],
+        "parameters_alerts": [{"asset_id": "motor_001", "metric": "vibration_rms_mm_s"}],
+    }
+
+    rows = _asset_inventory_rows(data, operational_config, tenant_id="cliente_a", plant_id="planta_1")
+
+    assert rows == [
+        {
+            "Ativo": "motor_001",
+            "Nome": "Motor 001",
+            "Tipo": "Motor",
+            "Área": "Linha 1",
+            "Criticidade": "Alta",
+            "Fonte": "opcua_01",
+            "Sinais": 2,
+            "Parâmetros": 1,
+            "Status": "Ativo",
+        }
+    ]

@@ -163,6 +163,7 @@ GLOBAL_ADMIN_PAGES = ["Admin da Plataforma", "Configurações"]
 ADMIN_SUPPORT_PAGES = [
     "Matriz de Escalonamento",
     "Notification Outbox",
+    "Bancada Virtual — Equipamentos",
     "Eficiência da Lubrificação do Motor",
     "Bancada Virtual — Lubrificação",
 ]

@@ -111,6 +111,23 @@ def test_lubrication_virtual_bench_route_stops_before_other_pages() -> None:
     assert "return" in bench_route
 
 
+def test_condition_virtual_bench_route_stops_before_other_pages() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+
+    assert "CONDITION_VIRTUAL_BENCH_PAGE" in source
+    assert "render_condition_virtual_bench_page(" in source
+    bench_route = source.split("elif page == CONDITION_VIRTUAL_BENCH_PAGE:", 1)[1].split(
+        "\n    elif page ==",
+        1,
+    )[0]
+
+    assert "render_condition_virtual_bench_page(" in bench_route
+    assert "render_lubrication_virtual_bench_page(" not in bench_route
+    assert "render_plant_overview" not in bench_route
+    assert "st.stop()" in bench_route
+    assert "return" in bench_route
+
+
 def test_lubrication_field_config_route_stops_before_other_pages() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
     field_config_route = _route_block(source, "Configuração de Campo — Lubrificação")

@@ -33,6 +33,7 @@ DEFAULT_TECH_PAGES = [
     "Alertas e Eventos",
     "Matriz de Escalonamento",
     "Notification Outbox",
+    "Bancada Virtual — Equipamentos",
     "Relatórios",
     "Configurações",
     "Admin do Cliente",
@@ -81,6 +82,7 @@ TECHNICAL_LABEL_BY_ROUTE = {
     "Alertas e Eventos": "Alertas ativos",
     "Matriz de Escalonamento": "Escalonamento de alertas",
     "Notification Outbox": "Fila de notificações",
+    "Bancada Virtual — Equipamentos": "Bancada de equipamentos",
     "Relatórios": "Relatórios",
     "Configurações": "Configurações",
     "Admin do Cliente": "Admin do Cliente",
@@ -116,6 +118,7 @@ TECHNICAL_GROUPS = [
     (
         "Demonstrações e Suporte",
         [
+            "Bancada Virtual — Equipamentos",
             "Eficiência da Lubrificação do Motor",
             "Bancada Virtual — Lubrificação",
             "Arquitetura Modular",

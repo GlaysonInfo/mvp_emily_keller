@@ -69,6 +69,7 @@ def test_routes_are_filtered_by_role_and_contract() -> None:
     assert "Arquitetura Modular" not in client_admin
     assert "Admin da Plataforma" in system_admin
     assert "Configurações" in system_admin
+    assert "Bancada Virtual — Equipamentos" in system_admin
     assert "Bancada Virtual — Lubrificação" in system_admin
     assert "Notification Outbox" in system_admin
     assert "Admin do Cliente" not in system_admin
