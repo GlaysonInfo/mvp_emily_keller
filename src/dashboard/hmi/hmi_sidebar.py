@@ -148,7 +148,6 @@ def set_operator_page_for_route(route: str) -> None:
         st.session_state[PENDING_OPERATOR_PAGE_KEY] = label
     if route in DEFAULT_TECH_PAGES:
         st.session_state[PENDING_TECHNICAL_PAGE_KEY] = route
-        st.session_state[ADMIN_PAGE_SELECT_KEY] = route
 
 
 def _get(config: dict, *keys: str, default: str = "-") -> str:
@@ -362,14 +361,18 @@ def render_hmi_sidebar(
         technical_pages = _filter_technical_pages(technical_pages, allowed_routes)
         if not technical_pages:
             technical_pages = ["Acesso indisponível"]
+        applied_pending_page = None
         pending_page = st.session_state.pop(PENDING_TECHNICAL_PAGE_KEY, None)
         if pending_page in technical_pages:
             st.session_state["hmi_technical_page"] = pending_page
+            applied_pending_page = pending_page
         if st.session_state.get("hmi_technical_page") not in technical_pages:
             st.session_state["hmi_technical_page"] = technical_pages[0]
         st.sidebar.markdown(_technical_navigation_label(user_role))
         if _is_administrative_role(user_role):
-            if st.session_state.get(ADMIN_PAGE_SELECT_KEY) not in technical_pages:
+            if applied_pending_page:
+                st.session_state[ADMIN_PAGE_SELECT_KEY] = applied_pending_page
+            elif st.session_state.get(ADMIN_PAGE_SELECT_KEY) not in technical_pages:
                 st.session_state[ADMIN_PAGE_SELECT_KEY] = st.session_state["hmi_technical_page"]
             selected_admin_page = st.sidebar.selectbox(
                 "Ir para",
@@ -391,8 +394,7 @@ def render_hmi_sidebar(
                     use_container_width=True,
                 ):
                     st.session_state["hmi_technical_page"] = route
-                    if _is_administrative_role(user_role):
-                        st.session_state[ADMIN_PAGE_SELECT_KEY] = route
+                    st.session_state[PENDING_TECHNICAL_PAGE_KEY] = route
                     st.rerun()
         page = st.session_state["hmi_technical_page"]
         visible_label = page

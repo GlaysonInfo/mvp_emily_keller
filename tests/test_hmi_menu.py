@@ -69,10 +69,23 @@ def test_operator_route_changes_are_applied_before_sidebar_widget_is_created() -
     setter_body = source.split("def set_operator_page_for_route", 1)[1].split("\ndef _get", 1)[0]
 
     assert "st.session_state[PENDING_OPERATOR_PAGE_KEY] = label" in setter_body
+    assert "st.session_state[ADMIN_PAGE_SELECT_KEY] = route" not in setter_body
     assert 'st.session_state["hmi_operator_page"] = label' not in setter_body
     assert "pending_label = st.session_state.pop(PENDING_OPERATOR_PAGE_KEY, None)" in source
     assert "hmi_operator_button_" in source
     assert 'st.sidebar.radio("Menu do operador"' not in source
+
+
+def test_admin_sidebar_buttons_do_not_mutate_selectbox_key_after_instantiation() -> None:
+    source = HMI_SIDEBAR_SOURCE.read_text(encoding="utf-8")
+    button_block = source.split('key=f"hmi_technical_button_{route}"', 1)[1].split(
+        'page = st.session_state["hmi_technical_page"]',
+        1,
+    )[0]
+
+    assert "applied_pending_page" in source
+    assert "st.session_state[PENDING_TECHNICAL_PAGE_KEY] = route" in button_block
+    assert "st.session_state[ADMIN_PAGE_SELECT_KEY] = route" not in button_block
 
 
 def test_sidebar_pages_can_be_filtered_by_allowed_routes() -> None:
