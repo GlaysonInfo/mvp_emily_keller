@@ -1035,7 +1035,7 @@ def main() -> None:
 
     elif page == "Bancada Virtual — Lubrificação":
         try:
-            render_lubrication_virtual_bench_page(
+            action = render_lubrication_virtual_bench_page(
                 os.getenv("LUBRICATION_CONFIG_PATH", "config/lubrication_pilot_config.json")
             )
         except ProfileNotFound as exc:
@@ -1047,6 +1047,14 @@ def main() -> None:
         except ClientError as exc:
             render_client_error("Não foi possível carregar a bancada virtual de lubrificação.", exc)
             st.stop()
+
+        if action:
+            if action.get("asset_id"):
+                st.session_state[SELECTED_ASSET_ID_KEY] = action["asset_id"]
+            if action.get("outlet_id"):
+                st.session_state["selected_outlet_id"] = action["outlet_id"]
+            st.session_state[PAGE_TARGET_KEY] = action["route"]
+            st.rerun()
 
         st.stop()
         return

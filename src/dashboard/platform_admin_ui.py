@@ -7,10 +7,12 @@ import streamlit as st
 
 try:
     from dashboard.config_repository import ConfigRepository
+    from dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
     from dashboard.platform_admin_repository import PlatformAdminRepository
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.config_repository import ConfigRepository
+    from src.dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from src.dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
     from src.dashboard.platform_admin_repository import PlatformAdminRepository
 
@@ -25,6 +27,7 @@ SERVICE_DISPLAY_NAMES = {
     "condition": "Monitoramento de Equipamentos",
     "lubrication": "Sistema de Lubrificação",
 }
+PAGE_TARGET_KEY = "dashboard_page_target"
 
 ONBOARDING_STEPS = [
     {
@@ -180,6 +183,16 @@ def _render_table(items: list[dict[str, Any]], empty_message: str) -> None:
     st.dataframe(items, width="stretch", hide_index=True)
 
 
+def _navigate_to(route: str, *, asset_id: str | None = None, outlet_id: str | None = None) -> None:
+    if asset_id:
+        st.session_state["selected_asset_id"] = asset_id
+    if outlet_id:
+        st.session_state["selected_outlet_id"] = outlet_id
+    st.session_state[PAGE_TARGET_KEY] = route
+    set_operator_page_for_route(route)
+    st.rerun()
+
+
 def _asset_inventory_rows(
     data: dict[str, Any],
     operational_config: dict[str, Any],
@@ -300,6 +313,32 @@ def _render_support_tab() -> None:
     st.caption(
         "Ferramentas exclusivas do Admin Sentinela. O acesso a contexto de cliente deve ter tenant, planta, motivo e auditoria."
     )
+    st.markdown("#### Demonstrações para cliente")
+    demo_cols = st.columns(3)
+    with demo_cols[0]:
+        st.markdown("**Monitoramento de Equipamentos**")
+        st.caption("Cenários de condição, alerta por ativo e painel de monitoramento.")
+        if st.button(
+            "Abrir bancada de equipamentos",
+            type="primary",
+            use_container_width=True,
+            key="admin_open_condition_bench",
+        ):
+            _navigate_to("Bancada Virtual — Equipamentos")
+    with demo_cols[1]:
+        st.markdown("**Sistema de Lubrificação**")
+        st.caption("Cenários por saída de graxa, ciclo final, alertas e painel do sistema.")
+        if st.button("Abrir bancada de lubrificação", use_container_width=True, key="admin_open_lubrication_bench"):
+            _navigate_to("Bancada Virtual — Lubrificação")
+    with demo_cols[2]:
+        st.markdown("**Resultado operacional**")
+        st.caption("Ir direto aos painéis depois de aplicar um cenário.")
+        if st.button("Ver monitoramento", use_container_width=True, key="admin_open_condition_monitoring"):
+            _navigate_to("Monitoramento de Equipamentos")
+        if st.button("Ver sistema de lubrificação", use_container_width=True, key="admin_open_lubrication_dashboard"):
+            _navigate_to("Sistema de Lubrificação")
+
+    st.divider()
     _render_table(SUPPORT_SCOPES, "Nenhum escopo de suporte configurado.")
     st.warning(
         "Admin Sentinela não deve atuar como operador invisível do cliente. Qualquer suporte remoto precisa de contexto explícito e trilha de auditoria."
@@ -388,6 +427,31 @@ def _render_plants_tab(
             "Visão administrativa para suporte e configuração remota. Não exibe payload bruto, histórico sensível ou dados de produção fora do contexto selecionado."
         )
         _render_table(inventory_rows, "Nenhum ativo cadastrado para esta planta.")
+        if inventory_rows:
+            selected_asset = st.selectbox(
+                "Ativo para suporte remoto",
+                inventory_rows,
+                format_func=lambda row: f"{row['Ativo']} - {row['Nome']}",
+                key="platform_admin_support_asset",
+            )
+            action_cols = st.columns(4)
+            with action_cols[0]:
+                if st.button(
+                    "Abrir monitoramento",
+                    type="primary",
+                    use_container_width=True,
+                    key="platform_admin_asset_monitoring",
+                ):
+                    _navigate_to("Monitoramento de Equipamentos", asset_id=str(selected_asset["Ativo"]))
+            with action_cols[1]:
+                if st.button("Abrir detalhe", use_container_width=True, key="platform_admin_asset_detail"):
+                    _navigate_to("Detalhe do Ativo", asset_id=str(selected_asset["Ativo"]))
+            with action_cols[2]:
+                if st.button("Ver alertas", use_container_width=True, key="platform_admin_asset_alerts"):
+                    _navigate_to("Alertas e Eventos", asset_id=str(selected_asset["Ativo"]))
+            with action_cols[3]:
+                if st.button("Configurações", use_container_width=True, key="platform_admin_asset_config"):
+                    _navigate_to("Configurações", asset_id=str(selected_asset["Ativo"]))
 
         with st.expander("Fontes de dados e conectores da planta"):
             _render_table(_data_source_rows(operational_config), "Nenhuma fonte de dados cadastrada.")

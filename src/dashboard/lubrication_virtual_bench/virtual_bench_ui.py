@@ -60,7 +60,7 @@ def _curves_table(payload: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def render_lubrication_virtual_bench_page(config_path: str = "config/lubrication_pilot_config.json") -> None:
+def render_lubrication_virtual_bench_page(config_path: str = "config/lubrication_pilot_config.json") -> dict[str, str] | None:
     st.header("Bancada Virtual — Lubrificação")
     st.caption("Sequências temporais de pressão para demonstrar falhas reais de lubrificação.")
 
@@ -96,6 +96,15 @@ def render_lubrication_virtual_bench_page(config_path: str = "config/lubrication
 
     with tab_outlets:
         st.dataframe(pd.DataFrame(_last_cycle_outlet_rows(last_result)), width="stretch", hide_index=True)
+        st.markdown("#### Abrir resultado por saída")
+        outlet_cols = st.columns(4)
+        for index, outlet in enumerate(last_result.get("outlets", [])):
+            outlet_id = str(outlet.get("outlet_id") or "")
+            label = outlet_label(outlet_id)
+            with outlet_cols[index % 4]:
+                if st.button(label, key=f"open_lubrication_outlet_{outlet_id}", use_container_width=True):
+                    st.session_state["selected_outlet_id"] = outlet_id
+                    return {"route": "Sistema de Lubrificação", "outlet_id": outlet_id}
 
     with tab_curves:
         st.dataframe(_curves_table(last_payload), width="stretch", hide_index=True)
@@ -111,3 +120,19 @@ def render_lubrication_virtual_bench_page(config_path: str = "config/lubrication
             st.success(f"{len(results)} ciclo(s) gravado(s). Abra Sistema de Lubrificação para ver o estado final.")
         else:
             st.success("Sequência simulada sem gravação.")
+        st.session_state["selected_outlet_id"] = str((last_result.get("outlets") or [{}])[0].get("outlet_id") or "")
+
+    action_cols = st.columns(3)
+    if action_cols[0].button("Aplicar e abrir sistema", type="primary", use_container_width=True):
+        if save_sequence:
+            repo = LubricationRepository()
+            for result in results:
+                repo.save_cycle_result(result)
+        selected_outlet = str((last_result.get("outlets") or [{}])[0].get("outlet_id") or "")
+        st.session_state["selected_outlet_id"] = selected_outlet
+        return {"route": "Sistema de Lubrificação", "outlet_id": selected_outlet}
+    if action_cols[1].button("Ver alertas de lubrificação", use_container_width=True):
+        return {"route": "Alertas e Eventos"}
+    if action_cols[2].button("Ver eficiência", use_container_width=True):
+        return {"route": "Eficiência da Lubrificação"}
+    return None

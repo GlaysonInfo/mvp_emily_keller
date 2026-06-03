@@ -128,6 +128,7 @@ TECHNICAL_GROUPS = [
 ]
 PENDING_OPERATOR_PAGE_KEY = "hmi_pending_operator_page"
 PENDING_TECHNICAL_PAGE_KEY = "hmi_pending_technical_page"
+ADMIN_PAGE_SELECT_KEY = "hmi_admin_page_select"
 
 
 def load_hmi_menu_config(path: str = "config/hmi_menu_config.json") -> dict[str, Any]:
@@ -147,6 +148,7 @@ def set_operator_page_for_route(route: str) -> None:
         st.session_state[PENDING_OPERATOR_PAGE_KEY] = label
     if route in DEFAULT_TECH_PAGES:
         st.session_state[PENDING_TECHNICAL_PAGE_KEY] = route
+        st.session_state[ADMIN_PAGE_SELECT_KEY] = route
 
 
 def _get(config: dict, *keys: str, default: str = "-") -> str:
@@ -366,6 +368,16 @@ def render_hmi_sidebar(
         if st.session_state.get("hmi_technical_page") not in technical_pages:
             st.session_state["hmi_technical_page"] = technical_pages[0]
         st.sidebar.markdown(_technical_navigation_label(user_role))
+        if _is_administrative_role(user_role):
+            if st.session_state.get(ADMIN_PAGE_SELECT_KEY) not in technical_pages:
+                st.session_state[ADMIN_PAGE_SELECT_KEY] = st.session_state["hmi_technical_page"]
+            selected_admin_page = st.sidebar.selectbox(
+                "Ir para",
+                technical_pages,
+                format_func=_technical_page_label,
+                key=ADMIN_PAGE_SELECT_KEY,
+            )
+            st.session_state["hmi_technical_page"] = selected_admin_page
         groups = _technical_navigation_groups(technical_pages, user_role)
         for group in groups:
             st.sidebar.caption(str(group["label"]))
@@ -379,6 +391,8 @@ def render_hmi_sidebar(
                     use_container_width=True,
                 ):
                     st.session_state["hmi_technical_page"] = route
+                    if _is_administrative_role(user_role):
+                        st.session_state[ADMIN_PAGE_SELECT_KEY] = route
                     st.rerun()
         page = st.session_state["hmi_technical_page"]
         visible_label = page

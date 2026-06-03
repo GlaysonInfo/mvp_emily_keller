@@ -38,6 +38,7 @@ def test_hmi_menu_config_exposes_operator_and_technical_modes() -> None:
         "Ajuda",
     ]
     assert "Configuração de Campo — Lubrificação" in config["technical_pages"]
+    assert "Bancada Virtual — Equipamentos" in config["technical_pages"]
     assert "Eficiência da Lubrificação" in config["technical_pages"]
     assert "Eficiência da Lubrificação do Motor" in config["technical_pages"]
     assert "Bancada Virtual — Lubrificação" in config["technical_pages"]

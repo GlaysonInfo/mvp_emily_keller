@@ -160,6 +160,20 @@ def render_lubrication_page(config_path: str = "config/lubrication_pilot_config.
     kpi_alert.metric("Alertas", state.get("alert_count", 0))
     kpi_critical.metric("Críticos", state.get("critical_count", 0))
 
+    selected_outlet_id = str(st.session_state.get("selected_outlet_id") or "")
+    if selected_outlet_id:
+        selected_outlet = next(
+            (outlet for outlet in state.get("outlets", []) if str(outlet.get("outlet_id") or "") == selected_outlet_id),
+            None,
+        )
+        if selected_outlet:
+            st.subheader(f"Saída selecionada: {outlet_label(selected_outlet_id)}")
+            selected_cols = st.columns(4)
+            selected_cols[0].metric("Severidade", selected_outlet.get("severity", "-"))
+            selected_cols[1].metric("Pressão", selected_outlet.get("pressure_bar", "-"))
+            selected_cols[2].metric("Pico", selected_outlet.get("peak_pressure_bar", "-"))
+            selected_cols[3].metric("Diagnóstico", status_label(selected_outlet.get("status")))
+
     st.subheader("Manômetros digitais")
     render_pressure_gauges(state, sensor_range_bar=float(config.get("sensor_range_bar", 250) or 250))
 

@@ -143,11 +143,21 @@ def render_condition_virtual_bench_page(
             "Cenário aplicado. Abra Monitoramento de Equipamentos, Detalhe do Ativo ou Alertas para ver o resultado."
         )
 
-    b1, b2, b3 = st.columns(3)
-    if b1.button("Ver monitoramento", type="primary", use_container_width=True):
+    b1, b2, b3, b4 = st.columns(4)
+    if b1.button("Aplicar e abrir monitoramento", type="primary", use_container_width=True):
+        apply_condition_demo_case(
+            repo,
+            selected_case,
+            tenant_id=tenant_id,
+            plant_id=plant_id,
+            asset_id=selected_asset["asset_id"],
+        )
+        st.session_state["selected_asset_id"] = selected_asset["asset_id"]
         return {"route": "Monitoramento de Equipamentos", "asset_id": selected_asset["asset_id"]}
-    if b2.button("Abrir detalhe do ativo", use_container_width=True):
+    if b2.button("Ver monitoramento", use_container_width=True):
+        return {"route": "Monitoramento de Equipamentos", "asset_id": selected_asset["asset_id"]}
+    if b3.button("Abrir detalhe do ativo", use_container_width=True):
         return {"route": "Detalhe do Ativo", "asset_id": selected_asset["asset_id"]}
-    if b3.button("Ver alertas", use_container_width=True):
+    if b4.button("Ver alertas", use_container_width=True):
         return {"route": "Alertas e Eventos", "asset_id": selected_asset["asset_id"]}
     return None
