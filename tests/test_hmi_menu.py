@@ -55,6 +55,7 @@ def test_default_technical_pages_keep_support_routes() -> None:
     assert "Notification Outbox" in DEFAULT_TECH_PAGES
     assert "Admin do Cliente" in DEFAULT_TECH_PAGES
     assert "Admin da Plataforma" in DEFAULT_TECH_PAGES
+    assert "Onboarding do Cliente" in DEFAULT_TECH_PAGES
     assert "Arquitetura Modular" in DEFAULT_TECH_PAGES
     assert "Teste ponta a ponta" in DEFAULT_TECH_PAGES
 
@@ -177,6 +178,7 @@ def test_technical_navigation_groups_routes_by_professional_domain() -> None:
 def test_admin_navigation_groups_keep_demo_and_support_tools_separate() -> None:
     pages = [
         "Admin da Plataforma",
+        "Onboarding do Cliente",
         "Configurações",
         "Matriz de Escalonamento",
         "Notification Outbox",
@@ -196,6 +198,10 @@ def test_admin_navigation_groups_keep_demo_and_support_tools_separate() -> None:
         "route": "Notification Outbox",
         "label": "Fila de notificações",
     } in groups[0]["items"]
+    assert {
+        "route": "Onboarding do Cliente",
+        "label": "Onboarding do Cliente",
+    } in groups[1]["items"]
     assert {
         "route": "Bancada Virtual — Equipamentos",
         "label": "Bancada de equipamentos",

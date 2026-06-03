@@ -159,7 +159,7 @@ INCREMENTAL_DELIVERY_STEPS = [
     },
 ]
 
-GLOBAL_ADMIN_PAGES = ["Admin da Plataforma", "Configurações"]
+GLOBAL_ADMIN_PAGES = ["Admin da Plataforma", "Onboarding do Cliente", "Configurações"]
 ADMIN_SUPPORT_PAGES = [
     "Matriz de Escalonamento",
     "Notification Outbox",

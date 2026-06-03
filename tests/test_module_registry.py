@@ -66,8 +66,10 @@ def test_routes_are_filtered_by_role_and_contract() -> None:
     assert "Configuração de Campo — Lubrificação" not in client_admin
     assert "Notification Outbox" not in client_admin
     assert "Admin da Plataforma" not in client_admin
+    assert "Onboarding do Cliente" not in client_admin
     assert "Arquitetura Modular" not in client_admin
     assert "Admin da Plataforma" in system_admin
+    assert "Onboarding do Cliente" in system_admin
     assert "Configurações" in system_admin
     assert "Bancada Virtual — Equipamentos" in system_admin
     assert "Bancada Virtual — Lubrificação" in system_admin

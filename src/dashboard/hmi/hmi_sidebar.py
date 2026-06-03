@@ -38,6 +38,7 @@ DEFAULT_TECH_PAGES = [
     "Configurações",
     "Admin do Cliente",
     "Admin da Plataforma",
+    "Onboarding do Cliente",
     "Arquitetura Modular",
     "Teste ponta a ponta",
 ]
@@ -87,6 +88,7 @@ TECHNICAL_LABEL_BY_ROUTE = {
     "Configurações": "Configurações",
     "Admin do Cliente": "Admin do Cliente",
     "Admin da Plataforma": "Admin da Plataforma",
+    "Onboarding do Cliente": "Onboarding do Cliente",
     "Arquitetura Modular": "Arquitetura modular",
     "Teste ponta a ponta": "Teste ponta a ponta",
 }
@@ -114,7 +116,7 @@ TECHNICAL_GROUPS = [
     ),
     ("Relatórios", ["Relatórios"]),
     ("Administração do Cliente", ["Admin do Cliente", "Configurações"]),
-    ("Administração da Plataforma", ["Admin da Plataforma", "Configurações"]),
+    ("Administração da Plataforma", ["Admin da Plataforma", "Onboarding do Cliente", "Configurações"]),
     (
         "Demonstrações e Suporte",
         [

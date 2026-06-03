@@ -33,6 +33,7 @@ def test_rbac_covers_default_hmi_routes() -> None:
         "Configurações",
         "Admin do Cliente",
         "Admin da Plataforma",
+        "Onboarding do Cliente",
         "Arquitetura Modular",
         "Teste ponta a ponta",
     } <= allowed_pages(ROLE_TECNICO)
@@ -47,8 +48,10 @@ def test_rbac_covers_default_hmi_routes() -> None:
     assert not can_access(ROLE_CLIENTE_ADMIN, "Configuração de Campo — Lubrificação")
     assert not can_access(ROLE_CLIENTE_ADMIN, "Notification Outbox")
     assert not can_access(ROLE_CLIENTE_ADMIN, "Admin da Plataforma")
+    assert not can_access(ROLE_CLIENTE_ADMIN, "Onboarding do Cliente")
     assert not can_access(ROLE_CLIENTE_ADMIN, "Arquitetura Modular")
     assert can_access(ROLE_ADMIN, "Admin da Plataforma")
+    assert can_access(ROLE_ADMIN, "Onboarding do Cliente")
     assert can_access(ROLE_ADMIN, "Configurações")
     assert can_access(ROLE_ADMIN, "Bancada Virtual — Equipamentos")
     assert can_access(ROLE_ADMIN, "Bancada Virtual — Lubrificação")
@@ -160,6 +163,7 @@ def test_modular_access_blocks_hidden_admin_dev_routes_by_default(monkeypatch) -
     routes = guard_module.allowed_routes_for_context(identity, "cliente_demo", "lab_virtual")
 
     assert "Admin da Plataforma" in routes
+    assert "Onboarding do Cliente" in routes
     assert "Arquitetura Modular" not in routes
 
 

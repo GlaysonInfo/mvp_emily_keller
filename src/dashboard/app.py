@@ -910,6 +910,11 @@ def main() -> None:
         st.stop()
         return
 
+    elif page == "Onboarding do Cliente":
+        render_platform_admin_page(os.getenv("PLATFORM_ADMIN_STORE"), config_store_path, initial_section="onboarding")
+        st.stop()
+        return
+
     elif page == MODULAR_ARCHITECTURE_PAGE:
         render_modular_architecture_page()
         st.stop()

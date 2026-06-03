@@ -49,6 +49,7 @@ TECNICO_EXTRA_PAGES = {
 ADMIN_EXTRA_PAGES = {
     "Configurações",
     "Admin da Plataforma",
+    "Onboarding do Cliente",
     "Matriz de Escalonamento",
     "Notification Outbox",
     "Bancada Virtual — Equipamentos",

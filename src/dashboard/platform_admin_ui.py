@@ -461,7 +461,11 @@ def _data_source_rows(operational_config: dict[str, Any]) -> list[dict[str, Any]
     return rows
 
 
-def render_platform_admin_page(path: str | None = None, config_path: str | None = None) -> None:
+def render_platform_admin_page(
+    path: str | None = None,
+    config_path: str | None = None,
+    initial_section: str | None = None,
+) -> None:
     repo = PlatformAdminRepository(path)
     data = repo.load()
     operational_config = ConfigRepository(config_path or os.getenv("DASHBOARD_CONFIG_STORE") or None).load()
@@ -477,6 +481,10 @@ def render_platform_admin_page(path: str | None = None, config_path: str | None 
     c2.metric("Plantas", str(summary["plants"]))
     c3.metric("Contratos ativos", f"{summary['active_contracts']}/{summary['contracts']}")
     c4.metric("Com inteligência", str(summary["dual_service_contracts"]))
+
+    if initial_section == "onboarding":
+        _render_onboarding_tab(repo, data, operational_config)
+        return
 
     tabs = st.tabs(
         [
