@@ -12,6 +12,7 @@ except ImportError:  # pragma: no cover - supports imports from repository root.
 
 
 DEFAULT_PLATFORM_ADMIN_DATA: dict[str, Any] = {
+    "schema_version": 2,
     "tenants": [
         {
             "tenant_id": "cliente_demo",
@@ -47,6 +48,15 @@ DEFAULT_PLATFORM_ADMIN_DATA: dict[str, Any] = {
             "status": "Ativo",
         }
     ],
+    "onboarding_runs": [
+        {
+            "tenant_id": "cliente_demo",
+            "plant_id": "lab_virtual",
+            "status": "Em andamento",
+            "manual_steps": {},
+            "notes": "Fluxo demo criado automaticamente para orientar o onboarding do primeiro cliente.",
+        }
+    ],
 }
 
 ACTIVE_CONTRACT_STATUSES = {"ativo", "piloto"}
@@ -71,9 +81,12 @@ def _unique_by(items: list[dict[str, Any]], *keys: str) -> list[dict[str, Any]]:
 def normalize_platform_admin_data(data: dict[str, Any] | None) -> dict[str, Any]:
     normalized = deepcopy(DEFAULT_PLATFORM_ADMIN_DATA)
     if isinstance(data, dict):
-        for key in ["tenants", "plants", "service_contracts", "users"]:
+        if data.get("schema_version"):
+            normalized["schema_version"] = int(data.get("schema_version") or 1)
+        for key in ["tenants", "plants", "service_contracts", "users", "onboarding_runs"]:
             if isinstance(data.get(key), list):
                 normalized[key] = list(data[key])
+    normalized["schema_version"] = max(2, int(normalized.get("schema_version") or 1))
 
     normalized["tenants"] = _unique_by(
         [
@@ -134,6 +147,21 @@ def normalize_platform_admin_data(data: dict[str, Any] | None) -> dict[str, Any]
         ],
         "tenant_id",
         "email",
+    )
+    normalized["onboarding_runs"] = _unique_by(
+        [
+            {
+                "tenant_id": str(item.get("tenant_id") or "").strip(),
+                "plant_id": str(item.get("plant_id") or "").strip(),
+                "status": str(item.get("status") or "Em andamento"),
+                "manual_steps": dict(item.get("manual_steps") or {}),
+                "notes": str(item.get("notes") or ""),
+            }
+            for item in normalized["onboarding_runs"]
+            if str(item.get("tenant_id") or "").strip() and str(item.get("plant_id") or "").strip()
+        ],
+        "tenant_id",
+        "plant_id",
     )
     return normalized
 
@@ -213,6 +241,34 @@ class PlatformAdminRepository:
         self.save(data)
         return self.load()
 
+    def upsert_onboarding_run(self, run: dict[str, Any]) -> dict[str, Any]:
+        data = self.load()
+        tenant_id = str(run.get("tenant_id") or "").strip()
+        plant_id = str(run.get("plant_id") or "").strip()
+        if not tenant_id or not plant_id:
+            raise ValueError("tenant_id e plant_id sÃ£o obrigatÃ³rios.")
+        data["onboarding_runs"] = [
+            item
+            for item in data["onboarding_runs"]
+            if not (item.get("tenant_id") == tenant_id and item.get("plant_id") == plant_id)
+        ] + [run]
+        self.save(data)
+        return self.load()
+
+    def onboarding_run_for(self, tenant_id: str, plant_id: str) -> dict[str, Any]:
+        tenant_id = str(tenant_id or "").strip()
+        plant_id = str(plant_id or "").strip()
+        for run in self.load()["onboarding_runs"]:
+            if run.get("tenant_id") == tenant_id and run.get("plant_id") == plant_id:
+                return run
+        return {
+            "tenant_id": tenant_id,
+            "plant_id": plant_id,
+            "status": "Em andamento",
+            "manual_steps": {},
+            "notes": "",
+        }
+
     def services_for_contract(self, tenant_id: str, plant_id: str) -> list[str] | None:
         tenant_id = str(tenant_id or "").strip()
         plant_id = str(plant_id or "").strip()
@@ -238,4 +294,5 @@ class PlatformAdminRepository:
                 item for item in data["service_contracts"] if item.get("tenant_id") == tenant_id
             ],
             "users": [item for item in data["users"] if item.get("tenant_id") == tenant_id],
+            "onboarding_runs": [item for item in data["onboarding_runs"] if item.get("tenant_id") == tenant_id],
         }

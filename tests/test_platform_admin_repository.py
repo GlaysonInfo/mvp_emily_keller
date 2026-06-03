@@ -9,10 +9,12 @@ from src.dashboard.platform_admin_repository import (
 def test_default_platform_admin_data_has_demo_contract() -> None:
     data = normalize_platform_admin_data(None)
 
+    assert data["schema_version"] == 2
     assert data["tenants"][0]["tenant_id"] == "cliente_demo"
     assert data["plants"][0]["plant_id"] == "lab_virtual"
     assert data["service_contracts"][0]["services"] == ["condition", "lubrication"]
     assert data["service_contracts"][0]["operational_intelligence"] is True
+    assert data["onboarding_runs"][0]["tenant_id"] == "cliente_demo"
 
 
 def test_repository_upserts_tenant_plant_and_contract(tmp_path) -> None:
@@ -95,3 +97,24 @@ def test_repository_scopes_data_by_tenant_and_upserts_users(tmp_path) -> None:
     assert [tenant["tenant_id"] for tenant in scoped["tenants"]] == ["cliente_a"]
     assert [plant["plant_id"] for plant in scoped["plants"]] == ["planta_a"]
     assert scoped["users"][0]["email"] == "user@example.com"
+
+
+def test_repository_upserts_and_scopes_onboarding_run(tmp_path) -> None:
+    repo = PlatformAdminRepository(tmp_path / "platform.json")
+
+    repo.upsert_onboarding_run(
+        {
+            "tenant_id": "cliente_a",
+            "plant_id": "planta_1",
+            "status": "Liberado",
+            "manual_steps": {"commissioning": True, "release": True},
+            "notes": "Primeiro cliente liberado.",
+        }
+    )
+
+    run = repo.onboarding_run_for("cliente_a", "planta_1")
+    scoped = repo.data_for_tenant("cliente_a")
+
+    assert run["status"] == "Liberado"
+    assert run["manual_steps"]["commissioning"] is True
+    assert scoped["onboarding_runs"] == [run]

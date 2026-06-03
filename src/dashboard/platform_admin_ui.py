@@ -65,6 +65,67 @@ ONBOARDING_STEPS = [
     },
 ]
 
+ONBOARDING_STEP_DEFINITIONS = [
+    {
+        "id": "tenant",
+        "etapa": "1. Cliente",
+        "responsavel": "Admin Sentinela",
+        "criterio": "Tenant ativo, ambiente definido e empresa identificada.",
+        "acao": "Cadastrar ou revisar cliente.",
+        "rota": "Admin da Plataforma",
+    },
+    {
+        "id": "plant",
+        "etapa": "2. Planta",
+        "responsavel": "Admin Sentinela",
+        "criterio": "Planta vinculada ao tenant e status operacional definido.",
+        "acao": "Cadastrar ou revisar planta.",
+        "rota": "Admin da Plataforma",
+    },
+    {
+        "id": "contract",
+        "etapa": "3. Contrato",
+        "responsavel": "Admin Sentinela",
+        "criterio": "Módulos contratados habilitados por planta.",
+        "acao": "Definir Monitoramento, Lubrificação ou ambos.",
+        "rota": "Admin da Plataforma",
+    },
+    {
+        "id": "users",
+        "etapa": "4. Usuários",
+        "responsavel": "Admin Cliente + Sentinela",
+        "criterio": "Admin Cliente, Técnico e Operador previstos para o tenant.",
+        "acao": "Criar usuários e grupos Cognito.",
+        "rota": "Admin do Cliente",
+    },
+    {
+        "id": "assets_sensors",
+        "etapa": "5. Ativos e sensores",
+        "responsavel": "Técnico + Sentinela",
+        "criterio": "Ativos, fontes, sinais e parâmetros mínimos cadastrados.",
+        "acao": "Cadastrar ativos, sensores, gateway, tags e limites.",
+        "rota": "Configurações",
+    },
+    {
+        "id": "commissioning",
+        "etapa": "6. Comissionamento",
+        "responsavel": "Técnico + Operação",
+        "criterio": "Ingestão validada, alertas revisados e baseline aceito.",
+        "acao": "Validar ponta a ponta e registrar aceite técnico.",
+        "rota": "Teste ponta a ponta",
+        "manual": True,
+    },
+    {
+        "id": "release",
+        "etapa": "7. Liberação",
+        "responsavel": "Admin Sentinela",
+        "criterio": "Cliente liberado para operação assistida ou produção.",
+        "acao": "Liberar acesso operacional e orientar operação.",
+        "rota": "Admin da Plataforma",
+        "manual": True,
+    },
+]
+
 SUPPORT_SCOPES = [
     {
         "Domínio": "Suporte remoto",
@@ -177,6 +238,103 @@ def _tenant_onboarding_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+def _contract_for(data: dict[str, Any], tenant_id: str, plant_id: str) -> dict[str, Any] | None:
+    for contract in data.get("service_contracts") or []:
+        if contract.get("tenant_id") == tenant_id and contract.get("plant_id") == plant_id:
+            return contract
+    return None
+
+
+def _operational_assets_for(
+    data: dict[str, Any],
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> list[dict[str, Any]]:
+    return _asset_inventory_rows(data, operational_config, tenant_id=tenant_id, plant_id=plant_id)
+
+
+def _onboarding_step_rows(
+    data: dict[str, Any],
+    operational_config: dict[str, Any],
+    run: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> list[dict[str, Any]]:
+    tenant = next((item for item in data.get("tenants") or [] if item.get("tenant_id") == tenant_id), None)
+    plant = next(
+        (
+            item
+            for item in data.get("plants") or []
+            if item.get("tenant_id") == tenant_id and item.get("plant_id") == plant_id
+        ),
+        None,
+    )
+    contract = _contract_for(data, tenant_id, plant_id)
+    services = set(contract.get("services") or []) if contract else set()
+    users = [item for item in data.get("users") or [] if item.get("tenant_id") == tenant_id]
+    roles = {str(item.get("role") or "").strip() for item in users}
+    assets = _operational_assets_for(data, operational_config, tenant_id=tenant_id, plant_id=plant_id)
+    source_count = len(operational_config.get("data_sources") or [])
+    signal_count = len(operational_config.get("signal_map") or operational_config.get("asset_signal_map") or [])
+    parameter_count = len(operational_config.get("parameters_alerts") or [])
+    manual_steps = dict(run.get("manual_steps") or {})
+
+    evidence_by_step = {
+        "tenant": bool(tenant and str(tenant.get("status") or "").strip()),
+        "plant": bool(plant and str(plant.get("status") or "").strip()),
+        "contract": bool(contract and services),
+        "users": {"cliente_admin", "tecnico", "operador"}.issubset(roles),
+        "assets_sensors": bool(assets and source_count and signal_count and parameter_count),
+        "commissioning": bool(manual_steps.get("commissioning")),
+        "release": bool(manual_steps.get("release")),
+    }
+    detail_by_step = {
+        "tenant": tenant.get("company_name") if tenant else "Cliente não cadastrado",
+        "plant": plant.get("plant_name") if plant else "Planta não cadastrada",
+        "contract": ", ".join(SERVICE_DISPLAY_NAMES.get(service, service) for service in sorted(services)) or "Sem módulos",
+        "users": f"Perfis: {', '.join(sorted(role for role in roles if role)) or '-'}",
+        "assets_sensors": (
+            f"Ativos: {len(assets)} | Fontes: {source_count} | Sinais: {signal_count} | Parâmetros: {parameter_count}"
+        ),
+        "commissioning": "Aceite técnico registrado" if manual_steps.get("commissioning") else "Aguardando validação",
+        "release": "Liberado" if manual_steps.get("release") else "Aguardando liberação",
+    }
+
+    rows = []
+    for definition in ONBOARDING_STEP_DEFINITIONS:
+        step_id = str(definition["id"])
+        done = bool(evidence_by_step.get(step_id))
+        rows.append(
+            {
+                "Status": "OK" if done else "Pendente",
+                "Etapa": definition["etapa"],
+                "Responsável": definition["responsavel"],
+                "Critério": definition["criterio"],
+                "Evidência": detail_by_step.get(step_id, "-"),
+                "Próxima ação": "Concluído" if done else definition["acao"],
+                "Rota": definition["rota"],
+                "step_id": step_id,
+                "done": done,
+            }
+        )
+    return rows
+
+
+def _onboarding_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    total = len(rows)
+    done = sum(1 for row in rows if row.get("done"))
+    percent = int(round((done / total) * 100)) if total else 0
+    return {
+        "done": done,
+        "total": total,
+        "percent": percent,
+        "status": "Pronto para liberação" if done == total else "Em implantação",
+    }
 
 
 def _render_table(items: list[dict[str, Any]], empty_message: str) -> None:
@@ -323,6 +481,7 @@ def render_platform_admin_page(path: str | None = None, config_path: str | None 
     tabs = st.tabs(
         [
             "Painel",
+            "Onboarding",
             "Clientes",
             "Plantas",
             "Contratos",
@@ -333,14 +492,16 @@ def render_platform_admin_page(path: str | None = None, config_path: str | None 
     with tabs[0]:
         _render_overview_tab(data, summary)
     with tabs[1]:
-        _render_tenants_tab(repo, data)
+        _render_onboarding_tab(repo, data, operational_config)
     with tabs[2]:
-        _render_plants_tab(repo, data, operational_config)
+        _render_tenants_tab(repo, data)
     with tabs[3]:
-        _render_contracts_tab(repo, data)
+        _render_plants_tab(repo, data, operational_config)
     with tabs[4]:
-        _render_support_tab()
+        _render_contracts_tab(repo, data)
     with tabs[5]:
+        _render_support_tab()
+    with tabs[6]:
         _render_governance_tab()
 
 
@@ -361,6 +522,103 @@ def _render_overview_tab(data: dict[str, Any], summary: dict[str, int]) -> None:
 
     st.subheader("Ordem de implantação do primeiro cliente")
     _render_table(ONBOARDING_STEPS, "Nenhuma etapa de onboarding configurada.")
+
+
+def _render_onboarding_tab(
+    repo: PlatformAdminRepository,
+    data: dict[str, Any],
+    operational_config: dict[str, Any],
+) -> None:
+    st.subheader("Onboarding guiado do cliente")
+    st.caption(
+        "Sequência operacional para preparar cliente, planta, usuários, ativos e aceite antes da liberação de uso."
+    )
+
+    plant_options = [f"{plant['tenant_id']}#{plant['plant_id']}" for plant in data.get("plants") or []]
+    if not plant_options:
+        st.info("Cadastre o cliente e a planta para iniciar o onboarding.")
+        return
+
+    selected_plant = st.selectbox("Cliente e planta", plant_options, key="platform_onboarding_plant")
+    tenant_id, _, plant_id = selected_plant.partition("#")
+    run = repo.onboarding_run_for(tenant_id, plant_id)
+    rows = _onboarding_step_rows(data, operational_config, run, tenant_id=tenant_id, plant_id=plant_id)
+    summary = _onboarding_summary(rows)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Conclusão", f"{summary['percent']}%")
+    c2.metric("Etapas OK", f"{summary['done']}/{summary['total']}")
+    c3.metric("Status", str(run.get("status") or summary["status"]))
+    c4.metric("Pendências", str(summary["total"] - summary["done"]))
+    st.progress(int(summary["percent"]))
+
+    checklist_rows = [
+        {key: value for key, value in row.items() if key not in {"step_id", "done"}}
+        for row in rows
+    ]
+    _render_table(checklist_rows, "Nenhuma etapa de onboarding configurada.")
+
+    st.markdown("#### Registro de comissionamento")
+    manual_steps = dict(run.get("manual_steps") or {})
+    status_options = ["Em andamento", "Aguardando cliente", "Pronto para liberação", "Liberado"]
+    with st.form("platform_onboarding_manual_form"):
+        commissioning = st.checkbox(
+            "Ingestão, baseline e alertas validados",
+            value=bool(manual_steps.get("commissioning")),
+        )
+        release = st.checkbox(
+            "Cliente liberado para operação assistida/produção",
+            value=bool(manual_steps.get("release")),
+        )
+        status = st.selectbox(
+            "Status do onboarding",
+            status_options,
+            index=_index(status_options, run.get("status"), 0),
+        )
+        notes = st.text_area("Notas internas", str(run.get("notes") or ""))
+
+        if st.form_submit_button("Salvar onboarding", type="primary"):
+            repo.upsert_onboarding_run(
+                {
+                    "tenant_id": tenant_id,
+                    "plant_id": plant_id,
+                    "status": status,
+                    "manual_steps": {
+                        "commissioning": commissioning,
+                        "release": release,
+                    },
+                    "notes": notes,
+                }
+            )
+            st.success("Onboarding salvo.")
+            st.rerun()
+
+    st.markdown("#### Próxima persistência para produção")
+    _render_table(
+        [
+            {
+                "Tabela futura": "platform_tenants",
+                "Conteúdo": "Cliente, ambiente, status, plano contratado e metadados comerciais.",
+                "Origem atual": "platform_admin_store.json / DynamoDB futuro",
+            },
+            {
+                "Tabela futura": "platform_plants",
+                "Conteúdo": "Plantas, áreas, contexto operacional e vínculo com tenant.",
+                "Origem atual": "platform_admin_store.json / config operacional",
+            },
+            {
+                "Tabela futura": "platform_assets",
+                "Conteúdo": "Ativos, fontes, tags, sinais, parâmetros e criticidade por planta.",
+                "Origem atual": "config operacional versionada",
+            },
+            {
+                "Tabela futura": "platform_onboarding_runs",
+                "Conteúdo": "Checklist, evidências, aceite técnico, liberação e auditoria.",
+                "Origem atual": "onboarding_runs no store versionado",
+            },
+        ],
+        "Nenhum modelo de persistência definido.",
+    )
 
 
 def _render_support_tab() -> None:
