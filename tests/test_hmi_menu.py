@@ -42,6 +42,7 @@ def test_hmi_menu_config_exposes_operator_and_technical_modes() -> None:
     assert "Eficiência da Lubrificação" in config["technical_pages"]
     assert "Eficiência da Lubrificação do Motor" in config["technical_pages"]
     assert "Bancada Virtual — Lubrificação" in config["technical_pages"]
+    assert "Onboarding do Cliente" in config["technical_pages"]
     assert "Modo Apresentação" not in config["technical_pages"]
 
 
