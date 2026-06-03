@@ -155,6 +155,21 @@ def test_app_uses_hmi_sidebar_instead_of_raw_technical_menu() -> None:
     assert 'st.radio(\n            "Navegação",' not in source
 
 
+def test_page_target_overrides_sidebar_page_after_hmi_render() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+
+    assert "requested_page_target = st.session_state.pop(PAGE_TARGET_KEY, None)" in source
+    after_sidebar = source.split("hmi = render_hmi_sidebar(", 1)[1].split(
+        "# Identidade na barra lateral",
+        1,
+    )[0]
+
+    assert "if requested_page_target:" in after_sidebar
+    assert "page = requested_page_target" in after_sidebar
+    assert 'st.session_state["hmi_technical_page"] = page' in after_sidebar
+    assert "st.session_state[DASHBOARD_PAGE_KEY] = page" in after_sidebar
+
+
 def test_modular_architecture_route_stops_before_other_pages() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
 

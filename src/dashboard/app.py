@@ -737,10 +737,10 @@ def main() -> None:
         if _audit is not None:
             _audit.set_actor(identity)
 
-    page_target = st.session_state.pop(PAGE_TARGET_KEY, None)
-    if page_target:
-        st.session_state[DASHBOARD_PAGE_KEY] = page_target
-        set_operator_page_for_route(page_target)
+    requested_page_target = st.session_state.pop(PAGE_TARGET_KEY, None)
+    if requested_page_target:
+        st.session_state[DASHBOARD_PAGE_KEY] = requested_page_target
+        set_operator_page_for_route(requested_page_target)
 
     render_global_styles()
     apply_hmi_style()
@@ -789,6 +789,14 @@ def main() -> None:
     )
     page = hmi["page"]
     mode = hmi["mode"]
+    if requested_page_target:
+        if allowed_routes is None or requested_page_target in allowed_routes:
+            page = requested_page_target
+            st.session_state[DASHBOARD_PAGE_KEY] = page
+            if mode == "technical":
+                st.session_state["hmi_technical_page"] = page
+            else:
+                set_operator_page_for_route(page)
     st.session_state[DASHBOARD_PAGE_KEY] = page
 
     # Identidade na barra lateral e bloqueio de páginas fora do perfil.
