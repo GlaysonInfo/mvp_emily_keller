@@ -10,7 +10,10 @@ operacional como uma experiencia autenticada independente da vitrine publica.
 | Pagina | Caminho | Indexacao |
 |---|---|---|
 | Home | `index.html` | index |
+| Monitoramento de Equipamentos | `monitoramento-de-equipamentos/index.html` | index |
 | Produto (Sistema de Lubrificacao) | `sistema-de-lubrificacao/index.html` | index |
+| Inteligencia Operacional | `inteligencia-operacional/index.html` | index |
+| Eficiencia Industrial | `eficiencia-industrial/index.html` | index |
 | Como funciona | `como-funciona/index.html` | index |
 | Demonstracao (lead) | `demonstracao/index.html` | index |
 | Contato | `contato/index.html` | index |
@@ -29,9 +32,12 @@ operacional como uma experiencia autenticada independente da vitrine publica.
 
 | Pagina | Title | Meta description |
 |---|---|---|
-| Home | Sentinela Industrial \| Monitoramento de Lubrificacao e Condicao | MVP de monitoramento de lubrificacao com gateway, nuvem, diagnostico e HMI de campo para operador e tecnico. |
-| Produto | Sistema de Lubrificacao \| Monitoramento por pressao de saida | Detecte baixa pressao, alta pressao e alivio lento por saida de graxa com diagnostico e acoes recomendadas. |
-| Demonstracao | Demonstracao \| Sistema de Lubrificacao | Agende uma demonstracao e veja o fluxo gateway -> API -> AWS -> HMI. |
+| Home | Sentinela Industrial \| Inteligencia Operacional para Manutencao | Una monitoramento de equipamentos, lubrificacao eficiente e inteligencia operacional para reduzir paradas, economizar recursos e priorizar manutencao industrial. |
+| Monitoramento | Monitoramento de Equipamentos \| Condicao de Maquinas Industriais | Monitore motores, bombas, compressores, redutores e esteiras com status por ativo, alertas, tendencias e diagnostico de condicao. |
+| Produto | Sistema de Lubrificacao \| Eficiencia por Saida de Graxa | Monitore pressao por saida de graxa, ciclos, anomalias e eficiencia de lubrificacao integrada ao monitoramento de equipamentos. |
+| Inteligencia | Inteligencia Operacional \| Condicao + Lubrificacao Industrial | Correlacione monitoramento de equipamentos, lubrificacao, alertas e historico para priorizar manutencao e reduzir parada industrial. |
+| Eficiencia | Eficiencia Industrial \| Economia em Manutencao e Lubrificacao | Aumente disponibilidade, reduza desperdicio de lubrificacao e priorize manutencao com dados de condicao, alertas e inteligencia operacional. |
+| Demonstracao | Demonstracao \| Inteligencia Operacional Industrial | Agende uma demonstracao do Sentinela Industrial com monitoramento de equipamentos, lubrificacao eficiente, alertas e inteligencia operacional. |
 | Contato | Contato \| Sentinela Industrial | Fale com a Sentinela Industrial sobre pilotos, demonstracoes e duvidas comerciais ou tecnicas. |
 | Privacidade | Privacidade \| Sentinela Industrial | Como tratamos dados pessoais em formularios, acesso demonstrativo e operacao da plataforma. |
 | Cookies | Cookies \| Sentinela Industrial | Uso de cookies essenciais e analiticos no site e no acesso demonstrativo. |
@@ -42,8 +48,10 @@ operacional como uma experiencia autenticada independente da vitrine publica.
 
 | Pagina | Schema |
 |---|---|
-| Home | `Organization`, `WebSite` |
+| Home | `Organization`, `WebSite`, `SoftwareApplication` |
+| Monitoramento | `SoftwareApplication`, `BreadcrumbList` |
 | Produto | `SoftwareApplication`, `BreadcrumbList` |
+| Inteligencia / Eficiencia | `Service`, `BreadcrumbList` |
 | FAQ / base de conhecimento | `FAQPage`, `BreadcrumbList` |
 | Blog post | `Article` |
 | Contato | `Organization` com `contactPoint` |
@@ -53,6 +61,8 @@ operacional como uma experiencia autenticada independente da vitrine publica.
 Materiais ja existentes em `Arquivos de Apoio e Implementacao/` viram artigos e
 iscas de captura: e-book de indicadores de manutencao, e-book de monitoramento e
 analise de vibracao, material de salas de lubrificacao. Palavras-chave iniciais:
+inteligencia operacional industrial, monitoramento de equipamentos industriais,
+monitoramento de condicao, lubrificacao eficiente, eficiencia de lubrificacao,
 lubrificacao centralizada, monitoramento de pressao de graxa, lubrificacao por
 saida, gateway IO-Link lubrificacao, manutencao baseada em condicao.
 

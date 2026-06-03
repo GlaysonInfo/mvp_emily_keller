@@ -7,7 +7,10 @@ import xml.etree.ElementTree as ET
 SITE_ROOT = Path(__file__).resolve().parents[1] / "site"
 PUBLIC_PAGES = {
     "/",
+    "/monitoramento-de-equipamentos/",
     "/sistema-de-lubrificacao/",
+    "/inteligencia-operacional/",
+    "/eficiencia-industrial/",
     "/como-funciona/",
     "/demonstracao/",
     "/contato/",
@@ -21,6 +24,8 @@ class LinkParser(HTMLParser):
     def __init__(self):
         super().__init__()
         self.links = []
+        self.images = []
+        self.meta = []
 
     def handle_starttag(self, tag, attrs):
         attr_map = dict(attrs)
@@ -28,6 +33,10 @@ class LinkParser(HTMLParser):
             self.links.append(attr_map["href"])
         if tag == "link" and attr_map.get("rel") == "stylesheet":
             self.links.append(attr_map["href"])
+        if tag == "img":
+            self.images.append(attr_map)
+        if tag == "meta":
+            self.meta.append(attr_map)
 
 
 def _html_files():
@@ -100,3 +109,29 @@ def test_access_page_starts_login_on_app_subdomain():
     assert 'link.href = "https://app.sentinelaindustrial.com.br/oauth2/start?rd=%2F";' in access_html
     assert "Entrar como Operador" not in access_html
     assert "Entrar como Admin" not in access_html
+
+
+def test_home_positions_operational_intelligence_and_efficiency():
+    home_html = (SITE_ROOT / "index.html").read_text(encoding="utf-8")
+
+    assert "Monitoramento da planta + lubrificação eficiente = inteligência operacional" in home_html
+    assert "/monitoramento-de-equipamentos/" in home_html
+    assert "/inteligencia-operacional/" in home_html
+    assert "/eficiencia-industrial/" in home_html
+    assert "hero-operational-intelligence.svg" in home_html
+
+
+def test_indexed_pages_expose_descriptive_images():
+    missing = []
+    for html_file in _html_files():
+        if "acesso" in html_file.parts:
+            continue
+        parser = LinkParser()
+        parser.feed(html_file.read_text(encoding="utf-8"))
+        for image in parser.images:
+            src = image.get("src", "")
+            alt = image.get("alt", "")
+            if not src or not _target_exists(src) or len(alt.strip()) < 24:
+                missing.append((html_file.relative_to(SITE_ROOT).as_posix(), src, alt))
+
+    assert missing == []

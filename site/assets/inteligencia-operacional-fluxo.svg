@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">Fluxo de inteligência operacional</title>
+  <desc id="desc">Diagrama de correlação entre monitoramento de condição, lubrificação eficiente e recomendações operacionais.</desc>
+  <rect width="900" height="560" rx="28" fill="#f8fafc"/>
+  <rect x="52" y="64" width="210" height="150" rx="22" fill="#0b2545"/>
+  <rect x="345" y="64" width="210" height="150" rx="22" fill="#fff7ed" stroke="#fed7aa" stroke-width="2"/>
+  <rect x="638" y="64" width="210" height="150" rx="22" fill="#ecfdf5" stroke="#bbf7d0" stroke-width="2"/>
+  <rect x="92" y="106" width="112" height="14" rx="7" fill="#e2e8f0"/>
+  <rect x="92" y="138" width="130" height="12" rx="6" fill="#94a3b8"/>
+  <circle cx="118" cy="176" r="16" fill="#38bdf8"/>
+  <circle cx="164" cy="176" r="16" fill="#f59e0b"/>
+  <circle cx="210" cy="176" r="16" fill="#22c55e"/>
+  <rect x="385" y="106" width="112" height="14" rx="7" fill="#334155"/>
+  <rect x="385" y="138" width="130" height="12" rx="6" fill="#94a3b8"/>
+  <path d="M395 182 C425 142 468 220 505 170" fill="none" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>
+  <rect x="678" y="106" width="116" height="14" rx="7" fill="#334155"/>
+  <rect x="678" y="138" width="132" height="12" rx="6" fill="#94a3b8"/>
+  <path d="M688 178 L720 150 L746 164 L798 122" fill="none" stroke="#22c55e" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <g stroke="#0b2545" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M270 139 H330"/>
+    <path d="M563 139 H623"/>
+  </g>
+  <g fill="#0b2545">
+    <path d="M330 139 l-14 -10 v20z"/>
+    <path d="M623 139 l-14 -10 v20z"/>
+  </g>
+  <rect x="156" y="296" width="588" height="160" rx="26" fill="#ffffff" stroke="#dbe3ef" stroke-width="2"/>
+  <circle cx="232" cy="376" r="46" fill="#0b2545"/>
+  <path d="M214 378 L228 392 L256 354" fill="none" stroke="#f59e0b" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="312" y="333" width="250" height="18" rx="9" fill="#0f172a"/>
+  <rect x="312" y="370" width="340" height="14" rx="7" fill="#64748b"/>
+  <rect x="312" y="402" width="285" height="14" rx="7" fill="#94a3b8"/>
+  <rect x="612" y="333" width="74" height="74" rx="18" fill="#f59e0b"/>
+  <path d="M628 373 h42M649 352 v42" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+</svg>
