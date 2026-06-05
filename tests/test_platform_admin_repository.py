@@ -15,6 +15,8 @@ def test_default_platform_admin_data_has_demo_contract() -> None:
     assert data["service_contracts"][0]["services"] == ["condition", "lubrication"]
     assert data["service_contracts"][0]["operational_intelligence"] is True
     assert data["onboarding_runs"][0]["tenant_id"] == "cliente_demo"
+    assert data["onboarding_runs"][0]["assisted_checks"] == {}
+    assert data["onboarding_runs"][0]["assisted_context"] == {}
 
 
 def test_repository_upserts_tenant_plant_and_contract(tmp_path) -> None:
@@ -108,6 +110,8 @@ def test_repository_upserts_and_scopes_onboarding_run(tmp_path) -> None:
             "plant_id": "planta_1",
             "status": "Liberado",
             "manual_steps": {"commissioning": True, "release": True},
+            "assisted_checks": {"first_payload_received": True},
+            "assisted_context": {"machine_id": "motor_real_01"},
             "notes": "Primeiro cliente liberado.",
         }
     )
@@ -117,4 +121,6 @@ def test_repository_upserts_and_scopes_onboarding_run(tmp_path) -> None:
 
     assert run["status"] == "Liberado"
     assert run["manual_steps"]["commissioning"] is True
+    assert run["assisted_checks"]["first_payload_received"] is True
+    assert run["assisted_context"]["machine_id"] == "motor_real_01"
     assert scoped["onboarding_runs"] == [run]

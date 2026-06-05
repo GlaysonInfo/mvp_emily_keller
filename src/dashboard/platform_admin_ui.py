@@ -116,13 +116,85 @@ ONBOARDING_STEP_DEFINITIONS = [
         "manual": True,
     },
     {
+        "id": "assisted_production",
+        "etapa": "7. Produção assistida",
+        "responsavel": "Admin Sentinela + Técnico",
+        "criterio": "Máquina real, sensores, gateway, HTTPS, payload e alerta de teste validados.",
+        "acao": "Completar checklist indoor antes de liberar operação.",
+        "rota": "Onboarding do Cliente",
+        "manual": True,
+    },
+    {
         "id": "release",
-        "etapa": "7. Liberação",
+        "etapa": "8. Liberação",
         "responsavel": "Admin Sentinela",
         "criterio": "Cliente liberado para operação assistida ou produção.",
         "acao": "Liberar acesso operacional e orientar operação.",
         "rota": "Admin da Plataforma",
         "manual": True,
+    },
+]
+
+ASSISTED_PRODUCTION_CHECKS = [
+    {
+        "id": "real_machine_identified",
+        "item": "Máquina real identificada",
+        "criterion": "Ativo físico, tag/local e criticidade confirmados.",
+        "owner": "Sentinela + Cliente",
+    },
+    {
+        "id": "real_sensors_installed",
+        "item": "Sensores reais instalados",
+        "criterion": "Sensores, grandezas e pontos de medição conferidos em campo.",
+        "owner": "Técnico",
+    },
+    {
+        "id": "gateway_registered",
+        "item": "Gateway cadastrado",
+        "criterion": "Fonte/gateway vinculada à planta e ao ativo correto.",
+        "owner": "Sentinela",
+    },
+    {
+        "id": "https_endpoint_validated",
+        "item": "Endpoint HTTPS validado",
+        "criterion": "Gateway alcança o endpoint de ingestão por HTTPS.",
+        "owner": "Técnico",
+    },
+    {
+        "id": "token_configured",
+        "item": "Token configurado",
+        "criterion": "Token de ingestão configurado no gateway sem exposição em tela ou arquivo versionado.",
+        "owner": "Sentinela",
+    },
+    {
+        "id": "first_payload_received",
+        "item": "Primeiro payload recebido",
+        "criterion": "Payload real gravado com tenant, planta, ativo e timestamp corretos.",
+        "owner": "Sentinela",
+    },
+    {
+        "id": "last_communication_visible",
+        "item": "Última comunicação visível",
+        "criterion": "Dashboard mostra comunicação recente do ativo real.",
+        "owner": "Sentinela",
+    },
+    {
+        "id": "test_alert_generated",
+        "item": "Alerta de teste gerado",
+        "criterion": "Cenário controlado gera alerta esperado sem afetar operação real.",
+        "owner": "Sentinela + Técnico",
+    },
+    {
+        "id": "test_alert_acknowledged",
+        "item": "Alerta reconhecido/tratado",
+        "criterion": "Fluxo de ciência e tratamento foi executado por usuário autorizado.",
+        "owner": "Operação",
+    },
+    {
+        "id": "stop_criteria_defined",
+        "item": "Critério de parada definido",
+        "criterion": "Condições de pausa do teste, contato responsável e fallback documentados.",
+        "owner": "Sentinela + Cliente",
     },
 ]
 
@@ -297,6 +369,9 @@ def _onboarding_step_rows(
     signal_count = len(operational_config.get("signal_map") or operational_config.get("asset_signal_map") or [])
     parameter_count = len(operational_config.get("parameters_alerts") or [])
     manual_steps = dict(run.get("manual_steps") or {})
+    assisted_checks = dict(run.get("assisted_checks") or {})
+    assisted_done = sum(1 for item in ASSISTED_PRODUCTION_CHECKS if assisted_checks.get(str(item["id"])))
+    assisted_total = len(ASSISTED_PRODUCTION_CHECKS)
 
     evidence_by_step = {
         "tenant": bool(tenant and str(tenant.get("status") or "").strip()),
@@ -305,6 +380,7 @@ def _onboarding_step_rows(
         "users": {"cliente_admin", "tecnico", "operador"}.issubset(roles),
         "assets_sensors": bool(assets and source_count and signal_count and parameter_count),
         "commissioning": bool(manual_steps.get("commissioning")),
+        "assisted_production": bool(assisted_total and assisted_done == assisted_total),
         "release": bool(manual_steps.get("release")),
     }
     detail_by_step = {
@@ -316,6 +392,7 @@ def _onboarding_step_rows(
             f"Ativos: {len(assets)} | Fontes: {source_count} | Sinais: {signal_count} | Parâmetros: {parameter_count}"
         ),
         "commissioning": "Aceite técnico registrado" if manual_steps.get("commissioning") else "Aguardando validação",
+        "assisted_production": f"Itens validados: {assisted_done}/{assisted_total}",
         "release": "Liberado" if manual_steps.get("release") else "Aguardando liberação",
     }
 
@@ -349,6 +426,32 @@ def _onboarding_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "percent": percent,
         "status": "Pronto para liberação" if done == total else "Em implantação",
     }
+
+
+def _assisted_production_rows(run: dict[str, Any]) -> list[dict[str, Any]]:
+    checks = dict(run.get("assisted_checks") or {})
+    rows = []
+    for item in ASSISTED_PRODUCTION_CHECKS:
+        done = bool(checks.get(str(item["id"])))
+        rows.append(
+            {
+                "Status": "OK" if done else "Pendente",
+                "Item": item["item"],
+                "Critério": item["criterion"],
+                "Responsável": item["owner"],
+                "check_id": item["id"],
+                "done": done,
+            }
+        )
+    return rows
+
+
+def _assisted_production_summary(run: dict[str, Any]) -> dict[str, int]:
+    rows = _assisted_production_rows(run)
+    total = len(rows)
+    done = sum(1 for row in rows if row.get("done"))
+    percent = int(round((done / total) * 100)) if total else 0
+    return {"done": done, "total": total, "percent": percent}
 
 
 def _render_table(items: list[dict[str, Any]], empty_message: str) -> None:
@@ -706,6 +809,96 @@ def _render_onboarding_registration_forms(
                     st.rerun()
 
 
+def _render_assisted_production_checklist(
+    repo: PlatformAdminRepository,
+    run: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> None:
+    st.markdown("#### Checklist de produção assistida indoor")
+    st.caption(
+        "Portão operacional para teste real com máquina, sensores, gateway e ingestão HTTPS acompanhada pela Sentinela."
+    )
+
+    summary = _assisted_production_summary(run)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Readiness indoor", f"{summary['percent']}%")
+    c2.metric("Itens validados", f"{summary['done']}/{summary['total']}")
+    c3.metric("Pendências", str(summary["total"] - summary["done"]))
+    st.progress(int(summary["percent"]))
+
+    rows = [
+        {key: value for key, value in row.items() if key not in {"check_id", "done"}}
+        for row in _assisted_production_rows(run)
+    ]
+    _render_table(rows, "Nenhum item de produção assistida configurado.")
+
+    checks = dict(run.get("assisted_checks") or {})
+    context = dict(run.get("assisted_context") or {})
+    with st.form("platform_assisted_production_form"):
+        left, right = st.columns(2)
+        with left:
+            machine_id = st.text_input(
+                "Máquina real / tag do ativo",
+                value=str(context.get("machine_id") or ""),
+                key="platform_assisted_machine_id",
+            )
+            gateway_id = st.text_input(
+                "Gateway / fonte de dados",
+                value=str(context.get("gateway_id") or ""),
+                key="platform_assisted_gateway_id",
+            )
+            responsible = st.text_input(
+                "Responsável técnico pelo teste",
+                value=str(context.get("responsible") or ""),
+                key="platform_assisted_responsible",
+            )
+        with right:
+            endpoint_url = st.text_input(
+                "Endpoint HTTPS usado",
+                value=str(context.get("endpoint_url") or "https://sentinelaindustrial.com.br/condition/ingest"),
+                key="platform_assisted_endpoint_url",
+            )
+            stop_criteria = st.text_area(
+                "Critério de parada / fallback",
+                value=str(context.get("stop_criteria") or ""),
+                key="platform_assisted_stop_criteria",
+            )
+
+        st.markdown("**Validações obrigatórias**")
+        updated_checks: dict[str, bool] = {}
+        for item in ASSISTED_PRODUCTION_CHECKS:
+            check_id = str(item["id"])
+            updated_checks[check_id] = st.checkbox(
+                item["item"],
+                value=bool(checks.get(check_id)),
+                help=item["criterion"],
+                key=f"platform_assisted_check_{check_id}",
+            )
+
+        if st.form_submit_button("Salvar checklist indoor", type="primary"):
+            repo.upsert_onboarding_run(
+                {
+                    "tenant_id": tenant_id,
+                    "plant_id": plant_id,
+                    "status": run.get("status") or "Em andamento",
+                    "manual_steps": dict(run.get("manual_steps") or {}),
+                    "assisted_checks": updated_checks,
+                    "assisted_context": {
+                        "machine_id": machine_id,
+                        "gateway_id": gateway_id,
+                        "responsible": responsible,
+                        "endpoint_url": endpoint_url,
+                        "stop_criteria": stop_criteria,
+                    },
+                    "notes": str(run.get("notes") or ""),
+                }
+            )
+            st.success("Checklist de produção assistida salvo.")
+            st.rerun()
+
+
 def _render_onboarding_tab(
     repo: PlatformAdminRepository,
     data: dict[str, Any],
@@ -743,6 +936,7 @@ def _render_onboarding_tab(
     _render_table(checklist_rows, "Nenhuma etapa de onboarding configurada.")
 
     _render_onboarding_registration_forms(repo, data, tenant_id=tenant_id, plant_id=plant_id)
+    _render_assisted_production_checklist(repo, run, tenant_id=tenant_id, plant_id=plant_id)
 
     st.markdown("#### Registro de comissionamento")
     manual_steps = dict(run.get("manual_steps") or {})
@@ -773,6 +967,8 @@ def _render_onboarding_tab(
                         "commissioning": commissioning,
                         "release": release,
                     },
+                    "assisted_checks": dict(run.get("assisted_checks") or {}),
+                    "assisted_context": dict(run.get("assisted_context") or {}),
                     "notes": notes,
                 }
             )

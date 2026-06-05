@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from src.dashboard.platform_admin_ui import (
+    ASSISTED_PRODUCTION_CHECKS,
     ONBOARDING_STEP_DEFINITIONS,
     ONBOARDING_STEPS,
     SUPPORT_SCOPES,
+    _assisted_production_rows,
+    _assisted_production_summary,
     _asset_inventory_rows,
     _contract_rows,
     _onboarding_step_rows,
@@ -110,7 +113,12 @@ def test_admin_sentinela_guidance_has_onboarding_and_support_scope() -> None:
         "2. Planta",
         "3. Contrato",
     ]
-    assert [step["id"] for step in ONBOARDING_STEP_DEFINITIONS][-2:] == ["commissioning", "release"]
+    assert [step["id"] for step in ONBOARDING_STEP_DEFINITIONS][-3:] == [
+        "commissioning",
+        "assisted_production",
+        "release",
+    ]
+    assert len(ASSISTED_PRODUCTION_CHECKS) == 10
     assert any(scope["Domínio"] == "Suporte remoto" for scope in SUPPORT_SCOPES)
     assert any("auditoria" in scope["Controle exigido"].lower() for scope in SUPPORT_SCOPES)
 
@@ -193,9 +201,56 @@ def test_onboarding_step_rows_combine_admin_store_and_operational_config() -> No
     summary = _onboarding_summary(rows)
 
     assert [row["Status"] for row in rows[:6]] == ["OK", "OK", "OK", "OK", "OK", "OK"]
+    assert rows[-2]["Status"] == "Pendente"
     assert rows[-1]["Status"] == "Pendente"
     assert rows[4]["Evidência"] == "Ativos: 1 | Fontes: 1 | Sinais: 1 | Parâmetros: 1"
-    assert summary == {"percent": 86, "done": 6, "total": 7, "status": "Em implantação"}
+    assert summary == {"percent": 75, "done": 6, "total": 8, "status": "Em implantação"}
+
+
+def test_assisted_production_checklist_rows_and_summary() -> None:
+    run = {
+        "assisted_checks": {
+            "real_machine_identified": True,
+            "real_sensors_installed": True,
+            "gateway_registered": False,
+        }
+    }
+
+    rows = _assisted_production_rows(run)
+    summary = _assisted_production_summary(run)
+
+    assert rows[0]["Status"] == "OK"
+    assert rows[0]["Item"] == "Máquina real identificada"
+    assert rows[2]["Status"] == "Pendente"
+    assert summary == {"done": 2, "total": 10, "percent": 20}
+
+
+def test_onboarding_step_rows_require_assisted_production_before_release() -> None:
+    data = _sample_platform_data()
+    data["users"].extend(
+        [
+            {"tenant_id": "cliente_a", "email": "tecnico@cliente-a.com", "role": "tecnico", "status": "Ativo"},
+            {"tenant_id": "cliente_a", "email": "operador@cliente-a.com", "role": "operador", "status": "Ativo"},
+        ]
+    )
+    operational_config = {
+        "assets": [{"tenant_id": "cliente_a", "plant_id": "planta_1", "asset_id": "motor_001"}],
+        "data_sources": [{"source_id": "gateway_01"}],
+        "signal_map": [{"asset_id": "motor_001", "metric": "vibration_rms_mm_s"}],
+        "parameters_alerts": [{"asset_id": "motor_001", "metric": "vibration_rms_mm_s"}],
+    }
+    run = {
+        "manual_steps": {"commissioning": True, "release": False},
+        "assisted_checks": {str(item["id"]): True for item in ASSISTED_PRODUCTION_CHECKS},
+    }
+
+    rows = _onboarding_step_rows(data, operational_config, run, tenant_id="cliente_a", plant_id="planta_1")
+    summary = _onboarding_summary(rows)
+
+    assert rows[-2]["Status"] == "OK"
+    assert rows[-2]["Evidência"] == "Itens validados: 10/10"
+    assert rows[-1]["Status"] == "Pendente"
+    assert summary == {"percent": 88, "done": 7, "total": 8, "status": "Em implantação"}
 
 
 def test_onboarding_lookup_helpers_find_focused_tenant_and_plant() -> None:
@@ -216,3 +271,4 @@ def test_onboarding_page_exposes_guided_registration_forms() -> None:
     assert "platform_onboarding_tenant_form" in source
     assert "platform_onboarding_plant_form" in source
     assert "platform_onboarding_contract_form" in source
+    assert "platform_assisted_production_form" in source

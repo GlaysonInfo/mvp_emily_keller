@@ -54,6 +54,8 @@ DEFAULT_PLATFORM_ADMIN_DATA: dict[str, Any] = {
             "plant_id": "lab_virtual",
             "status": "Em andamento",
             "manual_steps": {},
+            "assisted_checks": {},
+            "assisted_context": {},
             "notes": "Fluxo demo criado automaticamente para orientar o onboarding do primeiro cliente.",
         }
     ],
@@ -155,6 +157,8 @@ def normalize_platform_admin_data(data: dict[str, Any] | None) -> dict[str, Any]
                 "plant_id": str(item.get("plant_id") or "").strip(),
                 "status": str(item.get("status") or "Em andamento"),
                 "manual_steps": dict(item.get("manual_steps") or {}),
+                "assisted_checks": dict(item.get("assisted_checks") or {}),
+                "assisted_context": dict(item.get("assisted_context") or {}),
                 "notes": str(item.get("notes") or ""),
             }
             for item in normalized["onboarding_runs"]
@@ -266,6 +270,8 @@ class PlatformAdminRepository:
             "plant_id": plant_id,
             "status": "Em andamento",
             "manual_steps": {},
+            "assisted_checks": {},
+            "assisted_context": {},
             "notes": "",
         }
 
