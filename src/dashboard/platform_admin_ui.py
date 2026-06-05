@@ -29,6 +29,76 @@ SERVICE_DISPLAY_NAMES = {
     "condition": "Monitoramento de Equipamentos",
     "lubrication": "Sistema de Lubrificação",
 }
+ASSET_TYPE_OPTIONS = [
+    "Motor elétrico",
+    "Bomba centrífuga",
+    "Compressor",
+    "Redutor",
+    "Ventilador",
+    "Exaustor",
+    "Transportador",
+    "Misturador",
+    "Sistema de Lubrificação",
+    "Outro",
+]
+CRITICALITY_OPTIONS = ["Baixa", "Média", "Alta", "Crítica"]
+GATEWAY_PROTOCOL_OPTIONS = [
+    "HTTP/HTTPS API",
+    "OPC UA via HTTPS",
+    "IO-Link",
+    "Modbus TCP",
+    "MQTT",
+    "CSV",
+    "Manual",
+]
+GATEWAY_STATUS_OPTIONS = ["Aguardando comissionamento", "Configurada", "Ativa", "Falha", "Inativa"]
+SENSOR_KIND_OPTIONS = [
+    "Vibração",
+    "Temperatura",
+    "Pressão",
+    "Ultrassom",
+    "Corrente",
+    "Rotação",
+    "Score",
+    "Outro",
+]
+METRIC_TEMPLATE_BY_ASSET_TYPE = {
+    "Motor elétrico": ["vibration_rms_mm_s", "temperature_c", "current_a", "rpm", "health_score"],
+    "Bomba centrífuga": ["vibration_rms_mm_s", "temperature_c", "pressure_bar", "rpm", "health_score"],
+    "Compressor": ["vibration_rms_mm_s", "temperature_c", "pressure_bar", "ultrasound_db", "health_score"],
+    "Redutor": ["vibration_rms_mm_s", "temperature_c", "oil_temperature_c", "health_score"],
+    "Transportador": ["vibration_rms_mm_s", "temperature_c", "speed_m_min", "health_score"],
+    "Sistema de Lubrificação": [
+        "pressure_saida_graxa_01_bar",
+        "peak_saida_graxa_01_bar",
+        "rise_time_saida_graxa_01_sec",
+        "decay_time_saida_graxa_01_sec",
+    ],
+}
+DEFAULT_METRIC_OPTIONS = [
+    "vibration_rms_mm_s",
+    "temperature_c",
+    "pressure_bar",
+    "ultrasound_db",
+    "current_a",
+    "rpm",
+    "health_score",
+    "severity_score",
+]
+UNIT_BY_METRIC = {
+    "vibration_rms_mm_s": "mm/s",
+    "temperature_c": "°C",
+    "pressure_bar": "bar",
+    "ultrasound_db": "dB",
+    "current_a": "A",
+    "rpm": "rpm",
+    "health_score": "score",
+    "severity_score": "score",
+    "pressure_saida_graxa_01_bar": "bar",
+    "peak_saida_graxa_01_bar": "bar",
+    "rise_time_saida_graxa_01_sec": "s",
+    "decay_time_saida_graxa_01_sec": "s",
+}
 PAGE_TARGET_KEY = "dashboard_page_target"
 PENDING_CONDITION_ASSET_KEY = "condition_pending_selected_asset_id"
 
@@ -333,6 +403,67 @@ def _plant_for(data: dict[str, Any], tenant_id: str, plant_id: str) -> dict[str,
     return None
 
 
+def _metric_options_for_asset_type(asset_type: str) -> list[str]:
+    options = list(METRIC_TEMPLATE_BY_ASSET_TYPE.get(asset_type) or DEFAULT_METRIC_OPTIONS)
+    for metric in DEFAULT_METRIC_OPTIONS:
+        if metric not in options:
+            options.append(metric)
+    return options
+
+
+def _replace_by_keys(items: list[dict[str, Any]], new_item: dict[str, Any], keys: list[str]) -> list[dict[str, Any]]:
+    new_key = tuple(str(new_item.get(key) or "") for key in keys)
+    return [item for item in items if tuple(str(item.get(key) or "") for key in keys) != new_key] + [new_item]
+
+
+def _parameter_rule_for_metric(
+    *,
+    asset_id: str,
+    metric: str,
+    direction: str,
+    normal_limit: float,
+    attention_limit: float,
+    alert_limit: float,
+    critical_limit: float,
+    persistence_min: int,
+    recommended_action: str,
+) -> dict[str, Any]:
+    base = {
+        "asset_id": asset_id,
+        "metric": metric,
+        "normal_max": 0,
+        "attention_min": 0,
+        "alert_min": 0,
+        "critical_min": 0,
+        "normal_min": 0,
+        "attention_max": 0,
+        "alert_max": 0,
+        "critical_max": 0,
+        "persistence_min": persistence_min,
+        "enabled": True,
+        "recommended_action": recommended_action,
+    }
+    if direction == "Menor é pior":
+        base.update(
+            {
+                "normal_min": normal_limit,
+                "attention_max": attention_limit,
+                "alert_max": alert_limit,
+                "critical_max": critical_limit,
+            }
+        )
+    else:
+        base.update(
+            {
+                "normal_max": normal_limit,
+                "attention_min": attention_limit,
+                "alert_min": alert_limit,
+                "critical_min": critical_limit,
+            }
+        )
+    return base
+
+
 def _operational_assets_for(
     data: dict[str, Any],
     operational_config: dict[str, Any],
@@ -585,7 +716,8 @@ def render_platform_admin_page(
 ) -> None:
     repo = PlatformAdminRepository(path)
     data = repo.load()
-    operational_config = ConfigRepository(config_path or os.getenv("DASHBOARD_CONFIG_STORE") or None).load()
+    config_repo = ConfigRepository(config_path or os.getenv("DASHBOARD_CONFIG_STORE") or None)
+    operational_config = config_repo.load()
     summary = _platform_summary(data)
 
     st.header("Admin Sentinela")
@@ -600,7 +732,7 @@ def render_platform_admin_page(
     c4.metric("Com inteligência", str(summary["dual_service_contracts"]))
 
     if initial_section == "onboarding":
-        _render_onboarding_tab(repo, data, operational_config)
+        _render_onboarding_tab(repo, data, operational_config, config_repo)
         return
 
     tabs = st.tabs(
@@ -617,7 +749,7 @@ def render_platform_admin_page(
     with tabs[0]:
         _render_overview_tab(data, summary)
     with tabs[1]:
-        _render_onboarding_tab(repo, data, operational_config)
+        _render_onboarding_tab(repo, data, operational_config, config_repo)
     with tabs[2]:
         _render_tenants_tab(repo, data)
     with tabs[3]:
@@ -809,6 +941,144 @@ def _render_onboarding_registration_forms(
                     st.rerun()
 
 
+def _render_real_asset_sensor_gateway_form(
+    config_repo: ConfigRepository,
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> None:
+    st.markdown("#### Ativo, sensor e gateway")
+    st.caption(
+        "Cadastro multifabricante parametrizado: comece com o mínimo técnico e refine fabricante, modelo e limites depois."
+    )
+
+    inventory = _asset_inventory_rows({}, operational_config, tenant_id=tenant_id, plant_id=plant_id)
+    if inventory:
+        _render_inventory_action_table(inventory)
+
+    with st.form("platform_real_asset_sensor_gateway_form"):
+        st.markdown("**Gateway / fonte de dados**")
+        g1, g2 = st.columns(2)
+        with g1:
+            source_id = st.text_input("Identificador lógico do gateway", "gateway_indoor_01")
+            source_name = st.text_input("Nome do gateway", "Gateway Indoor 01")
+            source_type = st.text_input("Tipo/fabricante do gateway", "Gateway multifabricante")
+        with g2:
+            protocol = st.selectbox("Protocolo", GATEWAY_PROTOCOL_OPTIONS)
+            endpoint = st.text_input("Endpoint/fonte", "https://sentinelaindustrial.com.br/condition/ingest")
+            credential_ref = st.text_input("Referência do token/credencial", "env:CONDITION_INGEST_TOKEN")
+            source_status = st.selectbox("Status do gateway", GATEWAY_STATUS_OPTIONS)
+
+        st.markdown("**Ativo real**")
+        a1, a2 = st.columns(2)
+        with a1:
+            asset_id = st.text_input("Asset ID", "motor_real_01")
+            asset_name = st.text_input("Nome/tag do ativo", "Motor Real 01")
+            asset_type = st.selectbox("Tipo de ativo", ASSET_TYPE_OPTIONS)
+            area = st.text_input("Área", "Teste indoor")
+        with a2:
+            criticality = st.selectbox("Criticidade", CRITICALITY_OPTIONS, index=2)
+            manufacturer = st.text_input("Fabricante", "")
+            model = st.text_input("Modelo", "")
+            serial_number = st.text_input("Número de série", "")
+            asset_status = st.selectbox("Status do ativo", ["Ativo", "Aguardando comissionamento", "Inativo"])
+
+        st.markdown("**Sensor, grandeza e limite inicial**")
+        metric_options = _metric_options_for_asset_type(asset_type)
+        s1, s2 = st.columns(2)
+        with s1:
+            sensor_kind = st.selectbox("Tipo de sensor", SENSOR_KIND_OPTIONS)
+            metric = st.selectbox("Métrica interna esperada", metric_options)
+            external_tag = st.text_input("Tag externa / canal", f"{asset_id}.{metric}")
+            unit = st.text_input("Unidade", UNIT_BY_METRIC.get(metric, ""))
+        with s2:
+            direction = st.selectbox("Regra", ["Maior é pior", "Menor é pior"])
+            normal_limit = st.number_input("Limite normal", value=2.8)
+            attention_limit = st.number_input("Limite atenção", value=2.8)
+            alert_limit = st.number_input("Limite alerta", value=4.5)
+            critical_limit = st.number_input("Limite crítico", value=7.1)
+            persistence_min = st.number_input("Persistência mínima (min)", min_value=1, value=3, step=1)
+        recommended_action = st.text_area(
+            "Ação recomendada inicial",
+            "Inspecionar instalação, sensor, acoplamento, rolamentos e condição operacional.",
+        )
+
+        if st.form_submit_button("Salvar ativo, sensor e gateway", type="primary"):
+            config = config_repo.load()
+            config["data_sources"] = _replace_by_keys(
+                list(config.get("data_sources") or []),
+                {
+                    "tenant_id": tenant_id,
+                    "plant_id": plant_id,
+                    "source_id": source_id.strip(),
+                    "source_name": source_name.strip(),
+                    "source_type": source_type.strip(),
+                    "protocol": protocol,
+                    "endpoint": endpoint.strip(),
+                    "polling_interval_sec": 5,
+                    "history_interval_sec": 60,
+                    "status": source_status,
+                    "credential_ref": credential_ref.strip(),
+                    "description": "Fonte cadastrada pelo onboarding de teste indoor.",
+                },
+                ["source_id"],
+            )
+            config["assets"] = _replace_by_keys(
+                list(config.get("assets") or []),
+                {
+                    "tenant_id": tenant_id,
+                    "plant_id": plant_id,
+                    "asset_id": asset_id.strip(),
+                    "asset_name": asset_name.strip(),
+                    "asset_type": asset_type,
+                    "area": area.strip(),
+                    "criticality": criticality,
+                    "manufacturer": manufacturer.strip(),
+                    "model": model.strip(),
+                    "serial_number": serial_number.strip(),
+                    "source_id": source_id.strip(),
+                    "baseline_status": "Aguardando baseline real do teste indoor.",
+                    "status": asset_status,
+                },
+                ["asset_id"],
+            )
+            config["signal_map"] = _replace_by_keys(
+                list(config.get("signal_map") or []),
+                {
+                    "asset_id": asset_id.strip(),
+                    "source_id": source_id.strip(),
+                    "metric": metric,
+                    "external_tag": external_tag.strip(),
+                    "unit": unit.strip(),
+                    "scale": 1.0,
+                    "offset": 0.0,
+                    "enabled": True,
+                    "sensor_kind": sensor_kind,
+                    "commissioning_mode": "indoor_assisted",
+                },
+                ["asset_id", "source_id", "metric"],
+            )
+            config["parameters_alerts"] = _replace_by_keys(
+                list(config.get("parameters_alerts") or []),
+                _parameter_rule_for_metric(
+                    asset_id=asset_id.strip(),
+                    metric=metric,
+                    direction=direction,
+                    normal_limit=float(normal_limit),
+                    attention_limit=float(attention_limit),
+                    alert_limit=float(alert_limit),
+                    critical_limit=float(critical_limit),
+                    persistence_min=int(persistence_min),
+                    recommended_action=recommended_action.strip(),
+                ),
+                ["asset_id", "metric"],
+            )
+            config_repo.save(config)
+            st.success("Ativo, sensor e gateway salvos para o teste indoor.")
+            st.rerun()
+
+
 def _render_assisted_production_checklist(
     repo: PlatformAdminRepository,
     run: dict[str, Any],
@@ -903,6 +1173,7 @@ def _render_onboarding_tab(
     repo: PlatformAdminRepository,
     data: dict[str, Any],
     operational_config: dict[str, Any],
+    config_repo: ConfigRepository,
 ) -> None:
     st.subheader("Onboarding guiado do cliente")
     st.caption(
@@ -936,6 +1207,7 @@ def _render_onboarding_tab(
     _render_table(checklist_rows, "Nenhuma etapa de onboarding configurada.")
 
     _render_onboarding_registration_forms(repo, data, tenant_id=tenant_id, plant_id=plant_id)
+    _render_real_asset_sensor_gateway_form(config_repo, operational_config, tenant_id=tenant_id, plant_id=plant_id)
     _render_assisted_production_checklist(repo, run, tenant_id=tenant_id, plant_id=plant_id)
 
     st.markdown("#### Registro de comissionamento")
