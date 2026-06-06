@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from src.dashboard.platform_admin_ui import (
     ASSISTED_PRODUCTION_CHECKS,
     ONBOARDING_STEP_DEFINITIONS,
@@ -9,6 +11,10 @@ from src.dashboard.platform_admin_ui import (
     _assisted_production_summary,
     _asset_inventory_rows,
     _contract_rows,
+    _indoor_health_rows,
+    _indoor_health_summary,
+    _indoor_registry_warning_rows,
+    _latest_alert_summary,
     _metric_options_for_asset_type,
     _onboarding_step_rows,
     _onboarding_summary,
@@ -226,6 +232,73 @@ def test_assisted_production_checklist_rows_and_summary() -> None:
     assert rows[0]["Item"] == "Máquina real identificada"
     assert rows[2]["Status"] == "Pendente"
     assert summary == {"done": 2, "total": 10, "percent": 20}
+
+
+def test_indoor_health_rows_classify_communication_and_registry_warnings() -> None:
+    inventory = [
+        {"Ativo": "motor_001", "Nome": "Motor 001", "Fonte": "gateway_01"},
+        {"Ativo": "motor_002", "Nome": "Motor 002", "Fonte": "gateway_01"},
+        {"Ativo": "esteira_001", "Nome": "Esteira 001", "Fonte": "gateway_02"},
+    ]
+    states = [
+        {
+            "asset_id": "motor_001",
+            "updated_at": "2026-06-05T12:00:00Z",
+            "status_label": "NORMAL",
+            "health_score": 94,
+            "registry_validation_status": "ok",
+        },
+        {
+            "asset_id": "motor_002",
+            "updated_at": "2026-06-05T11:40:00Z",
+            "status_label": "ATENÇÃO",
+            "registry_validation_status": "warning",
+            "registry_warnings": [{"code": "unexpected_metrics", "message": "Métrica fora do cadastro."}],
+        },
+    ]
+
+    rows = _indoor_health_rows(
+        inventory,
+        states,
+        now=datetime(2026, 6, 5, 12, 5, tzinfo=UTC),
+        timeout_min=10,
+    )
+    summary = _indoor_health_summary(rows)
+    warning_rows = _indoor_registry_warning_rows(inventory, states)
+
+    assert [row["Comunicação"] for row in rows] == ["Comunicando", "Sem comunicação", "Sem payload"]
+    assert rows[0]["Idade"] == "5 min"
+    assert rows[1]["Cadastro"] == "Avisos"
+    assert summary["gateway_status"] == "Parcial"
+    assert summary["communicating"] == 1
+    assert summary["silent"] == 1
+    assert summary["without_payload"] == 1
+    assert summary["registry_warnings"] == 1
+    assert warning_rows[0]["Ativo"] == "motor_002"
+    assert warning_rows[0]["Código"] == "unexpected_metrics"
+
+
+def test_latest_alert_summary_uses_most_recent_detection() -> None:
+    summary = _latest_alert_summary(
+        [
+            {
+                "asset_id": "motor_001",
+                "status_label": "ATENÇÃO",
+                "last_detected_at": "2026-06-05T11:00:00Z",
+            },
+            {
+                "asset_name": "Esteira principal",
+                "status_label": "CRÍTICO",
+                "last_detected_at": "2026-06-05T12:00:00Z",
+            },
+        ]
+    )
+
+    assert summary == {
+        "count": 2,
+        "label": "Esteira principal | CRÍTICO",
+        "timestamp": "2026-06-05T12:00:00Z",
+    }
 
 
 def test_multivendor_asset_templates_suggest_expected_metrics() -> None:

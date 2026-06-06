@@ -1,20 +1,25 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 from typing import Any
 
 import streamlit as st
 
 try:
+    from dashboard.alerts_repository import create_alerts_repository_from_env
     from dashboard.config_repository import ConfigRepository
     from dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
+    from dashboard.multiasset_repository import create_multiasset_repository_from_env
     from dashboard.navigation import render_navigation_icon
     from dashboard.platform_admin_repository import PlatformAdminRepository
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
+    from src.dashboard.alerts_repository import create_alerts_repository_from_env
     from src.dashboard.config_repository import ConfigRepository
     from src.dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from src.dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
+    from src.dashboard.multiasset_repository import create_multiasset_repository_from_env
     from src.dashboard.navigation import render_navigation_icon
     from src.dashboard.platform_admin_repository import PlatformAdminRepository
 
@@ -101,6 +106,7 @@ UNIT_BY_METRIC = {
 }
 PAGE_TARGET_KEY = "dashboard_page_target"
 PENDING_CONDITION_ASSET_KEY = "condition_pending_selected_asset_id"
+INDOOR_COMMUNICATION_TIMEOUT_MIN = 10
 
 ONBOARDING_STEPS = [
     {
@@ -709,6 +715,202 @@ def _data_source_rows(operational_config: dict[str, Any]) -> list[dict[str, Any]
     return rows
 
 
+def _parse_utc_datetime(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _state_timestamp(state: dict[str, Any]) -> datetime | None:
+    for key in ["updated_at", "last_payload_timestamp", "source_updated_at_utc", "received_at"]:
+        parsed = _parse_utc_datetime(state.get(key))
+        if parsed:
+            return parsed
+    return None
+
+
+def _age_minutes(timestamp: datetime | None, *, now: datetime | None = None) -> int | None:
+    if not timestamp:
+        return None
+    reference = now or datetime.now(UTC)
+    if reference.tzinfo is None:
+        reference = reference.replace(tzinfo=UTC)
+    delta = reference.astimezone(UTC) - timestamp.astimezone(UTC)
+    return max(0, int(delta.total_seconds() // 60))
+
+
+def _age_label(minutes: int | None) -> str:
+    if minutes is None:
+        return "Sem payload"
+    if minutes < 1:
+        return "Agora"
+    if minutes < 60:
+        return f"{minutes} min"
+    hours = minutes // 60
+    remaining = minutes % 60
+    return f"{hours}h {remaining}min" if remaining else f"{hours}h"
+
+
+def _registry_warning_count(state: dict[str, Any]) -> int:
+    warnings = state.get("registry_warnings")
+    return len(warnings) if isinstance(warnings, list) else 0
+
+
+def _indoor_health_rows(
+    inventory_rows: list[dict[str, Any]],
+    current_states: list[dict[str, Any]],
+    *,
+    now: datetime | None = None,
+    timeout_min: int = INDOOR_COMMUNICATION_TIMEOUT_MIN,
+) -> list[dict[str, Any]]:
+    states_by_asset = {str(state.get("asset_id") or ""): state for state in current_states}
+    rows: list[dict[str, Any]] = []
+
+    for asset in inventory_rows:
+        asset_id = str(asset.get("Ativo") or "").strip()
+        state = states_by_asset.get(asset_id, {})
+        timestamp = _state_timestamp(state)
+        age = _age_minutes(timestamp, now=now)
+        warning_count = _registry_warning_count(state)
+
+        if age is None:
+            communication = "Sem payload"
+        elif age > timeout_min:
+            communication = "Sem comunicação"
+        else:
+            communication = "Comunicando"
+
+        registry_status = str(state.get("registry_validation_status") or "sem_validacao")
+        if registry_status == "ok":
+            registry_label = "OK"
+        elif registry_status == "warning":
+            registry_label = "Avisos"
+        else:
+            registry_label = "Sem validação"
+
+        health_value = state.get("health_score")
+        try:
+            health_label = f"{float(health_value):.1f}" if health_value is not None else "-"
+        except (TypeError, ValueError):
+            health_label = str(health_value or "-")
+
+        rows.append(
+            {
+                "Ativo": asset_id,
+                "Nome": asset.get("Nome") or asset_id,
+                "Fonte": asset.get("Fonte") or state.get("source") or "-",
+                "Comunicação": communication,
+                "Idade": _age_label(age),
+                "Último payload": timestamp.isoformat().replace("+00:00", "Z") if timestamp else "-",
+                "Estado": state.get("status_label") or "Sem estado",
+                "Health": health_label,
+                "Cadastro": registry_label,
+                "Pendências": warning_count,
+            }
+        )
+
+    return rows
+
+
+def _indoor_health_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    communicating = sum(1 for row in rows if row.get("Comunicação") == "Comunicando")
+    silent = sum(1 for row in rows if row.get("Comunicação") == "Sem comunicação")
+    without_payload = sum(1 for row in rows if row.get("Comunicação") == "Sem payload")
+    warnings = sum(int(row.get("Pendências") or 0) for row in rows)
+    latest_payloads = [row.get("Último payload") for row in rows if row.get("Último payload") not in [None, "-"]]
+    latest_payload = max(latest_payloads) if latest_payloads else "-"
+
+    if communicating and not silent and not without_payload:
+        gateway_status = "Online"
+    elif communicating:
+        gateway_status = "Parcial"
+    elif rows:
+        gateway_status = "Sem comunicação"
+    else:
+        gateway_status = "Sem ativos"
+
+    return {
+        "assets": len(rows),
+        "communicating": communicating,
+        "silent": silent,
+        "without_payload": without_payload,
+        "registry_warnings": warnings,
+        "latest_payload": latest_payload,
+        "gateway_status": gateway_status,
+    }
+
+
+def _indoor_registry_warning_rows(
+    inventory_rows: list[dict[str, Any]],
+    current_states: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    states_by_asset = {str(state.get("asset_id") or ""): state for state in current_states}
+    rows: list[dict[str, Any]] = []
+
+    for asset in inventory_rows:
+        asset_id = str(asset.get("Ativo") or "").strip()
+        state = states_by_asset.get(asset_id, {})
+        for warning in state.get("registry_warnings") or []:
+            if not isinstance(warning, dict):
+                continue
+            rows.append(
+                {
+                    "Ativo": asset_id,
+                    "Fonte": asset.get("Fonte") or state.get("source") or "-",
+                    "Campo": warning.get("field") or "-",
+                    "Código": warning.get("code") or "-",
+                    "Pendência": warning.get("message") or "-",
+                }
+            )
+
+    return rows
+
+
+def _latest_alert_summary(alerts: list[dict[str, Any]]) -> dict[str, Any]:
+    def alert_timestamp(alert: dict[str, Any]) -> datetime:
+        for key in ["last_detected_at", "updated_at", "first_detected_at"]:
+            parsed = _parse_utc_datetime(alert.get(key))
+            if parsed:
+                return parsed
+        return datetime.min.replace(tzinfo=UTC)
+
+    if not alerts:
+        return {"count": 0, "label": "Nenhum alerta ativo", "timestamp": "-"}
+
+    latest = max(alerts, key=alert_timestamp)
+    label = (
+        latest.get("asset_name")
+        or latest.get("asset_id")
+        or latest.get("alert_type")
+        or latest.get("metric")
+        or "Alerta ativo"
+    )
+    status = latest.get("status_label") or latest.get("severity") or "Ativo"
+    timestamp = alert_timestamp(latest)
+    return {
+        "count": len(alerts),
+        "label": f"{label} | {status}",
+        "timestamp": timestamp.isoformat().replace("+00:00", "Z")
+        if timestamp != datetime.min.replace(tzinfo=UTC)
+        else "-",
+    }
+
+
+def _code_version_label() -> str:
+    for key in ["APP_VERSION", "GIT_COMMIT", "SOURCE_VERSION", "RELEASE_VERSION"]:
+        value = str(os.getenv(key) or "").strip()
+        if value:
+            return value
+    return "Não informado"
+
+
 def render_platform_admin_page(
     path: str | None = None,
     config_path: str | None = None,
@@ -739,6 +941,7 @@ def render_platform_admin_page(
         [
             "Painel",
             "Onboarding",
+            "Saúde Indoor",
             "Clientes",
             "Plantas",
             "Contratos",
@@ -751,14 +954,16 @@ def render_platform_admin_page(
     with tabs[1]:
         _render_onboarding_tab(repo, data, operational_config, config_repo)
     with tabs[2]:
-        _render_tenants_tab(repo, data)
+        _render_indoor_health_tab(data, operational_config, repo)
     with tabs[3]:
-        _render_plants_tab(repo, data, operational_config)
+        _render_tenants_tab(repo, data)
     with tabs[4]:
-        _render_contracts_tab(repo, data)
+        _render_plants_tab(repo, data, operational_config)
     with tabs[5]:
-        _render_support_tab()
+        _render_contracts_tab(repo, data)
     with tabs[6]:
+        _render_support_tab()
+    with tabs[7]:
         _render_governance_tab()
 
 
@@ -779,6 +984,112 @@ def _render_overview_tab(data: dict[str, Any], summary: dict[str, int]) -> None:
 
     st.subheader("Ordem de implantação do primeiro cliente")
     _render_table(ONBOARDING_STEPS, "Nenhuma etapa de onboarding configurada.")
+
+
+def _render_indoor_health_tab(
+    data: dict[str, Any],
+    operational_config: dict[str, Any],
+    repo: PlatformAdminRepository,
+) -> None:
+    st.subheader("Saúde do teste indoor")
+    st.caption(
+        "Acompanhamento da produção assistida: último payload, comunicação por ativo, gateway, alertas e pendências de cadastro."
+    )
+
+    plant_options = [f"{plant['tenant_id']}#{plant['plant_id']}" for plant in data.get("plants") or []]
+    if not plant_options:
+        st.info("Cadastre uma planta antes de iniciar a produção assistida indoor.")
+        return
+
+    selected_plant = st.selectbox("Cliente e planta", plant_options, key="platform_indoor_health_plant")
+    tenant_id, _, plant_id = selected_plant.partition("#")
+    run = repo.onboarding_run_for(tenant_id, plant_id)
+    context = dict(run.get("assisted_context") or {})
+    inventory_rows = _asset_inventory_rows(data, operational_config, tenant_id=tenant_id, plant_id=plant_id)
+
+    try:
+        current_states = create_multiasset_repository_from_env().list_current_states(tenant_id, plant_id)
+        state_load_error = ""
+    except Exception as exc:
+        current_states = []
+        state_load_error = str(exc)
+
+    try:
+        active_alerts = create_alerts_repository_from_env().list_alerts(
+            tenant_id=tenant_id,
+            plant_id=plant_id,
+            active_only=True,
+        )
+        alert_load_error = ""
+    except Exception as exc:
+        active_alerts = []
+        alert_load_error = str(exc)
+
+    rows = _indoor_health_rows(inventory_rows, current_states)
+    summary = _indoor_health_summary(rows)
+    alert_summary = _latest_alert_summary(active_alerts)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Gateway", summary["gateway_status"])
+    c2.metric("Comunicando", f"{summary['communicating']}/{summary['assets']}")
+    c3.metric("Sem comunicação", str(summary["silent"] + summary["without_payload"]))
+    c4.metric("Pendências cadastro", str(summary["registry_warnings"]))
+
+    c5, c6, c7, c8 = st.columns(4)
+    c5.metric("Último payload", str(summary["latest_payload"]))
+    c6.metric("Alertas ativos", str(alert_summary["count"]))
+    c7.metric("Endpoint", str(context.get("endpoint_url") or "https://sentinelaindustrial.com.br/condition/ingest"))
+    c8.metric("Versão em produção", _code_version_label())
+    st.caption(f"Último alerta ativo: {alert_summary['label']} | {alert_summary['timestamp']}")
+
+    if state_load_error or alert_load_error:
+        st.warning(
+            "Não foi possível carregar todos os dados da produção assistida. Verifique credenciais AWS, tabelas e permissões do serviço."
+        )
+        with st.expander("Detalhes técnicos para suporte", expanded=False):
+            if state_load_error:
+                st.code(f"Estado atual: {state_load_error}")
+            if alert_load_error:
+                st.code(f"Alertas: {alert_load_error}")
+
+    st.markdown("#### Comunicação por ativo")
+    _render_table(
+        rows,
+        "Nenhum ativo cadastrado para esta planta. Cadastre ativo, sensor e gateway no onboarding antes do teste indoor.",
+    )
+
+    warning_rows = _indoor_registry_warning_rows(inventory_rows, current_states)
+    st.markdown("#### Pendências de cadastro detectadas pela ingestão")
+    _render_table(
+        warning_rows,
+        "Nenhuma pendência de cadastro detectada nos últimos estados recebidos.",
+    )
+
+    st.markdown("#### Alertas ativos no teste")
+    alert_rows = [
+        {
+            "Ativo": alert.get("asset_name") or alert.get("asset_id") or "-",
+            "Tipo": alert.get("alert_type") or alert.get("metric") or "-",
+            "Severidade": alert.get("status_label") or alert.get("severity") or "-",
+            "Status": alert.get("status") or "-",
+            "Última detecção": alert.get("last_detected_at") or alert.get("updated_at") or "-",
+            "Ação recomendada": alert.get("recommended_action") or "-",
+        }
+        for alert in active_alerts
+    ]
+    _render_table(alert_rows, "Nenhum alerta ativo para a planta selecionada.")
+
+    st.markdown("#### Ações rápidas")
+    action_cols = st.columns(3)
+    with action_cols[0]:
+        if st.button("Abrir onboarding", type="primary", use_container_width=True, key="platform_indoor_open_onboarding"):
+            _navigate_to("Onboarding do Cliente")
+    with action_cols[1]:
+        if st.button("Ver monitoramento", use_container_width=True, key="platform_indoor_open_condition"):
+            _navigate_to("Monitoramento de Equipamentos")
+    with action_cols[2]:
+        if st.button("Ver alertas", use_container_width=True, key="platform_indoor_open_alerts"):
+            _navigate_to("Alertas e Eventos")
 
 
 def _render_onboarding_registration_forms(
