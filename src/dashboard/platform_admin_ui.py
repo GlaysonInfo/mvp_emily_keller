@@ -108,6 +108,10 @@ UNIT_BY_METRIC = {
 }
 PAGE_TARGET_KEY = "dashboard_page_target"
 PENDING_CONDITION_ASSET_KEY = "condition_pending_selected_asset_id"
+TECHNICAL_ASSET_SELECT_KEY = "platform_technical_asset_select"
+TECHNICAL_SENSOR_SELECT_KEY = "platform_technical_sensor_select"
+TECHNICAL_SENSOR_PENDING_KEY = "platform_technical_sensor_pending"
+TECHNICAL_SENSOR_DRAFT_KEY = "platform_technical_sensor_draft"
 INDOOR_COMMUNICATION_TIMEOUT_MIN = 10
 
 ONBOARDING_STEPS = [
@@ -307,6 +311,13 @@ def _index(options: list[str], value: Any, default: int = 0) -> int:
         return default
 
 
+def _float_or(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _service_options() -> dict[str, str]:
     return {
         str(service["module_key"]): SERVICE_DISPLAY_NAMES.get(str(service["module_key"]), str(service["service"]))
@@ -422,6 +433,183 @@ def _metric_options_for_asset_type(asset_type: str) -> list[str]:
 def _replace_by_keys(items: list[dict[str, Any]], new_item: dict[str, Any], keys: list[str]) -> list[dict[str, Any]]:
     new_key = tuple(str(new_item.get(key) or "") for key in keys)
     return [item for item in items if tuple(str(item.get(key) or "") for key in keys) != new_key] + [new_item]
+
+
+def _technical_assets_for_context(
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> list[dict[str, Any]]:
+    return [
+        asset
+        for asset in operational_config.get("assets") or []
+        if str(asset.get("tenant_id") or tenant_id) == tenant_id
+        and str(asset.get("plant_id") or plant_id) == plant_id
+    ]
+
+
+def _technical_sensors_for_asset(
+    operational_config: dict[str, Any],
+    asset_id: str,
+) -> list[dict[str, Any]]:
+    return [
+        sensor
+        for sensor in operational_config.get("sensors") or []
+        if str(sensor.get("asset_id") or "") == asset_id
+    ]
+
+
+def _next_sensor_copy_id(operational_config: dict[str, Any], sensor_id: str) -> str:
+    existing_ids = {
+        str(sensor.get("sensor_id") or "")
+        for sensor in operational_config.get("sensors") or []
+    }
+    base = f"{sensor_id}_copy"
+    candidate = base
+    suffix = 2
+    while candidate in existing_ids:
+        candidate = f"{base}_{suffix}"
+        suffix += 1
+    return candidate
+
+
+def _duplicate_sensor_draft(
+    operational_config: dict[str, Any],
+    sensor_id: str,
+) -> dict[str, Any]:
+    source = next(
+        (
+            sensor
+            for sensor in operational_config.get("sensors") or []
+            if str(sensor.get("sensor_id") or "") == sensor_id
+        ),
+        None,
+    )
+    if not source:
+        raise ValueError(f"Sensor não encontrado para duplicação: {sensor_id}.")
+
+    draft = dict(source)
+    draft["sensor_id"] = _next_sensor_copy_id(operational_config, sensor_id)
+    draft["serial_number"] = ""
+    draft["status"] = "Aguardando comissionamento"
+    draft["external_tag"] = f"{source.get('external_tag') or sensor_id}_copy"
+    draft["duplicated_from"] = sensor_id
+    return draft
+
+
+def _remove_sensor_from_config(
+    operational_config: dict[str, Any],
+    sensor_id: str,
+) -> dict[str, Any]:
+    config = dict(operational_config)
+    sensors = [dict(sensor) for sensor in operational_config.get("sensors") or []]
+    removed = next(
+        (sensor for sensor in sensors if str(sensor.get("sensor_id") or "") == sensor_id),
+        None,
+    )
+    if not removed:
+        raise ValueError(f"Sensor não encontrado para remoção: {sensor_id}.")
+
+    asset_id = str(removed.get("asset_id") or "")
+    metric = str(removed.get("metric") or "")
+    remaining_sensors = [
+        sensor for sensor in sensors if str(sensor.get("sensor_id") or "") != sensor_id
+    ]
+    config["sensors"] = remaining_sensors
+    config["signal_map"] = [
+        dict(signal)
+        for signal in operational_config.get("signal_map") or []
+        if str(signal.get("sensor_id") or "") != sensor_id
+    ]
+
+    metric_still_used = any(
+        str(sensor.get("asset_id") or "") == asset_id
+        and str(sensor.get("metric") or "") == metric
+        for sensor in remaining_sensors
+    )
+    if not metric_still_used:
+        config["parameters_alerts"] = [
+            dict(parameter)
+            for parameter in operational_config.get("parameters_alerts") or []
+            if not (
+                str(parameter.get("asset_id") or "") == asset_id
+                and str(parameter.get("metric") or "") == metric
+            )
+        ]
+
+    return config
+
+
+def _sensor_form_context(
+    operational_config: dict[str, Any],
+    *,
+    asset_id: str,
+    sensor_id: str | None,
+    sensor_draft: dict[str, Any] | None = None,
+) -> dict[str, dict[str, Any]]:
+    asset = next(
+        (
+            item
+            for item in operational_config.get("assets") or []
+            if str(item.get("asset_id") or "") == asset_id
+        ),
+        {},
+    )
+    sensor = dict(sensor_draft or {})
+    if not sensor and sensor_id:
+        sensor = dict(
+            next(
+                (
+                    item
+                    for item in operational_config.get("sensors") or []
+                    if str(item.get("sensor_id") or "") == sensor_id
+                ),
+                {},
+            )
+        )
+
+    source_id = str(sensor.get("source_id") or asset.get("source_id") or "")
+    source = dict(
+        next(
+            (
+                item
+                for item in operational_config.get("data_sources") or []
+                if str(item.get("source_id") or "") == source_id
+            ),
+            {},
+        )
+    )
+    signal = dict(
+        next(
+            (
+                item
+                for item in operational_config.get("signal_map") or []
+                if sensor_id
+                and str(item.get("sensor_id") or "") == sensor_id
+            ),
+            {},
+        )
+    )
+    metric = str(sensor.get("metric") or signal.get("metric") or "")
+    parameter = dict(
+        next(
+            (
+                item
+                for item in operational_config.get("parameters_alerts") or []
+                if str(item.get("asset_id") or "") == asset_id
+                and str(item.get("metric") or "") == metric
+            ),
+            {},
+        )
+    )
+    return {
+        "asset": dict(asset),
+        "sensor": sensor,
+        "source": source,
+        "signal": signal,
+        "parameter": parameter,
+    }
 
 
 def _parameter_rule_for_metric(
@@ -827,7 +1015,16 @@ def _sensor_inventory_rows(
                 "Ponto de instalação": sensor.get("installation_point") or "-",
                 "Grandeza": sensor.get("measured_quantity") or sensor.get("metric") or "-",
                 "Métrica": sensor.get("metric") or "-",
-                "Faixa esperada": f"{sensor.get('expected_min', '-')} a {sensor.get('expected_max', '-')} {sensor.get('unit', '')}".strip(),
+                "Faixa do processo": (
+                    f"{sensor.get('process_expected_min', sensor.get('expected_min', '-'))} a "
+                    f"{sensor.get('process_expected_max', sensor.get('expected_max', '-'))} "
+                    f"{sensor.get('unit', '')}"
+                ).strip(),
+                "Faixa do instrumento": (
+                    f"{sensor.get('instrument_range_min', '-')} a "
+                    f"{sensor.get('instrument_range_max', '-')} "
+                    f"{sensor.get('unit', '')}"
+                ).strip(),
                 "Fonte": sensor.get("source_id") or "-",
                 "Status": sensor.get("status") or "Aguardando comissionamento",
             }
@@ -971,6 +1168,190 @@ def _render_technical_change_history(
             f"Autor: {selected.get('changed_by') or 'anon'}"
         )
         st.json(selected.get("changes") or [], expanded=False)
+
+
+def _next_new_sensor_id(operational_config: dict[str, Any], asset_id: str) -> str:
+    existing_ids = {
+        str(sensor.get("sensor_id") or "")
+        for sensor in operational_config.get("sensors") or []
+    }
+    base = f"sensor_{asset_id}"
+    suffix = 1
+    candidate = f"{base}_{suffix:02d}"
+    while candidate in existing_ids:
+        suffix += 1
+        candidate = f"{base}_{suffix:02d}"
+    return candidate
+
+
+def _render_sensor_manager(
+    config_repo: ConfigRepository,
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> tuple[str, str | None, dict[str, Any] | None]:
+    assets = _technical_assets_for_context(
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+    )
+    asset_ids = [str(asset.get("asset_id") or "") for asset in assets if asset.get("asset_id")]
+    if not asset_ids:
+        st.info("Cadastre o primeiro ativo abaixo; depois os sensores poderão ser gerenciados individualmente.")
+        return "", None, None
+
+    current_asset = str(st.session_state.get(TECHNICAL_ASSET_SELECT_KEY) or "")
+    if current_asset not in asset_ids:
+        st.session_state[TECHNICAL_ASSET_SELECT_KEY] = asset_ids[0]
+
+    selected_asset_id = st.selectbox(
+        "Ativo para gerenciar sensores",
+        asset_ids,
+        format_func=lambda asset_id: next(
+            (
+                f"{asset_id} · {asset.get('asset_name') or asset_id}"
+                for asset in assets
+                if str(asset.get("asset_id") or "") == asset_id
+            ),
+            asset_id,
+        ),
+        key=TECHNICAL_ASSET_SELECT_KEY,
+    )
+    sensors = _technical_sensors_for_asset(operational_config, selected_asset_id)
+    sensor_ids = [str(sensor.get("sensor_id") or "") for sensor in sensors if sensor.get("sensor_id")]
+
+    draft = st.session_state.get(TECHNICAL_SENSOR_DRAFT_KEY)
+    if not isinstance(draft, dict) or str(draft.get("asset_id") or "") != selected_asset_id:
+        draft = None
+        st.session_state.pop(TECHNICAL_SENSOR_DRAFT_KEY, None)
+    draft_id = str(draft.get("sensor_id") or "") if draft else ""
+    sensor_options = list(sensor_ids)
+    if draft_id and draft_id not in sensor_options:
+        sensor_options.append(draft_id)
+
+    pending_selection = st.session_state.pop(TECHNICAL_SENSOR_PENDING_KEY, None)
+    if pending_selection in sensor_options:
+        st.session_state[TECHNICAL_SENSOR_SELECT_KEY] = pending_selection
+    current_sensor = str(st.session_state.get(TECHNICAL_SENSOR_SELECT_KEY) or "")
+    if current_sensor not in sensor_options:
+        st.session_state[TECHNICAL_SENSOR_SELECT_KEY] = sensor_options[0] if sensor_options else ""
+
+    left, actions = st.columns([5, 2])
+    with left:
+        selected_sensor_id = st.selectbox(
+            "Sensor",
+            sensor_options or [""],
+            format_func=lambda sensor_id: (
+                f"{sensor_id} · rascunho"
+                if draft_id and sensor_id == draft_id
+                else next(
+                    (
+                        f"{sensor_id} · {sensor.get('sensor_kind') or sensor.get('metric') or 'Sensor'}"
+                        for sensor in sensors
+                        if str(sensor.get("sensor_id") or "") == sensor_id
+                    ),
+                    "Nenhum sensor cadastrado",
+                )
+            ),
+            key=TECHNICAL_SENSOR_SELECT_KEY,
+            disabled=not sensor_options,
+        )
+    with actions:
+        st.caption("Ações")
+        action_columns = st.columns(2)
+        if action_columns[0].button(
+            " ",
+            icon=":material/add:",
+            help="Adicionar sensor ao ativo",
+            key="technical_sensor_new",
+            width="stretch",
+        ):
+            new_sensor_id = _next_new_sensor_id(operational_config, selected_asset_id)
+            asset = next(
+                (
+                    item
+                    for item in assets
+                    if str(item.get("asset_id") or "") == selected_asset_id
+                ),
+                {},
+            )
+            new_draft = {
+                "tenant_id": tenant_id,
+                "plant_id": plant_id,
+                "sensor_id": new_sensor_id,
+                "asset_id": selected_asset_id,
+                "source_id": asset.get("source_id") or "",
+                "status": "Aguardando comissionamento",
+            }
+            st.session_state[TECHNICAL_SENSOR_DRAFT_KEY] = new_draft
+            st.session_state[TECHNICAL_SENSOR_PENDING_KEY] = new_sensor_id
+            st.rerun()
+        if action_columns[1].button(
+            " ",
+            icon=":material/content_copy:",
+            help="Duplicar sensor selecionado",
+            key="technical_sensor_duplicate",
+            width="stretch",
+            disabled=not selected_sensor_id or selected_sensor_id == draft_id,
+        ):
+            duplicated = _duplicate_sensor_draft(operational_config, selected_sensor_id)
+            st.session_state[TECHNICAL_SENSOR_DRAFT_KEY] = duplicated
+            st.session_state[TECHNICAL_SENSOR_PENDING_KEY] = duplicated["sensor_id"]
+            st.rerun()
+
+    selected_draft = draft if draft_id and selected_sensor_id == draft_id else None
+    if selected_sensor_id and selected_sensor_id in sensor_ids:
+        with st.expander("Remover sensor", expanded=False):
+            with st.form(f"technical_sensor_remove_{selected_sensor_id}"):
+                removal_reason = st.text_input(
+                    "Motivo da remoção",
+                    placeholder="Ex.: sensor substituído durante o comissionamento.",
+                )
+                confirm_removal = st.checkbox(
+                    f"Confirmo a remoção de {selected_sensor_id} e do mapeamento associado."
+                )
+                remove_sensor = st.form_submit_button(
+                    "Remover sensor",
+                    icon=":material/delete:",
+                )
+            if remove_sensor:
+                if not confirm_removal:
+                    st.error("Confirme explicitamente a remoção do sensor.")
+                elif not removal_reason.strip():
+                    st.error("Informe o motivo da remoção.")
+                else:
+                    updated = _remove_sensor_from_config(operational_config, selected_sensor_id)
+                    revision = config_repo.save_versioned(
+                        updated,
+                        change_type="technical_sensor.remove",
+                        target=f"sensor:{selected_sensor_id}",
+                        reason=removal_reason.strip(),
+                        actor=current_actor_snapshot(),
+                        tenant_id=tenant_id,
+                        plant_id=plant_id,
+                    )
+                    record_sensitive_action(
+                        "technical_sensor.remove",
+                        target=f"sensor:{selected_sensor_id}",
+                        tenant_id=tenant_id,
+                        details={
+                            "plant_id": plant_id,
+                            "reason": removal_reason.strip(),
+                            "revision": revision.get("revision") if revision else None,
+                        },
+                    )
+                    st.session_state.pop(TECHNICAL_SENSOR_DRAFT_KEY, None)
+                    remaining_ids = [
+                        sensor_id for sensor_id in sensor_ids if sensor_id != selected_sensor_id
+                    ]
+                    st.session_state[TECHNICAL_SENSOR_PENDING_KEY] = (
+                        remaining_ids[0] if remaining_ids else ""
+                    )
+                    st.success("Sensor removido com rastreabilidade.")
+                    st.rerun()
+
+    return selected_asset_id, selected_sensor_id or None, selected_draft
 
 
 def _parse_utc_datetime(value: Any) -> datetime | None:
@@ -1533,6 +1914,12 @@ def _render_real_asset_sensor_gateway_form(
         _render_table(gateway_rows, "Nenhum gateway cadastrado para esta planta.")
     with st.expander("Sensores cadastrados por ativo", expanded=bool(sensor_rows)):
         _render_table(sensor_rows, "Nenhum sensor técnico cadastrado para esta planta.")
+    selected_asset_id, selected_sensor_id, sensor_draft = _render_sensor_manager(
+        config_repo,
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+    )
     _render_technical_change_history(
         operational_config,
         tenant_id=tenant_id,
@@ -1550,93 +1937,338 @@ def _render_real_asset_sensor_gateway_form(
         + ". O contrato governa os módulos disponíveis para todos os ativos da planta."
     )
 
-    with st.form("platform_real_asset_sensor_gateway_form"):
+    form_context = _sensor_form_context(
+        operational_config,
+        asset_id=selected_asset_id,
+        sensor_id=selected_sensor_id,
+        sensor_draft=sensor_draft,
+    )
+    asset_defaults = form_context["asset"]
+    sensor_defaults = form_context["sensor"]
+    source_defaults = form_context["source"]
+    signal_defaults = form_context["signal"]
+    parameter_defaults = form_context["parameter"]
+    existing_sensor_ids = {
+        str(sensor.get("sensor_id") or "")
+        for sensor in operational_config.get("sensors") or []
+    }
+    existing_asset_ids = {
+        str(asset.get("asset_id") or "")
+        for asset in operational_config.get("assets") or []
+    }
+    existing_source_ids = {
+        str(source.get("source_id") or "")
+        for source in operational_config.get("data_sources") or []
+    }
+    form_identity = selected_sensor_id or "new"
+
+    with st.form(f"platform_real_asset_sensor_gateway_form_{form_identity}"):
         st.markdown("**Gateway / fonte de dados**")
         g1, g2 = st.columns(2)
         with g1:
-            source_id = st.text_input("Identificador lógico do gateway", "gateway_indoor_01")
-            source_name = st.text_input("Nome do gateway", "Gateway Indoor 01")
-            source_type = st.text_input("Tipo do gateway", "Gateway Edge")
-            source_manufacturer = st.text_input("Fabricante do gateway", "")
-            source_model = st.text_input("Modelo do gateway", "")
+            source_id = st.text_input(
+                "Identificador lógico do gateway",
+                str(source_defaults.get("source_id") or "gateway_indoor_01"),
+                disabled=str(source_defaults.get("source_id") or "") in existing_source_ids,
+            )
+            source_name = st.text_input(
+                "Nome do gateway",
+                str(source_defaults.get("source_name") or "Gateway Indoor 01"),
+            )
+            source_type = st.text_input(
+                "Tipo do gateway",
+                str(source_defaults.get("source_type") or "Gateway Edge"),
+            )
+            source_manufacturer = st.text_input(
+                "Fabricante do gateway",
+                str(source_defaults.get("manufacturer") or ""),
+            )
+            source_model = st.text_input(
+                "Modelo do gateway",
+                str(source_defaults.get("model") or ""),
+            )
         with g2:
-            protocol = st.selectbox("Protocolo", GATEWAY_PROTOCOL_OPTIONS)
-            endpoint = st.text_input("Endpoint/fonte", "https://sentinelaindustrial.com.br/condition/ingest")
-            credential_ref = st.text_input("Referência do token/credencial", "env:CONDITION_INGEST_TOKEN")
-            source_serial_number = st.text_input("Número de série do gateway", "")
-            source_status = st.selectbox("Status do gateway", GATEWAY_STATUS_OPTIONS)
+            protocol = st.selectbox(
+                "Protocolo",
+                GATEWAY_PROTOCOL_OPTIONS,
+                index=_index(GATEWAY_PROTOCOL_OPTIONS, source_defaults.get("protocol")),
+            )
+            endpoint = st.text_input(
+                "Endpoint/fonte",
+                str(
+                    source_defaults.get("endpoint")
+                    or "https://sentinelaindustrial.com.br/condition/ingest"
+                ),
+            )
+            credential_ref = st.text_input(
+                "Referência do token/credencial",
+                str(source_defaults.get("credential_ref") or "env:CONDITION_INGEST_TOKEN"),
+            )
+            source_serial_number = st.text_input(
+                "Número de série do gateway",
+                str(source_defaults.get("serial_number") or ""),
+            )
+            source_status = st.selectbox(
+                "Status do gateway",
+                GATEWAY_STATUS_OPTIONS,
+                index=_index(GATEWAY_STATUS_OPTIONS, source_defaults.get("status")),
+            )
 
         st.markdown("**Ativo real**")
         a1, a2 = st.columns(2)
         with a1:
-            asset_id = st.text_input("Asset ID", "motor_real_01")
-            asset_name = st.text_input("Nome/tag do ativo", "Motor Real 01")
-            asset_type = st.selectbox("Tipo de ativo", ASSET_TYPE_OPTIONS)
-            area = st.text_input("Área", "Teste indoor")
+            asset_id = st.text_input(
+                "Asset ID",
+                str(asset_defaults.get("asset_id") or "motor_real_01"),
+                disabled=str(asset_defaults.get("asset_id") or "") in existing_asset_ids,
+            )
+            asset_name = st.text_input(
+                "Nome/tag do ativo",
+                str(asset_defaults.get("asset_name") or "Motor Real 01"),
+            )
+            asset_type = st.selectbox(
+                "Tipo de ativo",
+                ASSET_TYPE_OPTIONS,
+                index=_index(ASSET_TYPE_OPTIONS, asset_defaults.get("asset_type")),
+            )
+            area = st.text_input("Área", str(asset_defaults.get("area") or "Teste indoor"))
         with a2:
-            criticality = st.selectbox("Criticidade", CRITICALITY_OPTIONS, index=2)
-            manufacturer = st.text_input("Fabricante", "")
-            model = st.text_input("Modelo", "")
-            serial_number = st.text_input("Número de série", "")
-            asset_status = st.selectbox("Status do ativo", ["Ativo", "Aguardando comissionamento", "Inativo"])
+            criticality = st.selectbox(
+                "Criticidade",
+                CRITICALITY_OPTIONS,
+                index=_index(CRITICALITY_OPTIONS, asset_defaults.get("criticality"), 2),
+            )
+            manufacturer = st.text_input(
+                "Fabricante",
+                str(asset_defaults.get("manufacturer") or ""),
+            )
+            model = st.text_input("Modelo", str(asset_defaults.get("model") or ""))
+            serial_number = st.text_input(
+                "Número de série",
+                str(asset_defaults.get("serial_number") or ""),
+            )
+            asset_status_options = ["Ativo", "Aguardando comissionamento", "Inativo"]
+            asset_status = st.selectbox(
+                "Status do ativo",
+                asset_status_options,
+                index=_index(asset_status_options, asset_defaults.get("status")),
+            )
 
         st.markdown("**Sensor e ponto de medição**")
         metric_options = _metric_options_for_asset_type(asset_type)
         s1, s2, s3 = st.columns(3)
         with s1:
-            sensor_id = st.text_input("Identificador do sensor", "sensor_real_01")
-            sensor_kind = st.selectbox("Tipo de sensor", SENSOR_KIND_OPTIONS)
-            sensor_manufacturer = st.text_input("Fabricante do sensor", "")
-            sensor_model = st.text_input("Modelo do sensor", "")
+            sensor_id = st.text_input(
+                "Identificador do sensor",
+                str(sensor_defaults.get("sensor_id") or "sensor_real_01"),
+                disabled=str(sensor_defaults.get("sensor_id") or "") in existing_sensor_ids,
+            )
+            sensor_kind = st.selectbox(
+                "Tipo de sensor",
+                SENSOR_KIND_OPTIONS,
+                index=_index(SENSOR_KIND_OPTIONS, sensor_defaults.get("sensor_kind")),
+            )
+            sensor_manufacturer = st.text_input(
+                "Fabricante do sensor",
+                str(sensor_defaults.get("manufacturer") or ""),
+            )
+            sensor_model = st.text_input(
+                "Modelo do sensor",
+                str(sensor_defaults.get("model") or ""),
+            )
         with s2:
-            sensor_serial_number = st.text_input("Número de série do sensor", "")
-            installation_point = st.text_input("Ponto de instalação", "Mancal lado acoplado")
-            measured_quantity = st.text_input("Grandeza medida", "Vibração RMS")
-            metric = st.selectbox("Métrica interna esperada", metric_options)
+            sensor_serial_number = st.text_input(
+                "Número de série do sensor",
+                str(sensor_defaults.get("serial_number") or ""),
+            )
+            installation_point = st.text_input(
+                "Ponto de instalação",
+                str(sensor_defaults.get("installation_point") or "Mancal lado acoplado"),
+            )
+            measured_quantity = st.text_input(
+                "Grandeza medida",
+                str(sensor_defaults.get("measured_quantity") or "Vibração RMS"),
+            )
+            metric = st.selectbox(
+                "Métrica interna esperada",
+                metric_options,
+                index=_index(
+                    metric_options,
+                    sensor_defaults.get("metric") or signal_defaults.get("metric"),
+                ),
+            )
         with s3:
-            external_tag = st.text_input("Tag externa / canal", f"{asset_id}.{metric}")
-            unit = st.text_input("Unidade", UNIT_BY_METRIC.get(metric, ""))
-            expected_min = st.number_input("Faixa esperada mínima", value=0.0)
-            expected_max = st.number_input("Faixa esperada máxima", value=10.0)
+            external_tag = st.text_input(
+                "Tag externa / canal",
+                str(
+                    sensor_defaults.get("external_tag")
+                    or signal_defaults.get("external_tag")
+                    or f"{asset_id}.{metric}"
+                ),
+            )
+            unit = st.text_input(
+                "Unidade",
+                str(sensor_defaults.get("unit") or UNIT_BY_METRIC.get(metric, "")),
+            )
             sensor_status = st.selectbox(
                 "Status do sensor",
                 ["Aguardando comissionamento", "Ativo", "Falha", "Inativo"],
+                index=_index(
+                    ["Aguardando comissionamento", "Ativo", "Falha", "Inativo"],
+                    sensor_defaults.get("status"),
+                ),
+            )
+
+        st.markdown("**Faixas do processo e do instrumento**")
+        process_columns = st.columns(2)
+        with process_columns[0]:
+            process_expected_min = st.number_input(
+                "Processo esperado · mínimo",
+                value=_float_or(
+                    sensor_defaults.get(
+                        "process_expected_min",
+                        sensor_defaults.get("expected_min"),
+                    ),
+                    0.0,
+                ),
+                help="Menor valor esperado durante a operação normal da máquina.",
+            )
+            process_expected_max = st.number_input(
+                "Processo esperado · máximo",
+                value=_float_or(
+                    sensor_defaults.get(
+                        "process_expected_max",
+                        sensor_defaults.get("expected_max"),
+                    ),
+                    10.0,
+                ),
+                help="Maior valor esperado durante a operação normal da máquina.",
+            )
+        with process_columns[1]:
+            instrument_range_min = st.number_input(
+                "Instrumento · limite físico mínimo",
+                value=_float_or(sensor_defaults.get("instrument_range_min"), 0.0),
+                help="Início da faixa de medição declarada pelo fabricante do sensor.",
+            )
+            instrument_range_max = st.number_input(
+                "Instrumento · limite físico máximo",
+                value=_float_or(sensor_defaults.get("instrument_range_max"), 100.0),
+                help="Fim da faixa de medição declarada pelo fabricante do sensor.",
             )
 
         st.markdown("**Limites e regra inicial**")
-        direction = st.selectbox("Regra", ["Maior é pior", "Menor é pior", "Faixa ideal"])
+        direction_options = ["Maior é pior", "Menor é pior", "Faixa ideal"]
+        parameter_direction = "Maior é pior"
+        if parameter_defaults.get("rule_mode") == "ideal_range":
+            parameter_direction = "Faixa ideal"
+        elif _float_or(parameter_defaults.get("critical_max")) and not _float_or(
+            parameter_defaults.get("critical_min")
+        ):
+            parameter_direction = "Menor é pior"
+        direction = st.selectbox(
+            "Regra",
+            direction_options,
+            index=_index(direction_options, parameter_direction),
+        )
         normal_min = normal_max = attention_min = attention_max = 0.0
         alert_min = alert_max = critical_min = critical_max = 0.0
         if direction == "Faixa ideal":
             r1, r2 = st.columns(2)
             with r1:
-                normal_min = st.number_input("Normal mínimo", value=0.0)
-                attention_min = st.number_input("Atenção inferior", value=0.0)
-                alert_min = st.number_input("Alerta inferior", value=0.0)
-                critical_min = st.number_input("Crítico inferior", value=0.0)
+                normal_min = st.number_input(
+                    "Normal mínimo",
+                    value=_float_or(parameter_defaults.get("normal_min"), 0.0),
+                )
+                attention_min = st.number_input(
+                    "Atenção inferior",
+                    value=_float_or(parameter_defaults.get("attention_min"), 0.0),
+                )
+                alert_min = st.number_input(
+                    "Alerta inferior",
+                    value=_float_or(parameter_defaults.get("alert_min"), 0.0),
+                )
+                critical_min = st.number_input(
+                    "Crítico inferior",
+                    value=_float_or(parameter_defaults.get("critical_min"), 0.0),
+                )
             with r2:
-                normal_max = st.number_input("Normal máximo", value=10.0)
-                attention_max = st.number_input("Atenção superior", value=11.0)
-                alert_max = st.number_input("Alerta superior", value=12.0)
-                critical_max = st.number_input("Crítico superior", value=13.0)
+                normal_max = st.number_input(
+                    "Normal máximo",
+                    value=_float_or(parameter_defaults.get("normal_max"), 10.0),
+                )
+                attention_max = st.number_input(
+                    "Atenção superior",
+                    value=_float_or(parameter_defaults.get("attention_max"), 11.0),
+                )
+                alert_max = st.number_input(
+                    "Alerta superior",
+                    value=_float_or(parameter_defaults.get("alert_max"), 12.0),
+                )
+                critical_max = st.number_input(
+                    "Crítico superior",
+                    value=_float_or(parameter_defaults.get("critical_max"), 13.0),
+                )
             normal_limit = attention_limit = alert_limit = critical_limit = 0.0
         else:
             r1, r2 = st.columns(2)
             with r1:
-                normal_limit = st.number_input("Limite normal", value=2.8)
-                attention_limit = st.number_input("Limite atenção", value=2.8)
+                normal_limit = st.number_input(
+                    "Limite normal",
+                    value=_float_or(
+                        parameter_defaults.get(
+                            "normal_min" if direction == "Menor é pior" else "normal_max"
+                        ),
+                        2.8,
+                    ),
+                )
+                attention_limit = st.number_input(
+                    "Limite atenção",
+                    value=_float_or(
+                        parameter_defaults.get(
+                            "attention_max" if direction == "Menor é pior" else "attention_min"
+                        ),
+                        2.8,
+                    ),
+                )
             with r2:
-                alert_limit = st.number_input("Limite alerta", value=4.5)
-                critical_limit = st.number_input("Limite crítico", value=7.1)
+                alert_limit = st.number_input(
+                    "Limite alerta",
+                    value=_float_or(
+                        parameter_defaults.get(
+                            "alert_max" if direction == "Menor é pior" else "alert_min"
+                        ),
+                        4.5,
+                    ),
+                )
+                critical_limit = st.number_input(
+                    "Limite crítico",
+                    value=_float_or(
+                        parameter_defaults.get(
+                            "critical_max" if direction == "Menor é pior" else "critical_min"
+                        ),
+                        7.1,
+                    ),
+                )
 
-        persistence_min = st.number_input("Persistência mínima (min)", min_value=1, value=3, step=1)
+        persistence_min = st.number_input(
+            "Persistência mínima (min)",
+            min_value=1,
+            value=int(parameter_defaults.get("persistence_min") or 3),
+            step=1,
+        )
         recommended_action = st.text_area(
             "Ação recomendada inicial",
-            "Inspecionar instalação, sensor, acoplamento, rolamentos e condição operacional.",
+            str(
+                parameter_defaults.get("recommended_action")
+                or "Inspecionar instalação, sensor, acoplamento, rolamentos e condição operacional."
+            ),
         )
         technical_note = st.text_area(
             "Observação técnica",
-            "Limites iniciais sujeitos a ajuste após baseline da máquina real.",
+            str(
+                parameter_defaults.get("technical_note")
+                or "Limites iniciais sujeitos a ajuste após baseline da máquina real."
+            ),
         )
         change_reason = st.text_area(
             "Motivo da alteração",
@@ -1650,6 +2282,18 @@ def _render_real_asset_sensor_gateway_form(
                 return
             if not change_reason.strip():
                 st.error("Informe o motivo da alteração técnica.")
+                return
+            if float(process_expected_min) > float(process_expected_max):
+                st.error("A faixa esperada do processo está invertida.")
+                return
+            if float(instrument_range_min) > float(instrument_range_max):
+                st.error("A faixa física do instrumento está invertida.")
+                return
+            if (
+                float(process_expected_min) < float(instrument_range_min)
+                or float(process_expected_max) > float(instrument_range_max)
+            ):
+                st.error("A faixa esperada do processo deve estar contida na faixa física do instrumento.")
                 return
 
             config = config_repo.load()
@@ -1709,8 +2353,10 @@ def _render_real_asset_sensor_gateway_form(
                     "measured_quantity": measured_quantity.strip(),
                     "metric": metric,
                     "unit": unit.strip(),
-                    "expected_min": float(expected_min),
-                    "expected_max": float(expected_max),
+                    "process_expected_min": float(process_expected_min),
+                    "process_expected_max": float(process_expected_max),
+                    "instrument_range_min": float(instrument_range_min),
+                    "instrument_range_max": float(instrument_range_max),
                     "external_tag": external_tag.strip(),
                     "status": sensor_status,
                     "commissioning_mode": "indoor_assisted",
@@ -1726,8 +2372,10 @@ def _render_real_asset_sensor_gateway_form(
                     "metric": metric,
                     "external_tag": external_tag.strip(),
                     "unit": unit.strip(),
-                    "expected_min": float(expected_min),
-                    "expected_max": float(expected_max),
+                    "expected_min": float(process_expected_min),
+                    "expected_max": float(process_expected_max),
+                    "instrument_range_min": float(instrument_range_min),
+                    "instrument_range_max": float(instrument_range_max),
                     "scale": 1.0,
                     "offset": 0.0,
                     "enabled": True,
@@ -1798,6 +2446,8 @@ def _render_real_asset_sensor_gateway_form(
             st.success(
                 f"Ativo, sensor e gateway salvos na versão técnica {revision.get('revision')}."
             )
+            st.session_state.pop(TECHNICAL_SENSOR_DRAFT_KEY, None)
+            st.session_state[TECHNICAL_SENSOR_PENDING_KEY] = sensor_id.strip()
             st.rerun()
 
 

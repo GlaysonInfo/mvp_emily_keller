@@ -154,3 +154,31 @@
 | description | string | Sim | Descrição da ação |
 | created_at | datetime | Sim | Data de criação |
 
+## 14. Entidade Sensor
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---:|---|
+| sensor_id | string | Sim | Identificador técnico individual e estável |
+| tenant_id | string | Sim | Cliente proprietário do cadastro |
+| plant_id | string | Sim | Planta onde o sensor está instalado |
+| asset_id | string | Sim | Ativo monitorado |
+| source_id | string | Sim | Gateway ou fonte responsável pela coleta |
+| sensor_kind | string | Sim | Vibração, temperatura, pressão, corrente etc. |
+| manufacturer | string | Não | Fabricante do instrumento |
+| model | string | Não | Modelo do instrumento |
+| serial_number | string | Não | Número de série individual |
+| installation_point | string | Sim | Ponto físico de instalação no ativo |
+| measured_quantity | string | Sim | Grandeza física medida |
+| metric | string | Sim | Métrica interna padronizada |
+| external_tag | string | Sim | Tag, canal ou endereço na fonte |
+| unit | string | Sim | Unidade de engenharia |
+| process_expected_min | number | Sim | Menor valor esperado no processo em operação normal |
+| process_expected_max | number | Sim | Maior valor esperado no processo em operação normal |
+| instrument_range_min | number | Sim | Limite físico inferior declarado pelo fabricante |
+| instrument_range_max | number | Sim | Limite físico superior declarado pelo fabricante |
+| status | string | Sim | Aguardando comissionamento, Ativo, Falha ou Inativo |
+
+A faixa esperada do processo deve estar contida na faixa física do instrumento.
+Os campos legados `expected_min` e `expected_max` são interpretados como faixa
+esperada do processo durante a migração de cadastros existentes.
+

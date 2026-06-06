@@ -46,6 +46,10 @@ Gravações sem diferença técnica não criam uma nova versão. O arquivo de
 configuração é substituído atomicamente para reduzir o risco de corrupção em
 caso de interrupção durante a escrita.
 
+Duplicações e remoções de sensores também são versionadas. A remoção elimina o
+mapeamento de sinal associado e só remove a regra do ativo/métrica quando
+nenhum outro sensor ainda utiliza essa métrica.
+
 ## Esquema do evento
 
 ```json

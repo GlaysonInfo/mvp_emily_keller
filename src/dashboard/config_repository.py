@@ -94,6 +94,14 @@ def normalize_config(data: dict[str, Any] | None) -> dict[str, Any]:
     except (TypeError, ValueError):
         normalized["configuration_version"] = 0
 
+    for sensor in normalized["sensors"]:
+        if not isinstance(sensor, dict):
+            continue
+        if "process_expected_min" not in sensor and "expected_min" in sensor:
+            sensor["process_expected_min"] = sensor.get("expected_min")
+        if "process_expected_max" not in sensor and "expected_max" in sensor:
+            sensor["process_expected_max"] = sensor.get("expected_max")
+
     return normalized
 
 
@@ -308,7 +316,7 @@ class ConfigRepository:
                     }
                 )
 
-        seen_signal_keys: set[tuple[str, str, str]] = set()
+        seen_signal_keys: set[tuple[str, str, str, str]] = set()
 
         for sensor in self.sensors(loaded):
             sensor_id = str(sensor.get("sensor_id") or "-")
@@ -330,6 +338,52 @@ class ConfigRepository:
                         "message": f"Sensor {sensor_id} referencia fonte inexistente: {source_id}.",
                     }
                 )
+
+            for range_label, minimum_key, maximum_key in [
+                ("faixa esperada do processo", "process_expected_min", "process_expected_max"),
+                ("faixa física do instrumento", "instrument_range_min", "instrument_range_max"),
+            ]:
+                minimum = sensor.get(minimum_key)
+                maximum = sensor.get(maximum_key)
+                if minimum is None or maximum is None:
+                    continue
+                try:
+                    invalid_range = float(minimum) > float(maximum)
+                except (TypeError, ValueError):
+                    invalid_range = True
+                if invalid_range:
+                    issues.append(
+                        {
+                            "severity": "error",
+                            "message": f"Sensor {sensor_id} possui {range_label} inválida.",
+                        }
+                    )
+
+            process_min = sensor.get("process_expected_min")
+            process_max = sensor.get("process_expected_max")
+            instrument_min = sensor.get("instrument_range_min")
+            instrument_max = sensor.get("instrument_range_max")
+            if all(
+                value is not None
+                for value in [process_min, process_max, instrument_min, instrument_max]
+            ):
+                try:
+                    process_outside_instrument = (
+                        float(process_min) < float(instrument_min)
+                        or float(process_max) > float(instrument_max)
+                    )
+                except (TypeError, ValueError):
+                    process_outside_instrument = True
+                if process_outside_instrument:
+                    issues.append(
+                        {
+                            "severity": "error",
+                            "message": (
+                                f"Sensor {sensor_id} possui faixa do processo fora da faixa física "
+                                "do instrumento."
+                            ),
+                        }
+                    )
 
         for signal in self.signal_map(loaded):
             asset_id = str(signal.get("asset_id") or "")
@@ -361,13 +415,16 @@ class ConfigRepository:
                     }
                 )
 
-            signal_key = (asset_id, source_id, metric)
+            signal_key = (asset_id, source_id, metric, sensor_id)
 
             if signal_key in seen_signal_keys:
                 issues.append(
                     {
                         "severity": "warning",
-                        "message": f"Mapeamento duplicado para {asset_id} / {source_id} / {metric}.",
+                        "message": (
+                            f"Mapeamento duplicado para {asset_id} / {source_id} / "
+                            f"{metric} / {sensor_id or 'sem sensor'}."
+                        ),
                     }
                 )
 

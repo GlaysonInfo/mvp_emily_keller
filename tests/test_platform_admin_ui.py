@@ -11,6 +11,7 @@ from src.dashboard.platform_admin_ui import (
     _assisted_production_summary,
     _asset_inventory_rows,
     _contract_rows,
+    _duplicate_sensor_draft,
     _gateway_inventory_rows,
     _indoor_health_rows,
     _indoor_health_summary,
@@ -23,6 +24,8 @@ from src.dashboard.platform_admin_ui import (
     _plant_for,
     _platform_summary,
     _replace_by_keys,
+    _remove_sensor_from_config,
+    _sensor_form_context,
     _sensor_inventory_rows,
     _technical_history_for_context,
     _technical_history_rows,
@@ -417,8 +420,10 @@ def test_gateway_and_sensor_inventory_expose_technical_links() -> None:
                 "installation_point": "Mancal lado acoplado",
                 "measured_quantity": "Vibração RMS",
                 "metric": "vibration_rms_mm_s",
-                "expected_min": 0,
-                "expected_max": 10,
+                "process_expected_min": 0,
+                "process_expected_max": 10,
+                "instrument_range_min": 0,
+                "instrument_range_max": 25,
                 "unit": "mm/s",
                 "status": "Ativo",
             }
@@ -432,7 +437,106 @@ def test_gateway_and_sensor_inventory_expose_technical_links() -> None:
     assert gateways[0]["Fabricante / modelo"] == "IFM / AL1350"
     assert sensors[0]["Ativo"] == "motor_001"
     assert sensors[0]["Ponto de instalação"] == "Mancal lado acoplado"
-    assert sensors[0]["Faixa esperada"] == "0 a 10 mm/s"
+    assert sensors[0]["Faixa do processo"] == "0 a 10 mm/s"
+    assert sensors[0]["Faixa do instrumento"] == "0 a 25 mm/s"
+
+
+def test_duplicate_sensor_draft_generates_unique_identity_and_clears_serial() -> None:
+    config = {
+        "sensors": [
+            {
+                "sensor_id": "sensor_01",
+                "asset_id": "motor_001",
+                "serial_number": "ABC123",
+                "external_tag": "motor.vibration",
+                "status": "Ativo",
+            },
+            {"sensor_id": "sensor_01_copy", "asset_id": "motor_001"},
+        ]
+    }
+
+    draft = _duplicate_sensor_draft(config, "sensor_01")
+
+    assert draft["sensor_id"] == "sensor_01_copy_2"
+    assert draft["duplicated_from"] == "sensor_01"
+    assert draft["serial_number"] == ""
+    assert draft["external_tag"] == "motor.vibration_copy"
+    assert draft["status"] == "Aguardando comissionamento"
+
+
+def test_remove_sensor_cascades_signal_and_only_unused_parameter() -> None:
+    config = {
+        "sensors": [
+            {"sensor_id": "sensor_01", "asset_id": "motor_001", "metric": "temperature_c"},
+            {"sensor_id": "sensor_02", "asset_id": "motor_001", "metric": "temperature_c"},
+            {"sensor_id": "sensor_03", "asset_id": "motor_001", "metric": "vibration_rms_mm_s"},
+        ],
+        "signal_map": [
+            {"sensor_id": "sensor_01", "metric": "temperature_c"},
+            {"sensor_id": "sensor_02", "metric": "temperature_c"},
+            {"sensor_id": "sensor_03", "metric": "vibration_rms_mm_s"},
+        ],
+        "parameters_alerts": [
+            {"asset_id": "motor_001", "metric": "temperature_c"},
+            {"asset_id": "motor_001", "metric": "vibration_rms_mm_s"},
+        ],
+    }
+
+    with_shared_metric = _remove_sensor_from_config(config, "sensor_01")
+    without_metric = _remove_sensor_from_config(with_shared_metric, "sensor_03")
+
+    assert {sensor["sensor_id"] for sensor in with_shared_metric["sensors"]} == {
+        "sensor_02",
+        "sensor_03",
+    }
+    assert {signal["sensor_id"] for signal in with_shared_metric["signal_map"]} == {
+        "sensor_02",
+        "sensor_03",
+    }
+    assert {item["metric"] for item in with_shared_metric["parameters_alerts"]} == {
+        "temperature_c",
+        "vibration_rms_mm_s",
+    }
+    assert {item["metric"] for item in without_metric["parameters_alerts"]} == {
+        "temperature_c"
+    }
+
+
+def test_sensor_form_context_links_asset_gateway_signal_and_parameter() -> None:
+    config = {
+        "assets": [{"asset_id": "motor_001", "source_id": "gateway_01"}],
+        "data_sources": [{"source_id": "gateway_01", "protocol": "IO-Link"}],
+        "sensors": [
+            {
+                "sensor_id": "sensor_01",
+                "asset_id": "motor_001",
+                "source_id": "gateway_01",
+                "metric": "temperature_c",
+            }
+        ],
+        "signal_map": [
+            {
+                "sensor_id": "sensor_01",
+                "asset_id": "motor_001",
+                "metric": "temperature_c",
+                "external_tag": "motor.temperature",
+            }
+        ],
+        "parameters_alerts": [
+            {"asset_id": "motor_001", "metric": "temperature_c", "critical_min": 90}
+        ],
+    }
+
+    context = _sensor_form_context(
+        config,
+        asset_id="motor_001",
+        sensor_id="sensor_01",
+    )
+
+    assert context["asset"]["asset_id"] == "motor_001"
+    assert context["source"]["protocol"] == "IO-Link"
+    assert context["signal"]["external_tag"] == "motor.temperature"
+    assert context["parameter"]["critical_min"] == 90
 
 
 def test_technical_history_rows_scope_and_summarize_revisions() -> None:
@@ -554,3 +658,9 @@ def test_onboarding_page_exposes_guided_registration_forms() -> None:
     assert "platform_onboarding_contract_form" in source
     assert "platform_real_asset_sensor_gateway_form" in source
     assert "platform_assisted_production_form" in source
+    assert "def _render_sensor_manager" in source
+    assert 'icon=":material/add:"' in source
+    assert 'icon=":material/content_copy:"' in source
+    assert 'icon=":material/delete:"' in source
+    assert "Processo esperado · mínimo" in source
+    assert "Instrumento · limite físico máximo" in source

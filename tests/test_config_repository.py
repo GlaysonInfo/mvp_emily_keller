@@ -101,6 +101,22 @@ class ConfigRepositoryTest(unittest.TestCase):
 
         self.assertEqual(data["signal_map"][0]["metric"], "rpm")
 
+    def test_normalize_migrates_legacy_expected_range_to_process_range(self) -> None:
+        data = normalize_config(
+            {
+                "sensors": [
+                    {
+                        "sensor_id": "sensor_01",
+                        "expected_min": 1,
+                        "expected_max": 8,
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual(data["sensors"][0]["process_expected_min"], 1)
+        self.assertEqual(data["sensors"][0]["process_expected_max"], 8)
+
     def test_save_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "config_store.json"
@@ -201,6 +217,53 @@ class ConfigRepositoryTest(unittest.TestCase):
         issues = repo.validate(data)
 
         self.assertTrue(any("sensor_inexistente" in issue["message"] for issue in issues))
+
+    def test_validate_reports_invalid_or_incompatible_sensor_ranges(self) -> None:
+        repo = ConfigRepository()
+        data = sample_config()
+        data["sensors"][0].update(
+            {
+                "process_expected_min": -5,
+                "process_expected_max": 12,
+                "instrument_range_min": 0,
+                "instrument_range_max": 10,
+            }
+        )
+
+        issues = repo.validate(data)
+
+        self.assertTrue(any("fora da faixa física" in issue["message"] for issue in issues))
+
+        data["sensors"][0]["instrument_range_min"] = 20
+        data["sensors"][0]["instrument_range_max"] = 10
+        issues = repo.validate(data)
+
+        self.assertTrue(any("faixa física do instrumento inválida" in issue["message"] for issue in issues))
+
+    def test_validate_allows_same_metric_for_distinct_sensors_on_asset(self) -> None:
+        repo = ConfigRepository()
+        data = sample_config()
+        data["sensors"].append(
+            {
+                "sensor_id": "sensor_motor_002",
+                "asset_id": "motor_001",
+                "source_id": "opcua_edge_bridge_01",
+                "metric": "vibration_rms_mm_s",
+            }
+        )
+        data["signal_map"].append(
+            {
+                "asset_id": "motor_001",
+                "source_id": "opcua_edge_bridge_01",
+                "sensor_id": "sensor_motor_002",
+                "metric": "vibration_rms_mm_s",
+                "external_tag": "Motor001.VIB_RMS_NDE",
+            }
+        )
+
+        issues = repo.validate(data)
+
+        self.assertFalse(any("Mapeamento duplicado" in issue["message"] for issue in issues))
 
 
 if __name__ == "__main__":
