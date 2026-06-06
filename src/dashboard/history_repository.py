@@ -170,6 +170,11 @@ def build_history_item(
         "severity_score": severity_score,
     }
 
+    if latest_state.get("registry_validation_status"):
+        item["registry_validation_status"] = latest_state.get("registry_validation_status")
+    if latest_state.get("registry_warnings"):
+        item["registry_warnings"] = latest_state.get("registry_warnings")
+
     return to_dynamodb_safe(item)
 
 

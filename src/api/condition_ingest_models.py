@@ -80,6 +80,8 @@ class ConditionIngestResponse(BaseModel):
     saved_state: bool
     saved_history: bool
     saved_alerts: bool
+    registry_validation_status: str = "ok"
+    registry_warnings: list[dict[str, str]] = Field(default_factory=list)
     details: dict[str, Any] = Field(default_factory=dict)
 
 

@@ -15,6 +15,7 @@ from src.dashboard.history_repository import build_history_item, resolve_status_
 from src.rules_engine.diagnostics import evaluate_payload
 
 from .condition_ingest_models import ConditionIngestPayload, ConditionIngestResponse
+from .condition_registry_validation import validate_condition_payload_against_registry
 
 
 def ensure_region() -> str:
@@ -215,6 +216,12 @@ def process_condition_ingest(
         raw_s3_key=f"condition-ingest/direct/{event_id}.json",
     )
     state_item = _enrich_latest_state(state_item, payload)
+    registry_warnings = validate_condition_payload_against_registry(payload)
+    registry_status = "warning" if registry_warnings else "ok"
+    state_item["registry_validation_status"] = registry_status
+    if registry_warnings:
+        state_item["registry_warnings"] = registry_warnings
+
     alerts = evaluate_payload(payload_dict)
     alert_status = _status_from_alerts(alerts)
     if alert_status:
@@ -249,6 +256,8 @@ def process_condition_ingest(
         saved_state=True,
         saved_history=True,
         saved_alerts=True,
+        registry_validation_status=registry_status,
+        registry_warnings=registry_warnings,
         details={
             "state_table": state_table_name_from_env(),
             "history_table": history_table_name_from_env(),
