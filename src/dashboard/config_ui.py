@@ -88,7 +88,6 @@ def _index(options: list[str], value: Any, default: int = 0) -> int:
 
 
 def _save(repo: ConfigRepository, data: dict[str, Any], message: str) -> None:
-    repo.save(data)
     try:
         from dashboard.auth import audit
     except ImportError:  # pragma: no cover - execução a partir da raiz do repo
@@ -96,8 +95,33 @@ def _save(repo: ConfigRepository, data: dict[str, Any], message: str) -> None:
             from src.dashboard.auth import audit
         except ImportError:
             audit = None
+
+    actor = audit.current_actor() if audit is not None else {}
+    tenant_id = str(data.get("client", {}).get("tenant_id") or actor.get("tenant_id") or "-")
+    plant_id = str(data.get("plant", {}).get("plant_id") or "-")
+    revision = repo.save_versioned(
+        data,
+        change_type="config_ui.save",
+        target=message,
+        reason=message,
+        actor=actor,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+    )
+    if revision is None:
+        repo.save(data)
+
     if audit is not None:
-        audit.record("config.save", target=message)
+        audit.record(
+            "config.save",
+            target=message,
+            tenant_id=tenant_id,
+            details={
+                "plant_id": plant_id,
+                "revision": revision.get("revision") if revision else None,
+                "change_id": revision.get("change_id") if revision else None,
+            },
+        )
     st.success(message)
     st.rerun()
 

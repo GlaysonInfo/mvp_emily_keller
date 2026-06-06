@@ -45,12 +45,13 @@ def set_actor(identity: Any) -> None:
         pass
 
 
-def _current_actor() -> dict[str, Any]:
+def current_actor() -> dict[str, Any]:
+    """Retorna uma cópia do ator associado à sessão atual."""
     if st is not None:
         try:
             actor = st.session_state.get(_ACTOR_KEY)
             if isinstance(actor, dict):
-                return actor
+                return dict(actor)
         except Exception:
             pass
     return {}
@@ -67,7 +68,7 @@ def record(
 ) -> None:
     """Registra um evento de auditoria. Silencioso em qualquer falha."""
     try:
-        actor = actor or _current_actor()
+        actor = actor or current_actor()
         event = {
             "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "event_id": uuid.uuid4().hex[:12],

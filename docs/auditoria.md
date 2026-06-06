@@ -24,6 +24,28 @@ portal de acesso ativo (`AUTH_ENABLED=true`) para identificar o usuário.
 > chame `audit.record("acao", target=..., details=...)` no ponto de gravação —
 > o ator e o tenant são preenchidos automaticamente a partir da sessão.
 
+## Versionamento do cadastro técnico
+
+Alterações em gateways, ativos, sensores, mapeamentos de sinais e parâmetros de
+alerta também geram uma revisão estruturada no `DASHBOARD_CONFIG_STORE`.
+
+Cada revisão contém:
+
+- número sequencial e identificador da alteração;
+- data UTC, usuário e perfil autenticado;
+- tenant, planta, tipo da mudança e alvo técnico;
+- motivo informado pelo responsável;
+- operação e estado anterior/posterior de cada entidade alterada.
+
+O histórico pode ser consultado em **Admin Sentinela > Onboarding > Ativo,
+sensor e gateway > Histórico técnico e auditoria**. O store mantém as 250
+revisões mais recentes. A mesma ação também é enviada para a auditoria global
+como `technical_registry.update` ou `config.save`.
+
+Gravações sem diferença técnica não criam uma nova versão. O arquivo de
+configuração é substituído atomicamente para reduzir o risco de corrupção em
+caso de interrupção durante a escrita.
+
 ## Esquema do evento
 
 ```json

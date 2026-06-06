@@ -1,12 +1,33 @@
 from __future__ import annotations
 
 import json
+import uuid
 from copy import deepcopy
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 
+TECHNICAL_SECTIONS = (
+    "data_sources",
+    "assets",
+    "sensors",
+    "signal_map",
+    "parameters_alerts",
+)
+TECHNICAL_SECTION_KEYS = {
+    "data_sources": ("source_id",),
+    "assets": ("asset_id",),
+    "sensors": ("sensor_id",),
+    "signal_map": ("asset_id", "source_id", "metric", "sensor_id"),
+    "parameters_alerts": ("asset_id", "metric"),
+}
+TECHNICAL_HISTORY_LIMIT = 250
+
+
 DEFAULT_CONFIG: dict[str, Any] = {
+    "configuration_version": 0,
+    "technical_change_history": [],
     "client": {
         "tenant_id": "cliente_demo",
         "company_name": "Cliente Demonstração",
@@ -57,11 +78,68 @@ def normalize_config(data: dict[str, Any] | None) -> dict[str, Any]:
         else:
             normalized[key] = value
 
-    for list_key in ["data_sources", "assets", "sensors", "signal_map", "parameters_alerts"]:
+    for list_key in [
+        "data_sources",
+        "assets",
+        "sensors",
+        "signal_map",
+        "parameters_alerts",
+        "technical_change_history",
+    ]:
         if not isinstance(normalized.get(list_key), list):
             normalized[list_key] = []
 
+    try:
+        normalized["configuration_version"] = max(0, int(normalized.get("configuration_version") or 0))
+    except (TypeError, ValueError):
+        normalized["configuration_version"] = 0
+
     return normalized
+
+
+def _entity_key(item: dict[str, Any], keys: tuple[str, ...]) -> str:
+    return "#".join(str(item.get(key) or "-") for key in keys)
+
+
+def _section_changes(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    section: str,
+) -> list[dict[str, Any]]:
+    keys = TECHNICAL_SECTION_KEYS[section]
+    before_items = {
+        _entity_key(item, keys): deepcopy(item)
+        for item in list(before.get(section) or [])
+        if isinstance(item, dict)
+    }
+    after_items = {
+        _entity_key(item, keys): deepcopy(item)
+        for item in list(after.get(section) or [])
+        if isinstance(item, dict)
+    }
+    changes: list[dict[str, Any]] = []
+
+    for entity_key in sorted(set(before_items) | set(after_items)):
+        old_item = before_items.get(entity_key)
+        new_item = after_items.get(entity_key)
+        if old_item == new_item:
+            continue
+        operation = "updated"
+        if old_item is None:
+            operation = "created"
+        elif new_item is None:
+            operation = "removed"
+        changes.append(
+            {
+                "section": section,
+                "entity_key": entity_key,
+                "operation": operation,
+                "before": old_item,
+                "after": new_item,
+            }
+        )
+
+    return changes
 
 
 class ConfigRepository:
@@ -94,12 +172,65 @@ class ConfigRepository:
         return normalize_config(data)
 
     def save(self, data: dict[str, Any]) -> None:
+        self._write(normalize_config(data))
+
+    def _write(self, normalized: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        normalized = normalize_config(data)
-        self.path.write_text(
+        temporary_path = self.path.with_suffix(f"{self.path.suffix}.tmp")
+        temporary_path.write_text(
             json.dumps(normalized, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        temporary_path.replace(self.path)
+
+    def save_versioned(
+        self,
+        data: dict[str, Any],
+        *,
+        change_type: str,
+        target: str,
+        reason: str,
+        actor: dict[str, Any] | None = None,
+        tenant_id: str | None = None,
+        plant_id: str | None = None,
+        sections: tuple[str, ...] = TECHNICAL_SECTIONS,
+    ) -> dict[str, Any] | None:
+        before = self.load()
+        after = normalize_config(data)
+        clean_reason = str(reason).strip()
+        if not clean_reason:
+            raise ValueError("O motivo da alteração técnica é obrigatório.")
+
+        changes: list[dict[str, Any]] = []
+        for section in sections:
+            if section not in TECHNICAL_SECTION_KEYS:
+                raise ValueError(f"Seção técnica não suportada para versionamento: {section}.")
+            changes.extend(_section_changes(before, after, section))
+
+        if not changes:
+            return None
+
+        actor = dict(actor or {})
+        revision_number = int(before.get("configuration_version") or 0) + 1
+        revision = {
+            "revision": revision_number,
+            "change_id": uuid.uuid4().hex[:12],
+            "changed_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "changed_by": actor.get("email") or "anon",
+            "changed_by_role": actor.get("role"),
+            "tenant_id": tenant_id or actor.get("tenant_id") or "-",
+            "plant_id": plant_id or "-",
+            "change_type": str(change_type),
+            "target": str(target),
+            "reason": clean_reason,
+            "changes": changes,
+        }
+        history = list(before.get("technical_change_history") or [])
+        history.append(revision)
+        after["configuration_version"] = revision_number
+        after["technical_change_history"] = history[-TECHNICAL_HISTORY_LIMIT:]
+        self._write(after)
+        return deepcopy(revision)
 
     def client(self, data: dict[str, Any] | None = None) -> dict[str, Any]:
         return dict((data or self.load()).get("client", {}))
@@ -122,6 +253,9 @@ class ConfigRepository:
 
     def parameters_alerts(self, data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         return list((data or self.load()).get("parameters_alerts", []))
+
+    def technical_change_history(self, data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return list((data or self.load()).get("technical_change_history", []))
 
     def get_data_source(self, source_id: str, data: dict[str, Any] | None = None) -> dict[str, Any] | None:
         return next((source for source in self.data_sources(data) if source.get("source_id") == source_id), None)

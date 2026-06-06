@@ -9,6 +9,15 @@ ALERTS_UI_SOURCE = Path("src/dashboard/alerts_ui.py")
 PLATFORM_ADMIN_SOURCE = Path("src/dashboard/platform_admin_ui.py")
 
 
+def test_config_save_uses_versioned_repository_for_technical_changes() -> None:
+    source = CONFIG_UI_SOURCE.read_text(encoding="utf-8")
+    save_block = source.split("def _save", 1)[1].split("\ndef _replace_by_key", 1)[0]
+
+    assert "repo.save_versioned(" in save_block
+    assert "audit.current_actor()" in save_block
+    assert '"config.save"' in save_block
+
+
 def test_config_assets_table_exposes_navigation_actions() -> None:
     source = CONFIG_UI_SOURCE.read_text(encoding="utf-8")
 

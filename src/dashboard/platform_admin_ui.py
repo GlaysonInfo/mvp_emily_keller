@@ -8,6 +8,7 @@ import streamlit as st
 
 try:
     from dashboard.alerts_repository import create_alerts_repository_from_env
+    from dashboard.audit_events import current_actor_snapshot, record_sensitive_action
     from dashboard.config_repository import ConfigRepository
     from dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
@@ -16,6 +17,7 @@ try:
     from dashboard.platform_admin_repository import PlatformAdminRepository
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alerts_repository import create_alerts_repository_from_env
+    from src.dashboard.audit_events import current_actor_snapshot, record_sensitive_action
     from src.dashboard.config_repository import ConfigRepository
     from src.dashboard.hmi.hmi_sidebar import set_operator_page_for_route
     from src.dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
@@ -877,6 +879,100 @@ def _gateway_inventory_rows(
     return rows
 
 
+def _technical_history_for_context(
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> list[dict[str, Any]]:
+    history = [
+        revision
+        for revision in operational_config.get("technical_change_history") or []
+        if str(revision.get("tenant_id") or "") == tenant_id
+        and str(revision.get("plant_id") or "") == plant_id
+    ]
+    return sorted(history, key=lambda item: int(item.get("revision") or 0), reverse=True)
+
+
+def _technical_history_rows(
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> list[dict[str, Any]]:
+    rows = []
+    for revision in _technical_history_for_context(
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+    ):
+        changes = list(revision.get("changes") or [])
+        sections = sorted({str(change.get("section") or "-") for change in changes})
+        rows.append(
+            {
+                "Versão": revision.get("revision") or "-",
+                "Data UTC": revision.get("changed_at") or "-",
+                "Autor": revision.get("changed_by") or "anon",
+                "Perfil": revision.get("changed_by_role") or "-",
+                "Tipo": revision.get("change_type") or "-",
+                "Alvo": revision.get("target") or "-",
+                "Motivo": revision.get("reason") or "-",
+                "Seções": ", ".join(sections) or "-",
+                "Alterações": len(changes),
+            }
+        )
+    return rows
+
+
+def _render_technical_change_history(
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> None:
+    history = _technical_history_for_context(
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+    )
+    current_version = int(operational_config.get("configuration_version") or 0)
+    with st.expander(
+        f"Histórico técnico e auditoria · versão global atual {current_version}",
+        expanded=False,
+    ):
+        _render_table(
+            _technical_history_rows(
+                operational_config,
+                tenant_id=tenant_id,
+                plant_id=plant_id,
+            ),
+            "Nenhuma alteração técnica versionada para esta planta.",
+        )
+        if not history:
+            return
+
+        revisions_by_id = {
+            str(revision.get("change_id") or revision.get("revision")): revision
+            for revision in history
+        }
+        selected_id = st.selectbox(
+            "Detalhar revisão",
+            options=list(revisions_by_id),
+            format_func=lambda change_id: (
+                f"v{revisions_by_id[change_id].get('revision')} · "
+                f"{revisions_by_id[change_id].get('changed_at')} · "
+                f"{revisions_by_id[change_id].get('target')}"
+            ),
+            key=f"technical_revision_{tenant_id}_{plant_id}",
+        )
+        selected = revisions_by_id[selected_id]
+        st.caption(
+            f"Motivo: {selected.get('reason') or '-'} | "
+            f"Autor: {selected.get('changed_by') or 'anon'}"
+        )
+        st.json(selected.get("changes") or [], expanded=False)
+
+
 def _parse_utc_datetime(value: Any) -> datetime | None:
     text = str(value or "").strip()
     if not text:
@@ -1437,6 +1533,11 @@ def _render_real_asset_sensor_gateway_form(
         _render_table(gateway_rows, "Nenhum gateway cadastrado para esta planta.")
     with st.expander("Sensores cadastrados por ativo", expanded=bool(sensor_rows)):
         _render_table(sensor_rows, "Nenhum sensor técnico cadastrado para esta planta.")
+    _render_technical_change_history(
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+    )
 
     service_labels = _service_options()
     contracted_labels = [
@@ -1537,8 +1638,20 @@ def _render_real_asset_sensor_gateway_form(
             "Observação técnica",
             "Limites iniciais sujeitos a ajuste após baseline da máquina real.",
         )
+        change_reason = st.text_area(
+            "Motivo da alteração",
+            "Cadastro ou ajuste técnico para comissionamento indoor.",
+            help="Obrigatório para manter a rastreabilidade das revisões.",
+        )
 
         if st.form_submit_button("Salvar ativo, sensor e gateway", type="primary"):
+            if not all([source_id.strip(), asset_id.strip(), sensor_id.strip(), metric.strip()]):
+                st.error("Gateway, ativo, sensor e métrica interna são obrigatórios.")
+                return
+            if not change_reason.strip():
+                st.error("Informe o motivo da alteração técnica.")
+                return
+
             config = config_repo.load()
             config["data_sources"] = _replace_by_keys(
                 list(config.get("data_sources") or []),
@@ -1648,8 +1761,43 @@ def _render_real_asset_sensor_gateway_form(
                 ),
                 ["asset_id", "metric"],
             )
-            config_repo.save(config)
-            st.success("Ativo, sensor e gateway salvos para o teste indoor.")
+            target = (
+                f"gateway:{source_id.strip()}|asset:{asset_id.strip()}|"
+                f"sensor:{sensor_id.strip()}|metric:{metric}"
+            )
+            revision = config_repo.save_versioned(
+                config,
+                change_type="technical_registry.upsert",
+                target=target,
+                reason=change_reason.strip(),
+                actor=current_actor_snapshot(),
+                tenant_id=tenant_id,
+                plant_id=plant_id,
+            )
+            if revision is None:
+                st.info("Nenhuma alteração técnica foi detectada; uma nova versão não foi criada.")
+                return
+
+            record_sensitive_action(
+                "technical_registry.update",
+                target=target,
+                tenant_id=tenant_id,
+                details={
+                    "revision": revision.get("revision"),
+                    "change_id": revision.get("change_id"),
+                    "plant_id": plant_id,
+                    "reason": change_reason.strip(),
+                    "changed_sections": sorted(
+                        {
+                            str(change.get("section") or "-")
+                            for change in revision.get("changes") or []
+                        }
+                    ),
+                },
+            )
+            st.success(
+                f"Ativo, sensor e gateway salvos na versão técnica {revision.get('revision')}."
+            )
             st.rerun()
 
 

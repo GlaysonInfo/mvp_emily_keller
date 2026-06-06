@@ -24,6 +24,8 @@ from src.dashboard.platform_admin_ui import (
     _platform_summary,
     _replace_by_keys,
     _sensor_inventory_rows,
+    _technical_history_for_context,
+    _technical_history_rows,
     _technical_parameter_rule_for_metric,
     _tenant_for,
     _tenant_onboarding_rows,
@@ -431,6 +433,60 @@ def test_gateway_and_sensor_inventory_expose_technical_links() -> None:
     assert sensors[0]["Ativo"] == "motor_001"
     assert sensors[0]["Ponto de instalação"] == "Mancal lado acoplado"
     assert sensors[0]["Faixa esperada"] == "0 a 10 mm/s"
+
+
+def test_technical_history_rows_scope_and_summarize_revisions() -> None:
+    config = {
+        "configuration_version": 3,
+        "technical_change_history": [
+            {
+                "revision": 2,
+                "change_id": "change-2",
+                "changed_at": "2026-06-05T12:00:00Z",
+                "changed_by": "admin@sentinela.com.br",
+                "changed_by_role": "admin",
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "change_type": "technical_registry.upsert",
+                "target": "asset:motor_001",
+                "reason": "Ajuste de criticidade.",
+                "changes": [
+                    {
+                        "section": "assets",
+                        "entity_key": "motor_001",
+                        "operation": "updated",
+                    },
+                    {
+                        "section": "parameters_alerts",
+                        "entity_key": "motor_001#vibration_rms_mm_s",
+                        "operation": "updated",
+                    },
+                ],
+            },
+            {
+                "revision": 3,
+                "change_id": "change-3",
+                "tenant_id": "cliente_b",
+                "plant_id": "planta_2",
+                "changes": [],
+            },
+            {
+                "revision": 4,
+                "change_id": "change-without-context",
+                "changes": [],
+            },
+        ],
+    }
+
+    history = _technical_history_for_context(config, tenant_id="cliente_a", plant_id="planta_1")
+    rows = _technical_history_rows(config, tenant_id="cliente_a", plant_id="planta_1")
+
+    assert [revision["revision"] for revision in history] == [2]
+    assert rows[0]["Versão"] == 2
+    assert rows[0]["Autor"] == "admin@sentinela.com.br"
+    assert rows[0]["Motivo"] == "Ajuste de criticidade."
+    assert rows[0]["Seções"] == "assets, parameters_alerts"
+    assert rows[0]["Alterações"] == 2
 
 
 def test_replace_by_keys_upserts_without_duplicating_operational_records() -> None:

@@ -114,6 +114,76 @@ class ConfigRepositoryTest(unittest.TestCase):
             self.assertEqual(saved["client"]["tenant_id"], "cliente_teste")
             self.assertEqual(ConfigRepository(path).load()["client"]["tenant_id"], "cliente_teste")
 
+    def test_save_versioned_records_actor_reason_and_entity_diff(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config_store.json"
+            repo = ConfigRepository(path)
+            baseline = sample_config()
+            repo.save(baseline)
+            updated = repo.load()
+            updated["assets"][0]["criticality"] = "Crítica"
+
+            revision = repo.save_versioned(
+                updated,
+                change_type="technical_registry.upsert",
+                target="asset:motor_001",
+                reason="Ajuste após inspeção de campo.",
+                actor={
+                    "email": "admin@sentinela.com.br",
+                    "role": "admin",
+                    "tenant_id": "cliente_demo",
+                },
+                tenant_id="cliente_demo",
+                plant_id="lab_virtual",
+            )
+
+            self.assertIsNotNone(revision)
+            self.assertEqual(revision["revision"], 1)
+            self.assertEqual(revision["changed_by"], "admin@sentinela.com.br")
+            self.assertEqual(revision["reason"], "Ajuste após inspeção de campo.")
+            self.assertEqual(revision["changes"][0]["section"], "assets")
+            self.assertEqual(revision["changes"][0]["operation"], "updated")
+            self.assertIsNone(revision["changes"][0]["before"].get("criticality"))
+            self.assertEqual(revision["changes"][0]["after"]["criticality"], "Crítica")
+
+            saved = repo.load()
+            self.assertEqual(saved["configuration_version"], 1)
+            self.assertEqual(len(repo.technical_change_history(saved)), 1)
+            self.assertFalse(path.with_suffix(".json.tmp").exists())
+
+    def test_save_versioned_does_not_create_revision_without_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config_store.json"
+            repo = ConfigRepository(path)
+            repo.save(sample_config())
+
+            revision = repo.save_versioned(
+                repo.load(),
+                change_type="technical_registry.upsert",
+                target="asset:motor_001",
+                reason="Reenvio sem mudança.",
+            )
+
+            self.assertIsNone(revision)
+            self.assertEqual(repo.load()["configuration_version"], 0)
+            self.assertEqual(repo.technical_change_history(), [])
+
+    def test_save_versioned_requires_change_reason(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config_store.json"
+            repo = ConfigRepository(path)
+            repo.save(sample_config())
+            updated = repo.load()
+            updated["assets"][0]["status"] = "Inativo"
+
+            with self.assertRaisesRegex(ValueError, "motivo"):
+                repo.save_versioned(
+                    updated,
+                    change_type="technical_registry.upsert",
+                    target="asset:motor_001",
+                    reason=" ",
+                )
+
     def test_validate_reports_missing_source_reference(self) -> None:
         repo = ConfigRepository()
         data = sample_config()
