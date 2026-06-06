@@ -44,6 +44,15 @@ def sample_config() -> dict:
             "enabled": True,
         }
     ]
+    data["sensors"] = [
+        {
+            "sensor_id": "sensor_motor_001",
+            "asset_id": "motor_001",
+            "source_id": "opcua_edge_bridge_01",
+            "metric": "vibration_rms_mm_s",
+        }
+    ]
+    data["signal_map"][0]["sensor_id"] = "sensor_motor_001"
     return data
 
 
@@ -68,12 +77,14 @@ class ConfigRepositoryTest(unittest.TestCase):
         compressor = repo.get_asset("compressor_001", data)
         source = repo.get_data_source("opcua_edge_bridge_01", data)
         motor_signals = repo.signal_map_for_asset("motor_001", data)
+        motor_sensors = repo.sensors_for_asset("motor_001", data)
 
         self.assertIsNotNone(compressor)
         self.assertEqual(compressor["source_id"], "opcua_edge_bridge_01")
         self.assertIsNotNone(source)
         self.assertEqual(source["protocol"], "OPC UA via HTTPS")
         self.assertIn("vibration_rms_mm_s", {signal["metric"] for signal in motor_signals})
+        self.assertEqual(motor_sensors[0]["sensor_id"], "sensor_motor_001")
 
     def test_normalize_accepts_documentation_asset_signal_map_alias(self) -> None:
         data = normalize_config(
@@ -111,6 +122,15 @@ class ConfigRepositoryTest(unittest.TestCase):
         issues = repo.validate(data)
 
         self.assertIn("fonte_inexistente", issues[0]["message"])
+
+    def test_validate_reports_missing_sensor_reference(self) -> None:
+        repo = ConfigRepository()
+        data = sample_config()
+        data["signal_map"][0]["sensor_id"] = "sensor_inexistente"
+
+        issues = repo.validate(data)
+
+        self.assertTrue(any("sensor_inexistente" in issue["message"] for issue in issues))
 
 
 if __name__ == "__main__":

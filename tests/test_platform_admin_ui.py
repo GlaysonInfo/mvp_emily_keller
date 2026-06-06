@@ -11,6 +11,7 @@ from src.dashboard.platform_admin_ui import (
     _assisted_production_summary,
     _asset_inventory_rows,
     _contract_rows,
+    _gateway_inventory_rows,
     _indoor_health_rows,
     _indoor_health_summary,
     _indoor_registry_warning_rows,
@@ -22,6 +23,8 @@ from src.dashboard.platform_admin_ui import (
     _plant_for,
     _platform_summary,
     _replace_by_keys,
+    _sensor_inventory_rows,
+    _technical_parameter_rule_for_metric,
     _tenant_for,
     _tenant_onboarding_rows,
 )
@@ -197,6 +200,7 @@ def test_onboarding_step_rows_combine_admin_store_and_operational_config() -> No
             }
         ],
         "data_sources": [{"source_id": "opcua_01"}],
+        "sensors": [{"sensor_id": "sensor_01", "asset_id": "motor_001", "source_id": "opcua_01"}],
         "signal_map": [{"asset_id": "motor_001", "metric": "vibration_rms_mm_s"}],
         "parameters_alerts": [{"asset_id": "motor_001", "metric": "vibration_rms_mm_s"}],
     }
@@ -212,7 +216,7 @@ def test_onboarding_step_rows_combine_admin_store_and_operational_config() -> No
     assert [row["Status"] for row in rows[:6]] == ["OK", "OK", "OK", "OK", "OK", "OK"]
     assert rows[-2]["Status"] == "Pendente"
     assert rows[-1]["Status"] == "Pendente"
-    assert rows[4]["Evidência"] == "Ativos: 1 | Fontes: 1 | Sinais: 1 | Parâmetros: 1"
+    assert rows[4]["Evidência"] == "Ativos: 1 | Sensores: 1 | Fontes: 1 | Sinais: 1 | Parâmetros: 1"
     assert summary == {"percent": 75, "done": 6, "total": 8, "status": "Em implantação"}
 
 
@@ -342,6 +346,93 @@ def test_parameter_rule_supports_higher_or_lower_is_worse() -> None:
     assert lower["critical_max"] == 35
 
 
+def test_technical_parameter_rule_supports_ideal_range_and_notes() -> None:
+    rule = _technical_parameter_rule_for_metric(
+        asset_id="motor_real_01",
+        metric="current_a",
+        direction="Faixa ideal",
+        normal_limit=0,
+        attention_limit=0,
+        alert_limit=0,
+        critical_limit=0,
+        persistence_min=3,
+        recommended_action="Verificar carga elétrica.",
+        unit="A",
+        technical_note="Faixa inicial baseada na placa do motor.",
+        normal_min=8,
+        normal_max=12,
+        attention_min=7,
+        attention_max=13,
+        alert_min=6,
+        alert_max=14,
+        critical_min=5,
+        critical_max=15,
+    )
+
+    assert rule["rule_mode"] == "ideal_range"
+    assert rule["normal_min"] == 8
+    assert rule["normal_max"] == 12
+    assert rule["critical_min"] == 5
+    assert rule["critical_max"] == 15
+    assert rule["unit"] == "A"
+    assert rule["technical_note"].startswith("Faixa inicial")
+
+
+def test_gateway_and_sensor_inventory_expose_technical_links() -> None:
+    config = {
+        "assets": [
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "asset_id": "motor_001",
+                "source_id": "gateway_01",
+            }
+        ],
+        "data_sources": [
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "source_id": "gateway_01",
+                "source_name": "Gateway 01",
+                "source_type": "IO-Link Master",
+                "manufacturer": "IFM",
+                "model": "AL1350",
+                "protocol": "IO-Link",
+                "endpoint": "http://gateway.local",
+                "status": "Ativa",
+            }
+        ],
+        "sensors": [
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "sensor_id": "sensor_01",
+                "asset_id": "motor_001",
+                "source_id": "gateway_01",
+                "sensor_kind": "Vibração",
+                "manufacturer": "IFM",
+                "model": "VVB001",
+                "installation_point": "Mancal lado acoplado",
+                "measured_quantity": "Vibração RMS",
+                "metric": "vibration_rms_mm_s",
+                "expected_min": 0,
+                "expected_max": 10,
+                "unit": "mm/s",
+                "status": "Ativo",
+            }
+        ],
+    }
+
+    gateways = _gateway_inventory_rows(config, tenant_id="cliente_a", plant_id="planta_1")
+    sensors = _sensor_inventory_rows(config, tenant_id="cliente_a", plant_id="planta_1")
+
+    assert gateways[0]["Ativos vinculados"] == "motor_001"
+    assert gateways[0]["Fabricante / modelo"] == "IFM / AL1350"
+    assert sensors[0]["Ativo"] == "motor_001"
+    assert sensors[0]["Ponto de instalação"] == "Mancal lado acoplado"
+    assert sensors[0]["Faixa esperada"] == "0 a 10 mm/s"
+
+
 def test_replace_by_keys_upserts_without_duplicating_operational_records() -> None:
     items = [
         {"asset_id": "motor_001", "metric": "temperature_c", "value": 1},
@@ -369,6 +460,7 @@ def test_onboarding_step_rows_require_assisted_production_before_release() -> No
     operational_config = {
         "assets": [{"tenant_id": "cliente_a", "plant_id": "planta_1", "asset_id": "motor_001"}],
         "data_sources": [{"source_id": "gateway_01"}],
+        "sensors": [{"sensor_id": "sensor_01", "asset_id": "motor_001", "source_id": "gateway_01"}],
         "signal_map": [{"asset_id": "motor_001", "metric": "vibration_rms_mm_s"}],
         "parameters_alerts": [{"asset_id": "motor_001", "metric": "vibration_rms_mm_s"}],
     }

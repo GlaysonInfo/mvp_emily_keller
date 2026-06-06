@@ -33,6 +33,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "data_sources": [],
     "assets": [],
+    "sensors": [],
     "signal_map": [],
     "parameters_alerts": [],
 }
@@ -56,7 +57,7 @@ def normalize_config(data: dict[str, Any] | None) -> dict[str, Any]:
         else:
             normalized[key] = value
 
-    for list_key in ["data_sources", "assets", "signal_map", "parameters_alerts"]:
+    for list_key in ["data_sources", "assets", "sensors", "signal_map", "parameters_alerts"]:
         if not isinstance(normalized.get(list_key), list):
             normalized[list_key] = []
 
@@ -112,6 +113,9 @@ class ConfigRepository:
     def assets(self, data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         return list((data or self.load()).get("assets", []))
 
+    def sensors(self, data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return list((data or self.load()).get("sensors", []))
+
     def signal_map(self, data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         loaded = data or self.load()
         return list(loaded.get("signal_map") or loaded.get("asset_signal_map") or [])
@@ -127,6 +131,9 @@ class ConfigRepository:
 
     def signal_map_for_asset(self, asset_id: str, data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         return [item for item in self.signal_map(data) if item.get("asset_id") == asset_id]
+
+    def sensors_for_asset(self, asset_id: str, data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return [item for item in self.sensors(data) if item.get("asset_id") == asset_id]
 
     def default_asset_id(self, data: dict[str, Any] | None = None) -> str:
         assets = self.assets(data)
@@ -147,6 +154,7 @@ class ConfigRepository:
         issues: list[dict[str, str]] = []
         source_ids = {str(source.get("source_id")) for source in self.data_sources(loaded) if source.get("source_id")}
         asset_ids = {str(asset.get("asset_id")) for asset in self.assets(loaded) if asset.get("asset_id")}
+        sensor_ids = {str(sensor.get("sensor_id")) for sensor in self.sensors(loaded) if sensor.get("sensor_id")}
 
         if not loaded.get("client", {}).get("tenant_id"):
             issues.append({"severity": "error", "message": "Cliente sem tenant_id configurado."})
@@ -168,10 +176,32 @@ class ConfigRepository:
 
         seen_signal_keys: set[tuple[str, str, str]] = set()
 
+        for sensor in self.sensors(loaded):
+            sensor_id = str(sensor.get("sensor_id") or "-")
+            asset_id = str(sensor.get("asset_id") or "")
+            source_id = str(sensor.get("source_id") or "")
+
+            if asset_id and asset_id not in asset_ids:
+                issues.append(
+                    {
+                        "severity": "error",
+                        "message": f"Sensor {sensor_id} referencia ativo inexistente: {asset_id}.",
+                    }
+                )
+
+            if source_id and source_id not in source_ids:
+                issues.append(
+                    {
+                        "severity": "error",
+                        "message": f"Sensor {sensor_id} referencia fonte inexistente: {source_id}.",
+                    }
+                )
+
         for signal in self.signal_map(loaded):
             asset_id = str(signal.get("asset_id") or "")
             source_id = str(signal.get("source_id") or "")
             metric = str(signal.get("metric") or signal.get("internal_metric") or "")
+            sensor_id = str(signal.get("sensor_id") or "")
 
             if asset_id and asset_id not in asset_ids:
                 issues.append(
@@ -186,6 +216,14 @@ class ConfigRepository:
                     {
                         "severity": "error",
                         "message": f"Mapeamento de sinal referencia fonte inexistente: {source_id}.",
+                    }
+                )
+
+            if sensor_id and sensor_id not in sensor_ids:
+                issues.append(
+                    {
+                        "severity": "error",
+                        "message": f"Mapeamento de sinal referencia sensor inexistente: {sensor_id}.",
                     }
                 )
 

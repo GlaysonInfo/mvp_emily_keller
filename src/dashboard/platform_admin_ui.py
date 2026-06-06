@@ -470,6 +470,83 @@ def _parameter_rule_for_metric(
     return base
 
 
+def _technical_parameter_rule_for_metric(
+    *,
+    asset_id: str,
+    metric: str,
+    direction: str,
+    normal_limit: float,
+    attention_limit: float,
+    alert_limit: float,
+    critical_limit: float,
+    persistence_min: int,
+    recommended_action: str,
+    unit: str = "",
+    technical_note: str = "",
+    normal_min: float = 0,
+    normal_max: float = 0,
+    attention_min: float = 0,
+    attention_max: float = 0,
+    alert_min: float = 0,
+    alert_max: float = 0,
+    critical_min: float = 0,
+    critical_max: float = 0,
+) -> dict[str, Any]:
+    rule = {
+        "asset_id": asset_id,
+        "metric": metric,
+        "normal_max": 0,
+        "attention_min": 0,
+        "alert_min": 0,
+        "critical_min": 0,
+        "normal_min": 0,
+        "attention_max": 0,
+        "alert_max": 0,
+        "critical_max": 0,
+        "persistence_min": persistence_min,
+        "enabled": True,
+        "recommended_action": recommended_action,
+    }
+    if direction == "Faixa ideal":
+        rule.update(
+            {
+                "rule_mode": "ideal_range",
+                "normal_min": normal_min,
+                "normal_max": normal_max,
+                "attention_min": attention_min,
+                "attention_max": attention_max,
+                "alert_min": alert_min,
+                "alert_max": alert_max,
+                "critical_min": critical_min,
+                "critical_max": critical_max,
+            }
+        )
+    elif direction == "Menor é pior":
+        rule.update(
+            {
+                "rule_mode": "lower_is_worse",
+                "normal_min": normal_limit,
+                "attention_max": attention_limit,
+                "alert_max": alert_limit,
+                "critical_max": critical_limit,
+            }
+        )
+    else:
+        rule.update(
+            {
+                "rule_mode": "higher_is_worse",
+                "normal_max": normal_limit,
+                "attention_min": attention_limit,
+                "alert_min": alert_limit,
+                "critical_min": critical_limit,
+            }
+        )
+
+    rule["unit"] = unit
+    rule["technical_note"] = technical_note
+    return rule
+
+
 def _operational_assets_for(
     data: dict[str, Any],
     operational_config: dict[str, Any],
@@ -503,6 +580,7 @@ def _onboarding_step_rows(
     roles = {str(item.get("role") or "").strip() for item in users}
     assets = _operational_assets_for(data, operational_config, tenant_id=tenant_id, plant_id=plant_id)
     source_count = len(operational_config.get("data_sources") or [])
+    sensor_count = len(operational_config.get("sensors") or [])
     signal_count = len(operational_config.get("signal_map") or operational_config.get("asset_signal_map") or [])
     parameter_count = len(operational_config.get("parameters_alerts") or [])
     manual_steps = dict(run.get("manual_steps") or {})
@@ -515,7 +593,7 @@ def _onboarding_step_rows(
         "plant": bool(plant and str(plant.get("status") or "").strip()),
         "contract": bool(contract and services),
         "users": {"cliente_admin", "tecnico", "operador"}.issubset(roles),
-        "assets_sensors": bool(assets and source_count and signal_count and parameter_count),
+        "assets_sensors": bool(assets and source_count and sensor_count and signal_count and parameter_count),
         "commissioning": bool(manual_steps.get("commissioning")),
         "assisted_production": bool(assisted_total and assisted_done == assisted_total),
         "release": bool(manual_steps.get("release")),
@@ -526,7 +604,8 @@ def _onboarding_step_rows(
         "contract": ", ".join(SERVICE_DISPLAY_NAMES.get(service, service) for service in sorted(services)) or "Sem módulos",
         "users": f"Perfis: {', '.join(sorted(role for role in roles if role)) or '-'}",
         "assets_sensors": (
-            f"Ativos: {len(assets)} | Fontes: {source_count} | Sinais: {signal_count} | Parâmetros: {parameter_count}"
+            f"Ativos: {len(assets)} | Sensores: {sensor_count} | Fontes: {source_count} | "
+            f"Sinais: {signal_count} | Parâmetros: {parameter_count}"
         ),
         "commissioning": "Aceite técnico registrado" if manual_steps.get("commissioning") else "Aguardando validação",
         "assisted_production": f"Itens validados: {assisted_done}/{assisted_total}",
@@ -710,6 +789,89 @@ def _data_source_rows(operational_config: dict[str, Any]) -> list[dict[str, Any]
                 "Tipo": source.get("source_type"),
                 "Protocolo": source.get("protocol"),
                 "Status": source.get("status"),
+            }
+        )
+    return rows
+
+
+def _sensor_inventory_rows(
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> list[dict[str, Any]]:
+    asset_ids = {
+        str(asset.get("asset_id") or "")
+        for asset in operational_config.get("assets") or []
+        if str(asset.get("tenant_id") or tenant_id) == tenant_id
+        and str(asset.get("plant_id") or plant_id) == plant_id
+    }
+    rows = []
+    for sensor in operational_config.get("sensors") or []:
+        asset_id = str(sensor.get("asset_id") or "")
+        if asset_ids and asset_id not in asset_ids:
+            continue
+        rows.append(
+            {
+                "Sensor": sensor.get("sensor_id") or "-",
+                "Ativo": asset_id or "-",
+                "Tipo": sensor.get("sensor_kind") or "-",
+                "Fabricante / modelo": " / ".join(
+                    value
+                    for value in [str(sensor.get("manufacturer") or ""), str(sensor.get("model") or "")]
+                    if value
+                )
+                or "-",
+                "Ponto de instalação": sensor.get("installation_point") or "-",
+                "Grandeza": sensor.get("measured_quantity") or sensor.get("metric") or "-",
+                "Métrica": sensor.get("metric") or "-",
+                "Faixa esperada": f"{sensor.get('expected_min', '-')} a {sensor.get('expected_max', '-')} {sensor.get('unit', '')}".strip(),
+                "Fonte": sensor.get("source_id") or "-",
+                "Status": sensor.get("status") or "Aguardando comissionamento",
+            }
+        )
+    return rows
+
+
+def _gateway_inventory_rows(
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> list[dict[str, Any]]:
+    assets = [
+        asset
+        for asset in operational_config.get("assets") or []
+        if str(asset.get("tenant_id") or tenant_id) == tenant_id
+        and str(asset.get("plant_id") or plant_id) == plant_id
+    ]
+    rows = []
+    for source in operational_config.get("data_sources") or []:
+        source_tenant = str(source.get("tenant_id") or tenant_id)
+        source_plant = str(source.get("plant_id") or plant_id)
+        if source_tenant != tenant_id or source_plant != plant_id:
+            continue
+        source_id = str(source.get("source_id") or "")
+        linked_assets = [
+            str(asset.get("asset_id") or "")
+            for asset in assets
+            if str(asset.get("source_id") or "") == source_id
+        ]
+        rows.append(
+            {
+                "Gateway": source_id or "-",
+                "Nome": source.get("source_name") or "-",
+                "Tipo": source.get("source_type") or "-",
+                "Fabricante / modelo": " / ".join(
+                    value
+                    for value in [str(source.get("manufacturer") or ""), str(source.get("model") or "")]
+                    if value
+                )
+                or "-",
+                "Protocolo": source.get("protocol") or "-",
+                "Endpoint": source.get("endpoint") or "-",
+                "Ativos vinculados": ", ".join(linked_assets) or "-",
+                "Status": source.get("status") or "-",
             }
         )
     return rows
@@ -1258,6 +1420,7 @@ def _render_real_asset_sensor_gateway_form(
     *,
     tenant_id: str,
     plant_id: str,
+    contract_services: list[str] | None = None,
 ) -> None:
     st.markdown("#### Ativo, sensor e gateway")
     st.caption(
@@ -1268,17 +1431,38 @@ def _render_real_asset_sensor_gateway_form(
     if inventory:
         _render_inventory_action_table(inventory)
 
+    gateway_rows = _gateway_inventory_rows(operational_config, tenant_id=tenant_id, plant_id=plant_id)
+    sensor_rows = _sensor_inventory_rows(operational_config, tenant_id=tenant_id, plant_id=plant_id)
+    with st.expander("Gateways e ativos vinculados", expanded=bool(gateway_rows)):
+        _render_table(gateway_rows, "Nenhum gateway cadastrado para esta planta.")
+    with st.expander("Sensores cadastrados por ativo", expanded=bool(sensor_rows)):
+        _render_table(sensor_rows, "Nenhum sensor técnico cadastrado para esta planta.")
+
+    service_labels = _service_options()
+    contracted_labels = [
+        service_labels.get(service, service)
+        for service in (contract_services or [])
+    ]
+    st.caption(
+        "Cobertura contratada da planta: "
+        + (", ".join(contracted_labels) if contracted_labels else "não definida")
+        + ". O contrato governa os módulos disponíveis para todos os ativos da planta."
+    )
+
     with st.form("platform_real_asset_sensor_gateway_form"):
         st.markdown("**Gateway / fonte de dados**")
         g1, g2 = st.columns(2)
         with g1:
             source_id = st.text_input("Identificador lógico do gateway", "gateway_indoor_01")
             source_name = st.text_input("Nome do gateway", "Gateway Indoor 01")
-            source_type = st.text_input("Tipo/fabricante do gateway", "Gateway multifabricante")
+            source_type = st.text_input("Tipo do gateway", "Gateway Edge")
+            source_manufacturer = st.text_input("Fabricante do gateway", "")
+            source_model = st.text_input("Modelo do gateway", "")
         with g2:
             protocol = st.selectbox("Protocolo", GATEWAY_PROTOCOL_OPTIONS)
             endpoint = st.text_input("Endpoint/fonte", "https://sentinelaindustrial.com.br/condition/ingest")
             credential_ref = st.text_input("Referência do token/credencial", "env:CONDITION_INGEST_TOKEN")
+            source_serial_number = st.text_input("Número de série do gateway", "")
             source_status = st.selectbox("Status do gateway", GATEWAY_STATUS_OPTIONS)
 
         st.markdown("**Ativo real**")
@@ -1295,24 +1479,63 @@ def _render_real_asset_sensor_gateway_form(
             serial_number = st.text_input("Número de série", "")
             asset_status = st.selectbox("Status do ativo", ["Ativo", "Aguardando comissionamento", "Inativo"])
 
-        st.markdown("**Sensor, grandeza e limite inicial**")
+        st.markdown("**Sensor e ponto de medição**")
         metric_options = _metric_options_for_asset_type(asset_type)
-        s1, s2 = st.columns(2)
+        s1, s2, s3 = st.columns(3)
         with s1:
+            sensor_id = st.text_input("Identificador do sensor", "sensor_real_01")
             sensor_kind = st.selectbox("Tipo de sensor", SENSOR_KIND_OPTIONS)
+            sensor_manufacturer = st.text_input("Fabricante do sensor", "")
+            sensor_model = st.text_input("Modelo do sensor", "")
+        with s2:
+            sensor_serial_number = st.text_input("Número de série do sensor", "")
+            installation_point = st.text_input("Ponto de instalação", "Mancal lado acoplado")
+            measured_quantity = st.text_input("Grandeza medida", "Vibração RMS")
             metric = st.selectbox("Métrica interna esperada", metric_options)
+        with s3:
             external_tag = st.text_input("Tag externa / canal", f"{asset_id}.{metric}")
             unit = st.text_input("Unidade", UNIT_BY_METRIC.get(metric, ""))
-        with s2:
-            direction = st.selectbox("Regra", ["Maior é pior", "Menor é pior"])
-            normal_limit = st.number_input("Limite normal", value=2.8)
-            attention_limit = st.number_input("Limite atenção", value=2.8)
-            alert_limit = st.number_input("Limite alerta", value=4.5)
-            critical_limit = st.number_input("Limite crítico", value=7.1)
-            persistence_min = st.number_input("Persistência mínima (min)", min_value=1, value=3, step=1)
+            expected_min = st.number_input("Faixa esperada mínima", value=0.0)
+            expected_max = st.number_input("Faixa esperada máxima", value=10.0)
+            sensor_status = st.selectbox(
+                "Status do sensor",
+                ["Aguardando comissionamento", "Ativo", "Falha", "Inativo"],
+            )
+
+        st.markdown("**Limites e regra inicial**")
+        direction = st.selectbox("Regra", ["Maior é pior", "Menor é pior", "Faixa ideal"])
+        normal_min = normal_max = attention_min = attention_max = 0.0
+        alert_min = alert_max = critical_min = critical_max = 0.0
+        if direction == "Faixa ideal":
+            r1, r2 = st.columns(2)
+            with r1:
+                normal_min = st.number_input("Normal mínimo", value=0.0)
+                attention_min = st.number_input("Atenção inferior", value=0.0)
+                alert_min = st.number_input("Alerta inferior", value=0.0)
+                critical_min = st.number_input("Crítico inferior", value=0.0)
+            with r2:
+                normal_max = st.number_input("Normal máximo", value=10.0)
+                attention_max = st.number_input("Atenção superior", value=11.0)
+                alert_max = st.number_input("Alerta superior", value=12.0)
+                critical_max = st.number_input("Crítico superior", value=13.0)
+            normal_limit = attention_limit = alert_limit = critical_limit = 0.0
+        else:
+            r1, r2 = st.columns(2)
+            with r1:
+                normal_limit = st.number_input("Limite normal", value=2.8)
+                attention_limit = st.number_input("Limite atenção", value=2.8)
+            with r2:
+                alert_limit = st.number_input("Limite alerta", value=4.5)
+                critical_limit = st.number_input("Limite crítico", value=7.1)
+
+        persistence_min = st.number_input("Persistência mínima (min)", min_value=1, value=3, step=1)
         recommended_action = st.text_area(
             "Ação recomendada inicial",
             "Inspecionar instalação, sensor, acoplamento, rolamentos e condição operacional.",
+        )
+        technical_note = st.text_area(
+            "Observação técnica",
+            "Limites iniciais sujeitos a ajuste após baseline da máquina real.",
         )
 
         if st.form_submit_button("Salvar ativo, sensor e gateway", type="primary"):
@@ -1325,6 +1548,9 @@ def _render_real_asset_sensor_gateway_form(
                     "source_id": source_id.strip(),
                     "source_name": source_name.strip(),
                     "source_type": source_type.strip(),
+                    "manufacturer": source_manufacturer.strip(),
+                    "model": source_model.strip(),
+                    "serial_number": source_serial_number.strip(),
                     "protocol": protocol,
                     "endpoint": endpoint.strip(),
                     "polling_interval_sec": 5,
@@ -1354,25 +1580,52 @@ def _render_real_asset_sensor_gateway_form(
                 },
                 ["asset_id"],
             )
+            config["sensors"] = _replace_by_keys(
+                list(config.get("sensors") or []),
+                {
+                    "tenant_id": tenant_id,
+                    "plant_id": plant_id,
+                    "sensor_id": sensor_id.strip(),
+                    "asset_id": asset_id.strip(),
+                    "source_id": source_id.strip(),
+                    "sensor_kind": sensor_kind,
+                    "manufacturer": sensor_manufacturer.strip(),
+                    "model": sensor_model.strip(),
+                    "serial_number": sensor_serial_number.strip(),
+                    "installation_point": installation_point.strip(),
+                    "measured_quantity": measured_quantity.strip(),
+                    "metric": metric,
+                    "unit": unit.strip(),
+                    "expected_min": float(expected_min),
+                    "expected_max": float(expected_max),
+                    "external_tag": external_tag.strip(),
+                    "status": sensor_status,
+                    "commissioning_mode": "indoor_assisted",
+                },
+                ["sensor_id"],
+            )
             config["signal_map"] = _replace_by_keys(
                 list(config.get("signal_map") or []),
                 {
                     "asset_id": asset_id.strip(),
                     "source_id": source_id.strip(),
+                    "sensor_id": sensor_id.strip(),
                     "metric": metric,
                     "external_tag": external_tag.strip(),
                     "unit": unit.strip(),
+                    "expected_min": float(expected_min),
+                    "expected_max": float(expected_max),
                     "scale": 1.0,
                     "offset": 0.0,
                     "enabled": True,
                     "sensor_kind": sensor_kind,
                     "commissioning_mode": "indoor_assisted",
                 },
-                ["asset_id", "source_id", "metric"],
+                ["asset_id", "source_id", "metric", "sensor_id"],
             )
             config["parameters_alerts"] = _replace_by_keys(
                 list(config.get("parameters_alerts") or []),
-                _parameter_rule_for_metric(
+                _technical_parameter_rule_for_metric(
                     asset_id=asset_id.strip(),
                     metric=metric,
                     direction=direction,
@@ -1382,6 +1635,16 @@ def _render_real_asset_sensor_gateway_form(
                     critical_limit=float(critical_limit),
                     persistence_min=int(persistence_min),
                     recommended_action=recommended_action.strip(),
+                    unit=unit.strip(),
+                    technical_note=technical_note.strip(),
+                    normal_min=float(normal_min),
+                    normal_max=float(normal_max),
+                    attention_min=float(attention_min),
+                    attention_max=float(attention_max),
+                    alert_min=float(alert_min),
+                    alert_max=float(alert_max),
+                    critical_min=float(critical_min),
+                    critical_max=float(critical_max),
                 ),
                 ["asset_id", "metric"],
             )
@@ -1518,7 +1781,14 @@ def _render_onboarding_tab(
     _render_table(checklist_rows, "Nenhuma etapa de onboarding configurada.")
 
     _render_onboarding_registration_forms(repo, data, tenant_id=tenant_id, plant_id=plant_id)
-    _render_real_asset_sensor_gateway_form(config_repo, operational_config, tenant_id=tenant_id, plant_id=plant_id)
+    contract = _contract_for(data, tenant_id, plant_id) or {}
+    _render_real_asset_sensor_gateway_form(
+        config_repo,
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+        contract_services=list(contract.get("services") or []),
+    )
     _render_assisted_production_checklist(repo, run, tenant_id=tenant_id, plant_id=plant_id)
 
     st.markdown("#### Registro de comissionamento")
