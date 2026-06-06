@@ -14,6 +14,11 @@ try:
     from dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
     from dashboard.multiasset_repository import create_multiasset_repository_from_env
     from dashboard.navigation import render_navigation_icon
+    from dashboard.onboarding_policy import (
+        ASSISTED_PRODUCTION_CHECKS as POLICY_ASSISTED_PRODUCTION_CHECKS,
+        onboarding_release_ready,
+        release_blockers,
+    )
     from dashboard.platform_admin_repository import PlatformAdminRepository
 except ImportError:  # pragma: no cover - supports streamlit run from repository root.
     from src.dashboard.alerts_repository import create_alerts_repository_from_env
@@ -23,6 +28,11 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
     from src.dashboard.module_registry import ADMIN_DOMAINS, SERVICE_BLUEPRINTS, has_operational_intelligence
     from src.dashboard.multiasset_repository import create_multiasset_repository_from_env
     from src.dashboard.navigation import render_navigation_icon
+    from src.dashboard.onboarding_policy import (
+        ASSISTED_PRODUCTION_CHECKS as POLICY_ASSISTED_PRODUCTION_CHECKS,
+        onboarding_release_ready,
+        release_blockers,
+    )
     from src.dashboard.platform_admin_repository import PlatformAdminRepository
 
 
@@ -217,68 +227,7 @@ ONBOARDING_STEP_DEFINITIONS = [
     },
 ]
 
-ASSISTED_PRODUCTION_CHECKS = [
-    {
-        "id": "real_machine_identified",
-        "item": "Máquina real identificada",
-        "criterion": "Ativo físico, tag/local e criticidade confirmados.",
-        "owner": "Sentinela + Cliente",
-    },
-    {
-        "id": "real_sensors_installed",
-        "item": "Sensores reais instalados",
-        "criterion": "Sensores, grandezas e pontos de medição conferidos em campo.",
-        "owner": "Técnico",
-    },
-    {
-        "id": "gateway_registered",
-        "item": "Gateway cadastrado",
-        "criterion": "Fonte/gateway vinculada à planta e ao ativo correto.",
-        "owner": "Sentinela",
-    },
-    {
-        "id": "https_endpoint_validated",
-        "item": "Endpoint HTTPS validado",
-        "criterion": "Gateway alcança o endpoint de ingestão por HTTPS.",
-        "owner": "Técnico",
-    },
-    {
-        "id": "token_configured",
-        "item": "Token configurado",
-        "criterion": "Token de ingestão configurado no gateway sem exposição em tela ou arquivo versionado.",
-        "owner": "Sentinela",
-    },
-    {
-        "id": "first_payload_received",
-        "item": "Primeiro payload recebido",
-        "criterion": "Payload real gravado com tenant, planta, ativo e timestamp corretos.",
-        "owner": "Sentinela",
-    },
-    {
-        "id": "last_communication_visible",
-        "item": "Última comunicação visível",
-        "criterion": "Dashboard mostra comunicação recente do ativo real.",
-        "owner": "Sentinela",
-    },
-    {
-        "id": "test_alert_generated",
-        "item": "Alerta de teste gerado",
-        "criterion": "Cenário controlado gera alerta esperado sem afetar operação real.",
-        "owner": "Sentinela + Técnico",
-    },
-    {
-        "id": "test_alert_acknowledged",
-        "item": "Alerta reconhecido/tratado",
-        "criterion": "Fluxo de ciência e tratamento foi executado por usuário autorizado.",
-        "owner": "Operação",
-    },
-    {
-        "id": "stop_criteria_defined",
-        "item": "Critério de parada definido",
-        "criterion": "Condições de pausa do teste, contato responsável e fallback documentados.",
-        "owner": "Sentinela + Cliente",
-    },
-]
+ASSISTED_PRODUCTION_CHECKS = POLICY_ASSISTED_PRODUCTION_CHECKS
 
 SUPPORT_SCOPES = [
     {
@@ -636,6 +585,7 @@ def _parameter_rule_for_metric(
         "alert_max": 0,
         "critical_max": 0,
         "persistence_min": persistence_min,
+        "recovery_persistence_min": persistence_min,
         "enabled": True,
         "recommended_action": recommended_action,
     }
@@ -694,6 +644,7 @@ def _technical_parameter_rule_for_metric(
         "alert_max": 0,
         "critical_max": 0,
         "persistence_min": persistence_min,
+        "recovery_persistence_min": persistence_min,
         "enabled": True,
         "recommended_action": recommended_action,
     }
@@ -2251,7 +2202,7 @@ def _render_real_asset_sensor_gateway_form(
                 )
 
         persistence_min = st.number_input(
-            "Persistência mínima (min)",
+            "Persistência de ativação/recuperação (min)",
             min_value=1,
             value=int(parameter_defaults.get("persistence_min") or 3),
             step=1,
@@ -2597,10 +2548,19 @@ def _render_onboarding_tab(
             "Ingestão, baseline e alertas validados",
             value=bool(manual_steps.get("commissioning")),
         )
+        proposed_run = {
+            **run,
+            "manual_steps": {**manual_steps, "commissioning": commissioning, "release": False},
+        }
+        release_ready = onboarding_release_ready(proposed_run)
         release = st.checkbox(
             "Cliente liberado para operação assistida/produção",
-            value=bool(manual_steps.get("release")),
+            value=bool(manual_steps.get("release")) if release_ready else False,
+            disabled=not release_ready,
         )
+        if not release_ready:
+            st.caption("Liberação bloqueada: " + " ".join(release_blockers(proposed_run)))
+            status_options = [option for option in status_options if option != "Liberado"]
         status = st.selectbox(
             "Status do onboarding",
             status_options,
@@ -2609,22 +2569,26 @@ def _render_onboarding_tab(
         notes = st.text_area("Notas internas", str(run.get("notes") or ""))
 
         if st.form_submit_button("Salvar onboarding", type="primary"):
-            repo.upsert_onboarding_run(
-                {
-                    "tenant_id": tenant_id,
-                    "plant_id": plant_id,
-                    "status": status,
-                    "manual_steps": {
-                        "commissioning": commissioning,
-                        "release": release,
-                    },
-                    "assisted_checks": dict(run.get("assisted_checks") or {}),
-                    "assisted_context": dict(run.get("assisted_context") or {}),
-                    "notes": notes,
-                }
-            )
-            st.success("Onboarding salvo.")
-            st.rerun()
+            try:
+                repo.upsert_onboarding_run(
+                    {
+                        "tenant_id": tenant_id,
+                        "plant_id": plant_id,
+                        "status": status,
+                        "manual_steps": {
+                            "commissioning": commissioning,
+                            "release": release,
+                        },
+                        "assisted_checks": dict(run.get("assisted_checks") or {}),
+                        "assisted_context": dict(run.get("assisted_context") or {}),
+                        "notes": notes,
+                    }
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                st.success("Onboarding salvo.")
+                st.rerun()
 
     st.markdown("#### Próxima persistência para produção")
     _render_table(

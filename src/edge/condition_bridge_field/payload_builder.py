@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import uuid
 from typing import Any
 
 from src.edge.condition_bridge_field.gateway_client import get_nested_value
@@ -45,6 +46,7 @@ def build_condition_payload(config: dict[str, Any], raw: dict[str, Any], asset: 
         raise ValueError(f"No metrics found for asset {asset.get('asset_id')}.")
 
     payload = {
+        "event_id": uuid.uuid4().hex,
         "tenant_id": client.get("tenant_id"),
         "plant_id": plant.get("plant_id"),
         "asset_id": asset.get("asset_id"),

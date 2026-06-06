@@ -33,7 +33,7 @@ No arquivo `config/field_condition_config.json`, ajuste:
 | Cliente | `client.tenant_id` |
 | Planta | `plant.plant_id` |
 | Gateway | `gateway.source_id`, `gateway.protocol`, `gateway.endpoint` |
-| API | `ingest_api.endpoint`, `ingest_api.token_env` |
+| API | `ingest_api.endpoint`, `ingest_api.token_env`, retry e fila persistente |
 | Ativos | `assets[].asset_id`, `asset_name`, `area`, `criticality` |
 | Sinais | `assets[].signals[].metric`, `tag`, `unit` |
 
@@ -75,6 +75,7 @@ Cada ativo habilitado gera um payload no formato aceito pelo endpoint:
 
 ```json
 {
+  "event_id": "identificador-unico-da-amostra",
   "tenant_id": "cliente_demo",
   "plant_id": "lab_virtual",
   "asset_id": "motor_001",
@@ -86,3 +87,9 @@ Cada ativo habilitado gera um payload no formato aceito pelo endpoint:
   ]
 }
 ```
+
+Antes do envio, cada payload é salvo em `ingest_api.spool_dir`. Em caso de
+indisponibilidade da rede ou da API, a bridge conserva a amostra e repete o
+envio com backoff exponencial. O arquivo só é removido depois da confirmação
+da API. O `event_id` permite que uma retransmissão seja reconhecida sem gerar
+novo estado, histórico ou alerta.

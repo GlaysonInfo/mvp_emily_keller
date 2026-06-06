@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.edge.condition_bridge_field.config_store import load_condition_field_config
+from src.edge.condition_bridge_field.delivery_queue import ConditionDeliveryQueue
 from src.edge.condition_bridge_field.gateway_client import ConditionGatewayClient
 from src.edge.condition_bridge_field.payload_builder import build_condition_payloads
 from src.edge.condition_bridge_field.sender import ConditionIngestSender
@@ -33,6 +34,7 @@ def main() -> None:
 
     client = ConditionGatewayClient(config)
     sender = ConditionIngestSender(config)
+    queue = ConditionDeliveryQueue(config.get("ingest_api", {}).get("spool_dir"))
     poll_interval_ms = int(config.get("gateway", {}).get("poll_interval_ms", 1000))
     sleep_sec = poll_interval_ms / 1000
     max_iterations = _max_iterations()
@@ -47,12 +49,17 @@ def main() -> None:
             raw = client.read_raw()
             payloads = build_condition_payloads(config, raw)
             for payload in payloads:
-                result = sender.send(payload)
+                queue.enqueue(payload)
+
+            for queued_item in queue.pending():
+                queued_payload = queue.load(queued_item)
+                result = sender.send_with_retry(queued_payload)
                 print(
                     f"Sent {result.get('asset_id')} | "
                     f"status={result.get('status_label')} | "
                     f"metrics={result.get('metrics_received')}"
                 )
+                queue.acknowledge(queued_item)
         except Exception as exc:
             print(f"Condition bridge error: {type(exc).__name__}: {exc}")
 

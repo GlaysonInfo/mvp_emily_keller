@@ -35,6 +35,7 @@ Authorization: Bearer <CONDITION_INGEST_TOKEN>
 
 ```json
 {
+  "event_id": "7e15e2eb9fd74e4f9ae6bf3d1bb7db71",
   "tenant_id": "cliente_demo",
   "plant_id": "lab_virtual",
   "asset_id": "motor_001",
@@ -58,6 +59,25 @@ Authorization: Bearer <CONDITION_INGEST_TOKEN>
   }
 }
 ```
+
+## Idempotência e ordenação
+
+`event_id` identifica uma amostra durante todo o ciclo de entrega. A bridge
+deve conservar o mesmo valor ao repetir um envio. Quando o endpoint recebe
+novamente o evento já processado, responde com `ok=true` e `duplicate=true`,
+sem regravar estado, histórico ou alertas.
+
+Telemetria com timestamp anterior ao último estado aceito do ativo também não
+substitui o estado atual. Nesse caso, a resposta contém `stale=true`.
+
+## Regras e recuperação
+
+Quando o ativo possui regras em `parameters_alerts`, esses parâmetros governam
+a classificação das métricas recebidas. A janela de persistência configurada
+é aplicada tanto para ativar o alerta quanto para confirmar sua recuperação.
+Enquanto a normalidade ainda está sendo validada, o alerta permanece ativo.
+Ativos sem parâmetros cadastrados mantêm temporariamente as regras legadas da
+bancada de demonstração.
 
 ## Métricas recomendadas
 

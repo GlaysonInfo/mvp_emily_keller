@@ -7,8 +7,10 @@ from typing import Any
 
 try:
     from dashboard.module_registry import SERVICE_CONDITION, SERVICE_LUBRICATION, normalize_service_keys
+    from dashboard.onboarding_policy import validate_onboarding_release
 except ImportError:  # pragma: no cover - supports imports from repository root.
     from src.dashboard.module_registry import SERVICE_CONDITION, SERVICE_LUBRICATION, normalize_service_keys
+    from src.dashboard.onboarding_policy import validate_onboarding_release
 
 
 DEFAULT_PLATFORM_ADMIN_DATA: dict[str, Any] = {
@@ -251,6 +253,7 @@ class PlatformAdminRepository:
         plant_id = str(run.get("plant_id") or "").strip()
         if not tenant_id or not plant_id:
             raise ValueError("tenant_id e plant_id sÃ£o obrigatÃ³rios.")
+        validate_onboarding_release(run)
         data["onboarding_runs"] = [
             item
             for item in data["onboarding_runs"]

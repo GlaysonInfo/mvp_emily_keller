@@ -4,6 +4,7 @@ from src.dashboard.platform_admin_repository import (
     PlatformAdminRepository,
     normalize_platform_admin_data,
 )
+from src.dashboard.onboarding_policy import REQUIRED_ASSISTED_CHECK_IDS
 
 
 def test_default_platform_admin_data_has_demo_contract() -> None:
@@ -110,8 +111,14 @@ def test_repository_upserts_and_scopes_onboarding_run(tmp_path) -> None:
             "plant_id": "planta_1",
             "status": "Liberado",
             "manual_steps": {"commissioning": True, "release": True},
-            "assisted_checks": {"first_payload_received": True},
-            "assisted_context": {"machine_id": "motor_real_01"},
+            "assisted_checks": {check_id: True for check_id in REQUIRED_ASSISTED_CHECK_IDS},
+            "assisted_context": {
+                "machine_id": "motor_real_01",
+                "gateway_id": "gateway_01",
+                "responsible": "Técnico Sentinela",
+                "endpoint_url": "https://sentinelaindustrial.com.br/condition/ingest",
+                "stop_criteria": "Parar ao detectar risco operacional.",
+            },
             "notes": "Primeiro cliente liberado.",
         }
     )
@@ -124,3 +131,23 @@ def test_repository_upserts_and_scopes_onboarding_run(tmp_path) -> None:
     assert run["assisted_checks"]["first_payload_received"] is True
     assert run["assisted_context"]["machine_id"] == "motor_real_01"
     assert scoped["onboarding_runs"] == [run]
+
+
+def test_repository_blocks_release_with_incomplete_indoor_checklist(tmp_path) -> None:
+    repo = PlatformAdminRepository(tmp_path / "platform.json")
+
+    try:
+        repo.upsert_onboarding_run(
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "status": "Liberado",
+                "manual_steps": {"commissioning": True, "release": True},
+                "assisted_checks": {"first_payload_received": True},
+                "assisted_context": {"machine_id": "motor_real_01"},
+            }
+        )
+    except ValueError as exc:
+        assert "não pode ser liberado" in str(exc)
+    else:
+        raise AssertionError("A liberação incompleta deveria ter sido bloqueada.")

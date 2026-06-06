@@ -38,6 +38,10 @@ class FakeTable:
 
     def get_item(self, **kwargs) -> dict:
         self.get_requests.append(kwargs)
+        key = kwargs["Key"]
+        for item in reversed(self.put_items):
+            if all(item.get(field) == value for field, value in key.items()):
+                return {"Item": item}
         return {}
 
 
@@ -152,6 +156,10 @@ def test_process_condition_ingest_saves_state_history_and_alerts(monkeypatch) ->
     monkeypatch.setenv("DYNAMODB_STATE_TABLE", "mvp_asset_state_dev")
     monkeypatch.setenv("CONDITION_HISTORY_TABLE", "condition_history")
     monkeypatch.setenv("CONDITION_ALERTS_TABLE", "condition_alerts")
+    monkeypatch.setattr(
+        "src.api.condition_ingest_service.load_condition_registry_config",
+        lambda: {"parameters_alerts": []},
+    )
     fake_resource = FakeDynamoResource()
 
     response = process_condition_ingest(
@@ -180,3 +188,90 @@ def test_process_condition_ingest_saves_state_history_and_alerts(monkeypatch) ->
     assert alert_item["tenant_plant"] == "cliente_demo#lab_virtual"
     assert alert_item["alert_key"] == "open#condition#imbalance"
     assert alert_item["status_label"] == "CRÍTICO"
+
+
+def test_parameterized_ingest_applies_persistence_resolves_and_deduplicates(monkeypatch) -> None:
+    monkeypatch.setenv("DYNAMODB_STATE_TABLE", "mvp_asset_state_dev")
+    monkeypatch.setenv("CONDITION_HISTORY_TABLE", "condition_history")
+    monkeypatch.setenv("CONDITION_ALERTS_TABLE", "condition_alerts")
+    monkeypatch.setattr(
+        "src.api.condition_ingest_service.load_condition_registry_config",
+        lambda: {
+            "parameters_alerts": [
+                {
+                    "asset_id": "motor_001",
+                    "metric": "vibration_rms_mm_s",
+                    "rule_mode": "higher_is_worse",
+                    "attention_min": 2.8,
+                    "alert_min": 4.5,
+                    "critical_min": 7.1,
+                    "persistence_min": 1,
+                    "unit": "mm/s",
+                    "enabled": True,
+                }
+            ]
+        },
+    )
+    fake_resource = FakeDynamoResource()
+
+    first = _payload()
+    first["event_id"] = "evt-001"
+    first["timestamp"] = "2026-05-26T18:00:00Z"
+    first["metrics"][1]["value"] = 5.0
+    first_response = process_condition_ingest(ConditionIngestPayload(**first), dynamodb_resource=fake_resource)
+
+    assert first_response.active_alerts_count == 0
+    assert first_response.status_label == "NORMAL"
+
+    second = {**first, "event_id": "evt-002", "timestamp": "2026-05-26T18:01:00Z"}
+    second_response = process_condition_ingest(ConditionIngestPayload(**second), dynamodb_resource=fake_resource)
+
+    assert second_response.active_alerts_count == 1
+    assert second_response.status_label == "ALERTA"
+    assert second_response.details["rule_source"] == "parameters_alerts"
+
+    duplicate_response = process_condition_ingest(
+        ConditionIngestPayload(**second),
+        dynamodb_resource=fake_resource,
+    )
+    assert duplicate_response.duplicate is True
+    assert duplicate_response.saved_state is False
+
+    recovering = {**first, "event_id": "evt-003", "timestamp": "2026-05-26T18:02:00Z"}
+    recovering["metrics"] = [dict(metric) for metric in first["metrics"]]
+    recovering["metrics"][1]["value"] = 1.5
+    recovering_response = process_condition_ingest(
+        ConditionIngestPayload(**recovering),
+        dynamodb_resource=fake_resource,
+    )
+
+    assert recovering_response.status_label == "ALERTA"
+    assert recovering_response.details["alerts_resolved"] == 0
+
+    recovered = {**first, "event_id": "evt-004", "timestamp": "2026-05-26T18:03:00Z"}
+    recovered["metrics"] = [dict(metric) for metric in first["metrics"]]
+    recovered["metrics"][1]["value"] = 1.5
+    recovered_response = process_condition_ingest(
+        ConditionIngestPayload(**recovered),
+        dynamodb_resource=fake_resource,
+    )
+
+    assert recovered_response.status_label == "RECUPERADO"
+    assert recovered_response.details["alerts_resolved"] == 1
+    assert fake_resource.tables["condition_alerts"].put_items[-1]["status"] == "closed"
+
+    reopened = {**first, "event_id": "evt-005", "timestamp": "2026-05-26T18:04:00Z"}
+    reopened_response = process_condition_ingest(
+        ConditionIngestPayload(**reopened),
+        dynamodb_resource=fake_resource,
+    )
+    assert reopened_response.active_alerts_count == 0
+
+    reopened_persisted = {**first, "event_id": "evt-006", "timestamp": "2026-05-26T18:05:00Z"}
+    reopened_response = process_condition_ingest(
+        ConditionIngestPayload(**reopened_persisted),
+        dynamodb_resource=fake_resource,
+    )
+
+    assert reopened_response.active_alerts_count == 1
+    assert fake_resource.tables["condition_alerts"].put_items[-1]["first_detected_at"] == "2026-05-26T18:04:00Z"

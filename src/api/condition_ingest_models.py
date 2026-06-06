@@ -18,6 +18,7 @@ class ConditionMetric(BaseModel):
 
 
 class ConditionIngestPayload(BaseModel):
+    event_id: str | None = Field(default=None, min_length=1, max_length=128)
     tenant_id: str = Field(..., min_length=1)
     plant_id: str = Field(..., min_length=1)
     asset_id: str = Field(..., min_length=1)
@@ -82,6 +83,8 @@ class ConditionIngestResponse(BaseModel):
     saved_alerts: bool
     registry_validation_status: str = "ok"
     registry_warnings: list[dict[str, str]] = Field(default_factory=list)
+    duplicate: bool = False
+    stale: bool = False
     details: dict[str, Any] = Field(default_factory=dict)
 
 

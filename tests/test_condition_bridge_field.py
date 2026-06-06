@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from src.edge.condition_bridge_field.config_store import load_condition_field_config, validate_condition_field_config
+from src.edge.condition_bridge_field.delivery_queue import ConditionDeliveryQueue
 from src.edge.condition_bridge_field.gateway_client import ConditionGatewayClient, get_nested_value
 from src.edge.condition_bridge_field.payload_builder import build_condition_payloads
 from src.edge.condition_bridge_field.sender import ConditionIngestSender
@@ -36,6 +37,7 @@ def test_payload_builder_maps_gateway_tags_to_condition_metrics() -> None:
     assert motor_payload["tenant_id"] == "cliente_demo"
     assert motor_payload["plant_id"] == "lab_virtual"
     assert motor_payload["source"] == "condition_gateway_01"
+    assert motor_payload["event_id"]
     assert metrics["vibration_rms_mm_s"]["value"] == 4.4
     assert metrics["temperature_c"]["unit"] == "C"
 
@@ -54,3 +56,37 @@ def test_sender_allows_endpoint_override(monkeypatch) -> None:
     sender = ConditionIngestSender(config)
 
     assert sender.endpoint == "http://127.0.0.1:8001/condition/ingest"
+
+
+def test_delivery_queue_persists_and_acknowledges_payload(tmp_path) -> None:
+    queue = ConditionDeliveryQueue(tmp_path / "spool")
+    payload = {"event_id": "evt-001", "asset_id": "motor_001"}
+
+    queued = queue.enqueue(payload)
+
+    assert queue.pending() == [queued]
+    assert queue.load(queued) == payload
+    queue.acknowledge(queued)
+    assert queue.pending() == []
+
+
+def test_sender_retries_with_exponential_backoff(monkeypatch) -> None:
+    config = load_condition_field_config("config/field_condition_config.example.json")
+    config["ingest_api"]["max_attempts"] = 3
+    config["ingest_api"]["backoff_sec"] = 0.01
+    sender = ConditionIngestSender(config)
+    attempts: list[int] = []
+    sleeps: list[float] = []
+
+    def fake_send(payload, timeout_sec=15):
+        attempts.append(timeout_sec)
+        if len(attempts) < 3:
+            raise OSError("offline")
+        return {"ok": True}
+
+    monkeypatch.setattr(sender, "send", fake_send)
+    monkeypatch.setattr("src.edge.condition_bridge_field.sender.time.sleep", sleeps.append)
+
+    assert sender.send_with_retry({"event_id": "evt-001"}) == {"ok": True}
+    assert len(attempts) == 3
+    assert sleeps == [0.01, 0.02]

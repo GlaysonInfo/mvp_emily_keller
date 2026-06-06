@@ -33,7 +33,10 @@
   "ingest_api": {
     "endpoint": "https://sentinelaindustrial.com.br/condition/ingest",
     "token_env": "CONDITION_INGEST_TOKEN",
-    "require_token": true
+    "require_token": true,
+    "max_attempts": 3,
+    "backoff_sec": 1,
+    "spool_dir": "data/condition_bridge_spool"
   },
   "quality": {
     "sample_rate_hz": 1,

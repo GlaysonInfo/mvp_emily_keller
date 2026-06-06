@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import uuid
 from datetime import UTC, datetime
@@ -13,9 +15,10 @@ from src.aws_lambdas.ingest_lambda import build_dynamodb_latest_item
 from src.dashboard.dynamodb_repository import normalize_active_alert_item, tenant_plant_key
 from src.dashboard.history_repository import build_history_item, resolve_status_label, to_dynamodb_safe
 from src.rules_engine.diagnostics import evaluate_payload
+from src.rules_engine.parameter_rules import evaluate_parameter_rules
 
 from .condition_ingest_models import ConditionIngestPayload, ConditionIngestResponse
-from .condition_registry_validation import validate_condition_payload_against_registry
+from .condition_registry_validation import load_condition_registry_config, validate_condition_payload_against_registry
 
 
 def ensure_region() -> str:
@@ -38,6 +41,20 @@ def alerts_table_name_from_env() -> str:
 
 def utc_now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _parsed_timestamp(value: Any) -> datetime:
+    parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _ingest_key(payload: ConditionIngestPayload) -> str:
+    if payload.event_id:
+        return str(payload.event_id)
+    canonical = json.dumps(payload.model_dump(), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _metric_map(payload: ConditionIngestPayload) -> dict[str, dict[str, Any]]:
@@ -95,13 +112,20 @@ def _enrich_latest_state(state_item: dict[str, Any], payload: ConditionIngestPay
     return enriched
 
 
-def _alert_status_label(severity: str) -> str:
+def _alert_status_label(severity: str, explicit_label: Any = None) -> str:
+    if str(explicit_label or "").strip():
+        return str(explicit_label)
     return "CRÍTICO" if str(severity).lower() == "critical" else "ATENÇÃO"
 
 
 def _status_from_alerts(alerts: list[dict[str, Any]]) -> str | None:
     if not alerts:
         return None
+
+    explicit_labels = [str(alert.get("status_label") or "").upper() for alert in alerts]
+    for label in ["CRÍTICO", "ALERTA", "ATENÇÃO"]:
+        if label in explicit_labels:
+            return label
 
     if any(str(alert.get("severity") or "").lower() == "critical" for alert in alerts):
         return "CRÍTICO"
@@ -128,9 +152,13 @@ def _condition_alert_item(
     alert_type = str(alert["alert_type"])
     tenant_asset = f"{payload.tenant_id}#{payload.asset_id}"
     detected_at = payload.timestamp or utc_now()
-    first_detected_at = detected_at
+    first_detected_at = str(alert.get("first_detected_at") or detected_at)
 
-    if existing_item and existing_item.get("first_detected_at"):
+    if (
+        existing_item
+        and str(existing_item.get("status") or "").lower() != "closed"
+        and existing_item.get("first_detected_at")
+    ):
         first_detected_at = str(existing_item["first_detected_at"])
 
     item = {
@@ -144,9 +172,9 @@ def _condition_alert_item(
         "asset_id": payload.asset_id,
         "asset_name": payload.asset_name or payload.asset_id,
         "alert_type": alert_type,
-        "metric": alert_type,
+        "metric": alert.get("metric") or alert_type,
         "severity": alert.get("severity"),
-        "status_label": _alert_status_label(str(alert.get("severity"))),
+        "status_label": _alert_status_label(str(alert.get("severity")), alert.get("status_label")),
         "status": "open",
         "probable_cause": alert.get("probable_cause"),
         "description": alert.get("probable_cause"),
@@ -182,6 +210,12 @@ class ConditionIngestRepository:
         self.history_table = dynamodb_resource.Table(history_table_name)
         self.alerts_table = dynamodb_resource.Table(alerts_table_name)
 
+    def load_state(self, tenant_id: str, asset_id: str) -> dict[str, Any] | None:
+        result = self.state_table.get_item(
+            Key={"pk": f"TENANT#{tenant_id}#ASSET#{asset_id}", "sk": "LATEST"}
+        )
+        return result.get("Item")
+
     def save_state(self, item: dict[str, Any]) -> None:
         self.state_table.put_item(Item=to_dynamodb_safe(item))
 
@@ -190,15 +224,41 @@ class ConditionIngestRepository:
         self.history_table.put_item(Item=item)
         return item
 
-    def save_alerts(self, payload: ConditionIngestPayload, alerts: list[dict[str, Any]]) -> int:
+    def save_alerts(
+        self,
+        payload: ConditionIngestPayload,
+        alerts: list[dict[str, Any]],
+        *,
+        managed_alert_types: set[str] | None = None,
+    ) -> tuple[int, int]:
         written = 0
+        active_types: set[str] = set()
         for alert in alerts:
+            active_types.add(str(alert["alert_type"]))
             base_item = _condition_alert_item(payload, alert)
             existing_item = _existing_alert(self.alerts_table, base_item)
             item = _condition_alert_item(payload, alert, existing_item=existing_item)
             self.alerts_table.put_item(Item=item)
             written += 1
-        return written
+
+        resolved = 0
+        for alert_type in sorted((managed_alert_types or set()) - active_types):
+            probe = _condition_alert_item(payload, {"alert_type": alert_type, "severity": "warning"})
+            existing_item = _existing_alert(self.alerts_table, probe)
+            if not existing_item or str(existing_item.get("status") or "").lower() == "closed":
+                continue
+            recovered_at = str(payload.timestamp or utc_now())
+            closed_item = {
+                **existing_item,
+                "status": "closed",
+                "status_label": "RECUPERADO",
+                "resolved_at": recovered_at,
+                "updated_at": utc_now(),
+                "last_payload_timestamp": payload.timestamp,
+            }
+            self.alerts_table.put_item(Item=to_dynamodb_safe(closed_item))
+            resolved += 1
+        return written, resolved
 
 
 def process_condition_ingest(
@@ -207,29 +267,9 @@ def process_condition_ingest(
     dynamodb_resource: Any | None = None,
 ) -> ConditionIngestResponse:
     region = ensure_region()
-    event_id = str(uuid.uuid4())
+    event_id = payload.event_id or str(uuid.uuid4())
     payload_dict = payload.model_dump()
-
-    state_item = build_dynamodb_latest_item(
-        payload=payload_dict,
-        event_id=event_id,
-        raw_s3_key=f"condition-ingest/direct/{event_id}.json",
-    )
-    state_item = _enrich_latest_state(state_item, payload)
-    registry_warnings = validate_condition_payload_against_registry(payload)
-    registry_status = "warning" if registry_warnings else "ok"
-    state_item["registry_validation_status"] = registry_status
-    if registry_warnings:
-        state_item["registry_warnings"] = registry_warnings
-
-    alerts = evaluate_payload(payload_dict)
-    alert_status = _status_from_alerts(alerts)
-    if alert_status:
-        current_status = str(state_item.get("status_label") or "NORMAL").upper()
-        if alert_status == "CRÍTICO" and current_status != "CRÍTICO":
-            state_item["status_label"] = alert_status
-        elif current_status in ["NORMAL", "RECUPERADO", "-", ""]:
-            state_item["status_label"] = alert_status
+    ingest_key = _ingest_key(payload)
 
     repo = ConditionIngestRepository(
         state_table_name=state_table_name_from_env(),
@@ -238,9 +278,101 @@ def process_condition_ingest(
         region_name=region,
         dynamodb_resource=dynamodb_resource,
     )
+    previous_state = repo.load_state(payload.tenant_id, payload.asset_id)
+    if previous_state:
+        previous_key = str(previous_state.get("last_ingest_key") or "")
+        previous_timestamp = previous_state.get("last_payload_timestamp") or previous_state.get("updated_at")
+        duplicate = bool(previous_key and previous_key == ingest_key)
+        stale = False
+        if previous_timestamp:
+            stale = _parsed_timestamp(payload.timestamp) <= _parsed_timestamp(previous_timestamp) and not duplicate
+        if duplicate or stale:
+            return ConditionIngestResponse(
+                ok=True,
+                message=(
+                    "Telemetria duplicada já processada."
+                    if duplicate
+                    else "Telemetria anterior ao estado atual ignorada."
+                ),
+                tenant_id=payload.tenant_id,
+                plant_id=payload.plant_id,
+                asset_id=payload.asset_id,
+                source=payload.source,
+                timestamp=str(payload.timestamp),
+                status_label=str(previous_state.get("status_label") or "NORMAL"),
+                metrics_received=len(payload.metrics),
+                active_alerts_count=0,
+                saved_state=False,
+                saved_history=False,
+                saved_alerts=False,
+                duplicate=duplicate,
+                stale=stale,
+                details={"ingest_key": ingest_key},
+            )
+
+    state_item = build_dynamodb_latest_item(
+        payload=payload_dict,
+        event_id=event_id,
+        raw_s3_key=f"condition-ingest/direct/{event_id}.json",
+    )
+    state_item = _enrich_latest_state(state_item, payload)
+    try:
+        registry_config = load_condition_registry_config()
+    except Exception:
+        registry_config = {}
+        registry_warnings = validate_condition_payload_against_registry(payload)
+    else:
+        registry_warnings = validate_condition_payload_against_registry(payload, config=registry_config)
+    registry_status = "warning" if registry_warnings else "ok"
+    state_item["registry_validation_status"] = registry_status
+    if registry_warnings:
+        state_item["registry_warnings"] = registry_warnings
+
+    parameter_alerts, rule_state, rule_evaluations, has_parameter_rules = evaluate_parameter_rules(
+        registry_config,
+        payload_dict,
+        previous_rule_state=(previous_state or {}).get("condition_rule_state"),
+    )
+    alerts = parameter_alerts if has_parameter_rules else evaluate_payload(payload_dict)
+    managed_alert_types = set()
+    if has_parameter_rules:
+        evaluated_metrics = {str(item.get("metric") or "") for item in rule_evaluations}
+        managed_alert_types = {
+            f"parameter_{rule.get('metric')}"
+            for rule in registry_config.get("parameters_alerts", [])
+            if str(rule.get("asset_id") or "") == payload.asset_id
+            and rule.get("enabled", True) is not False
+            and str(rule.get("metric") or "") in evaluated_metrics
+        }
+    state_item["last_ingest_key"] = ingest_key
+    state_item["last_payload_timestamp"] = payload.timestamp
+    if has_parameter_rules:
+        state_item["condition_rule_state"] = rule_state
+        state_item["condition_rule_evaluations"] = rule_evaluations
+        state_item["condition_rule_source"] = "parameters_alerts"
+    else:
+        state_item["condition_rule_source"] = "legacy_diagnostics"
+    alert_status = _status_from_alerts(alerts)
+    if has_parameter_rules:
+        previously_persisted = any(
+            isinstance(item, dict) and item.get("persisted")
+            for item in ((previous_state or {}).get("condition_rule_state") or {}).values()
+        )
+        state_item["status_label"] = alert_status or ("RECUPERADO" if previously_persisted else "NORMAL")
+    if alert_status:
+        current_status = str(state_item.get("status_label") or "NORMAL").upper()
+        if alert_status == "CRÍTICO" and current_status != "CRÍTICO":
+            state_item["status_label"] = alert_status
+        elif current_status in ["NORMAL", "RECUPERADO", "-", ""]:
+            state_item["status_label"] = alert_status
+
     repo.save_state(state_item)
     history_item = repo.save_history(state_item)
-    alerts_written = repo.save_alerts(payload, alerts)
+    alerts_written, alerts_resolved = repo.save_alerts(
+        payload,
+        alerts,
+        managed_alert_types=managed_alert_types,
+    )
 
     return ConditionIngestResponse(
         ok=True,
@@ -267,6 +399,9 @@ def process_condition_ingest(
                 "ts_utc_minute": history_item.get("ts_utc_minute"),
             },
             "alerts_written": alerts_written,
+            "alerts_resolved": alerts_resolved,
+            "ingest_key": ingest_key,
+            "rule_source": state_item["condition_rule_source"],
             "alerts": alerts,
         },
     )
