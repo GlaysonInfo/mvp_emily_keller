@@ -1,0 +1,119 @@
+{
+  "version": "1.0.0",
+  "aws": {
+    "region": "us-east-1",
+    "state_table": "mvp_asset_state_dev",
+    "history_table": "condition_history",
+    "alerts_table": "condition_alerts"
+  },
+  "client": {
+    "tenant_id": "cliente_real",
+    "company_name": "Cliente Real Indoor",
+    "timezone": "America/Sao_Paulo"
+  },
+  "plant": {
+    "plant_id": "indoor",
+    "plant_name": "Teste Indoor",
+    "area": "Comissionamento"
+  },
+  "gateway": {
+    "source_id": "handler_vegapuls6x_gateway_01",
+    "name": "Adapter Handler VEGAPULS 6X 01",
+    "type": "Edge Adapter",
+    "manufacturer": "VEGA",
+    "model": "VEGAPULS 6X",
+    "device_protocols": ["PROFINET", "Modbus TCP", "OPC UA", "Ethernet-APL"],
+    "protocol": "simulated_json",
+    "endpoint": "http://handler-adapter.local/read",
+    "sample_path": "src/edge/condition_bridge_field/sample_handler_vegapuls6x_response.json",
+    "poll_interval_ms": 5000,
+    "read_timeout_sec": 5,
+    "default_device_ip": "192.168.0.110",
+    "authentication": {
+      "type": "bearer_env",
+      "token_env": "HANDLER_ADAPTER_TOKEN"
+    },
+    "notes": "Para campo real, usar protocol=http_json quando o adapter local normalizar Modbus TCP ou OPC UA do VEGAPULS 6X para JSON."
+  },
+  "ingest_api": {
+    "endpoint": "https://sentinelaindustrial.com.br/condition/ingest",
+    "token_env": "CONDITION_INGEST_TOKEN",
+    "require_token": true,
+    "max_attempts": 3,
+    "backoff_sec": 1,
+    "spool_dir": "data/condition_bridge_spool/cliente_real_indoor_handler"
+  },
+  "quality": {
+    "sample_rate_hz": 0.2,
+    "source": "field_condition_bridge_handler_vegapuls6x"
+  },
+  "assets": [
+    {
+      "asset_id": "handler_vegapuls6x_01",
+      "asset_name": "Handler VEGAPULS 6X 01",
+      "asset_type": "Instrumento de processo",
+      "area": "Teste indoor",
+      "criticality": "Alta",
+      "manufacturer": "VEGA",
+      "model": "VEGAPULS 6X",
+      "serial_number": "",
+      "enabled": true,
+      "signals": [
+        {
+          "metric": "level_percent",
+          "tag": "handler_vegapuls6x_01.level_percent",
+          "unit": "%",
+          "required": true
+        },
+        {
+          "metric": "level_m",
+          "tag": "handler_vegapuls6x_01.level_m",
+          "unit": "m",
+          "required": false
+        },
+        {
+          "metric": "distance_m",
+          "tag": "handler_vegapuls6x_01.distance_m",
+          "unit": "m",
+          "required": true
+        },
+        {
+          "metric": "measurement_reliability_percent",
+          "tag": "handler_vegapuls6x_01.measurement_reliability_percent",
+          "unit": "%",
+          "required": true
+        },
+        {
+          "metric": "electronic_temperature_c",
+          "tag": "handler_vegapuls6x_01.electronic_temperature_c",
+          "unit": "C",
+          "required": false
+        },
+        {
+          "metric": "measurement_rate_hz",
+          "tag": "handler_vegapuls6x_01.measurement_rate_hz",
+          "unit": "Hz",
+          "required": false
+        },
+        {
+          "metric": "operating_voltage_v",
+          "tag": "handler_vegapuls6x_01.operating_voltage_v",
+          "unit": "V",
+          "required": false
+        },
+        {
+          "metric": "apl_snr_db",
+          "tag": "handler_vegapuls6x_01.apl_snr_db",
+          "unit": "dB",
+          "required": false
+        },
+        {
+          "metric": "device_state",
+          "tag": "handler_vegapuls6x_01.device_state",
+          "unit": "state",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

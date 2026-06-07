@@ -1,0 +1,61 @@
+{
+  "schema_version": 2,
+  "tenants": [
+    {
+      "tenant_id": "cliente_real",
+      "company_name": "Cliente Real Indoor",
+      "status": "Piloto",
+      "environment": "Piloto"
+    }
+  ],
+  "plants": [
+    {
+      "tenant_id": "cliente_real",
+      "plant_id": "indoor",
+      "plant_name": "Teste Indoor",
+      "city": "",
+      "status": "Piloto"
+    }
+  ],
+  "service_contracts": [
+    {
+      "tenant_id": "cliente_real",
+      "plant_id": "indoor",
+      "services": ["condition"],
+      "operational_intelligence": false,
+      "status": "Piloto"
+    }
+  ],
+  "users": [],
+  "onboarding_runs": [
+    {
+      "tenant_id": "cliente_real",
+      "plant_id": "indoor",
+      "status": "Em andamento",
+      "manual_steps": {
+        "commissioning": false,
+        "release": false
+      },
+      "assisted_checks": {
+        "real_machine_identified": false,
+        "real_sensors_installed": false,
+        "gateway_registered": true,
+        "https_endpoint_validated": false,
+        "token_configured": false,
+        "first_payload_received": false,
+        "last_communication_visible": false,
+        "test_alert_generated": false,
+        "test_alert_acknowledged": false,
+        "stop_criteria_defined": false
+      },
+      "assisted_context": {
+        "machine_id": "handler_vegapuls6x_01",
+        "gateway_id": "handler_vegapuls6x_gateway_01",
+        "responsible": "",
+        "endpoint_url": "https://sentinelaindustrial.com.br/condition/ingest",
+        "stop_criteria": ""
+      },
+      "notes": "Cadastro inicial do Handler/VEGAPULS 6X. Confirmar tag fisica, numero de serie, geometria do reservatorio, IP, protocolo escolhido e calibracao 0/100% antes do primeiro payload real."
+    }
+  ]
+}
