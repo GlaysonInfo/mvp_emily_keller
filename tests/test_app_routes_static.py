@@ -160,6 +160,9 @@ def test_page_target_overrides_sidebar_page_after_hmi_render() -> None:
 
     assert "query_page_target = consume_query_navigation()" in source
     assert "requested_page_target = query_page_target or st.session_state.pop(PAGE_TARGET_KEY, None)" in source
+    assert "ADMIN_ASSISTED_OPERATION_ROUTES" in source
+    assert "_is_admin_assisted_operation_route(identity, requested_page_target)" in source
+    assert "not _is_admin_assisted_operation_route(identity, page)" in source
     after_sidebar = source.split("hmi = render_hmi_sidebar(", 1)[1].split(
         "# Identidade na barra lateral",
         1,

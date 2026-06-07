@@ -133,6 +133,21 @@ PAGE_TARGET_KEY = "dashboard_page_target"
 ROLE_ROUTE_INIT_KEY = "dashboard_role_route_initialized"
 SELECTED_ASSET_ID_KEY = "selected_asset_id"
 PENDING_CONDITION_ASSET_KEY = "condition_pending_selected_asset_id"
+ADMIN_ASSISTED_OPERATION_ROUTES = {
+    "Monitoramento de Equipamentos",
+    "VisÃ£o Geral da Planta",
+    "Detalhe do Ativo",
+    "Alertas e Eventos",
+    "RelatÃ³rios",
+}
+
+
+def _is_admin_assisted_operation_route(identity: object | None, route: str | None) -> bool:
+    return bool(
+        identity is not None
+        and getattr(identity, "role", None) == "admin"
+        and route in ADMIN_ASSISTED_OPERATION_ROUTES
+    )
 
 
 def render_global_styles() -> None:
@@ -793,7 +808,11 @@ def main() -> None:
     page = hmi["page"]
     mode = hmi["mode"]
     if requested_page_target:
-        if allowed_routes is None or requested_page_target in allowed_routes:
+        if (
+            allowed_routes is None
+            or requested_page_target in allowed_routes
+            or _is_admin_assisted_operation_route(identity, requested_page_target)
+        ):
             page = requested_page_target
             st.session_state[DASHBOARD_PAGE_KEY] = page
             if mode == "technical":
@@ -808,7 +827,7 @@ def main() -> None:
         # Admin pode escolher o cliente (tenant) a visualizar; cliente fica no seu.
         tenant_id = _auth.admin_tenant_selector(identity, tenant_id)
         enforce_page_access_fn = getattr(_auth, "enforce_modular_page_access", None) or getattr(_auth, "enforce_page_access", None)
-        if enforce_page_access_fn is not None:
+        if enforce_page_access_fn is not None and not _is_admin_assisted_operation_route(identity, page):
             enforce_page_access_fn(identity, page, contracted_services)
 
     auto_refresh = bool(hmi.get("auto_refresh"))
