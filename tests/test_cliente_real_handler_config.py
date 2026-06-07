@@ -4,6 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
+from scripts.apply_cliente_real_handler_seed import apply_seed
 from src.api.condition_ingest_models import ConditionIngestPayload
 from src.api.condition_registry_validation import validate_condition_payload_against_registry
 from src.dashboard.config_repository import ConfigRepository
@@ -72,6 +73,36 @@ class ClienteRealHandlerConfigTest(unittest.TestCase):
         )
 
         self.assertEqual([], warnings)
+
+    def test_seed_applier_merges_cliente_real_without_removing_demo(self) -> None:
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as temporary_dir:
+            platform_store = Path(temporary_dir) / "platform.json"
+            config_store = Path(temporary_dir) / "config.json"
+
+            first_result = apply_seed(
+                platform_store_path=str(platform_store),
+                config_store_path=str(config_store),
+            )
+            second_result = apply_seed(
+                platform_store_path=str(platform_store),
+                config_store_path=str(config_store),
+            )
+
+            platform_data = json.loads(platform_store.read_text(encoding="utf-8"))
+            config_data = json.loads(config_store.read_text(encoding="utf-8"))
+
+        tenant_ids = {item["tenant_id"] for item in platform_data["tenants"]}
+        plant_keys = {(item["tenant_id"], item["plant_id"]) for item in platform_data["plants"]}
+        asset_ids = {item["asset_id"] for item in config_data["assets"]}
+
+        self.assertIn("cliente_demo", tenant_ids)
+        self.assertIn("cliente_real", tenant_ids)
+        self.assertIn(("cliente_real", "indoor"), plant_keys)
+        self.assertIn("handler_vegapuls6x_01", asset_ids)
+        self.assertIsNotNone(first_result["technical_revision"])
+        self.assertIsNone(second_result["technical_revision"])
 
 
 if __name__ == "__main__":
