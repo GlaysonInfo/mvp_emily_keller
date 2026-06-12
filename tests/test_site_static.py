@@ -1,5 +1,7 @@
 from html.parser import HTMLParser
+import json
 from pathlib import Path
+import re
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 
@@ -80,6 +82,18 @@ def test_public_pages_are_in_sitemap():
     assert "/acesso/" not in urls
 
 
+def test_sitemap_uses_current_lastmod_for_public_pages():
+    sitemap = ET.parse(SITE_ROOT / "sitemap.xml")
+    namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+
+    entries = {
+        urlparse(item.find("sm:loc", namespace).text).path: item.find("sm:lastmod", namespace).text
+        for item in sitemap.findall("sm:url", namespace)
+    }
+
+    assert all(entries[path] == "2026-06-12" for path in PUBLIC_PAGES)
+
+
 def test_access_page_is_noindex():
     access_html = (SITE_ROOT / "acesso" / "index.html").read_text(encoding="utf-8")
     assert 'name="robots"' in access_html
@@ -119,6 +133,78 @@ def test_home_positions_operational_intelligence_and_efficiency():
     assert "/inteligencia-operacional/" in home_html
     assert "/eficiencia-industrial/" in home_html
     assert "hero-sentinela-inteligencia-operacional.png" in home_html
+
+
+def test_public_pages_expose_search_metadata():
+    failures = []
+
+    for page in PUBLIC_PAGES:
+        html_file = SITE_ROOT / "index.html" if page == "/" else SITE_ROOT / page.strip("/") / "index.html"
+        html = html_file.read_text(encoding="utf-8")
+        canonical = f"https://sentinelaindustrial.com.br{page}"
+
+        checks = {
+            "title": bool(re.search(r"<title>[^<]{12,}</title>", html)),
+            "description": 'meta name="description"' in html,
+            "canonical": f'rel="canonical" href="{canonical}"' in html,
+            "index": 'meta name="robots" content="index, follow"' in html,
+            "favicon": 'rel="icon" href="/favicon.svg"' in html,
+            "h1": bool(re.search(r"<h1>[^<]{3,}</h1>", html)),
+        }
+        failures.extend((page, name) for name, passed in checks.items() if not passed)
+
+    assert failures == []
+
+
+def test_primary_solution_pages_expose_social_metadata():
+    primary_pages = {
+        "/",
+        "/monitoramento-de-equipamentos/",
+        "/sistema-de-lubrificacao/",
+        "/inteligencia-operacional/",
+        "/eficiencia-industrial/",
+        "/como-funciona/",
+        "/demonstracao/",
+        "/contato/",
+    }
+    failures = []
+
+    for page in primary_pages:
+        html_file = SITE_ROOT / "index.html" if page == "/" else SITE_ROOT / page.strip("/") / "index.html"
+        html = html_file.read_text(encoding="utf-8")
+        for marker in ('property="og:title"', 'property="og:description"', 'property="og:image"', 'name="twitter:card"'):
+            if marker not in html:
+                failures.append((page, marker))
+
+    assert failures == []
+
+
+def test_home_structured_data_exposes_brand_identity():
+    home_html = (SITE_ROOT / "index.html").read_text(encoding="utf-8")
+
+    assert '"logo": "https://sentinelaindustrial.com.br/favicon.svg"' in home_html
+    assert '"alternateName": "Sentinela"' in home_html
+    assert '"@type": "Organization"' in home_html
+    assert '"@type": "WebSite"' in home_html
+
+
+def test_structured_data_blocks_are_valid_json():
+    failures = []
+
+    for html_file in _html_files():
+        html = html_file.read_text(encoding="utf-8")
+        blocks = re.findall(
+            r'<script type="application/ld\+json">\s*(.*?)\s*</script>',
+            html,
+            flags=re.DOTALL,
+        )
+        for index, block in enumerate(blocks):
+            try:
+                json.loads(block)
+            except json.JSONDecodeError as exc:
+                failures.append((html_file.relative_to(SITE_ROOT).as_posix(), index, str(exc)))
+
+    assert failures == []
 
 
 def test_home_uses_market_ready_commercial_copy():
@@ -171,3 +257,17 @@ def test_indexed_pages_expose_descriptive_images():
                 missing.append((html_file.relative_to(SITE_ROOT).as_posix(), src, alt))
 
     assert missing == []
+
+
+def test_favicon_is_square_and_crawlable():
+    favicon = (SITE_ROOT / "favicon.svg").read_text(encoding="utf-8")
+
+    assert 'viewBox="0 0 512 512"' in favicon
+    assert "<svg" in favicon
+
+
+def test_styles_do_not_block_rendering_with_external_font_imports():
+    styles = (SITE_ROOT / "assets" / "styles.css").read_text(encoding="utf-8")
+
+    assert "fonts.googleapis.com" not in styles
+    assert "@import url(" not in styles
