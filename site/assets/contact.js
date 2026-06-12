@@ -56,9 +56,9 @@
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify(payloadFromForm(form)),
         });
-        const data = await response.json().catch(() => ({}));
+        const data = await response.json().catch(() => null);
 
-        if (!response.ok) {
+        if (!response.ok || data?.ok !== true) {
           throw new Error(responseMessage(data, "Não foi possível enviar a solicitação."));
         }
         form.reset();

@@ -153,6 +153,7 @@ def test_commercial_contact_channels_are_configured():
 
     assert 'CONTACT_ENDPOINT = "/contact/submit"' in contact_script
     assert "fetch(CONTACT_ENDPOINT" in contact_script
+    assert "data?.ok !== true" in contact_script
     assert "mailto:" not in contact_script
 
 
