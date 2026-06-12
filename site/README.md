@@ -68,10 +68,10 @@ saida, gateway IO-Link lubrificacao, manutencao baseada em condicao.
 
 ## Pendencias de integracao
 
-- `demonstracao/index.html`: ligar o `action` do formulario ao CRM
-  (HubSpot/RD Station) ou a um webhook.
-- `contato/index.html`: trocar o link `mailto:` por CRM/webhook quando o canal
-  oficial estiver definido.
+- `demonstracao/index.html` e `contato/index.html`: o envio ocorre dentro do site
+  por `POST /contact/submit`. A API usa Amazon SES e direciona as mensagens para
+  `suporte@meuprompt.net`.
+- O canal direto de WhatsApp usa `+55 31 98267-3012`.
 - `index.html`: inserir o ID real do **GA4** (bloco comentado) e validar o
   dominio no **Google Search Console**.
 - Botoes de "Entrar" em `acesso/` apontam para `app.sentinelaindustrial.com.br`

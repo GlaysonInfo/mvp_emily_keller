@@ -1,0 +1,21 @@
+[Unit]
+Description=AutomacaoAPI Institutional Contact API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/opt/automacaoapi
+EnvironmentFile=/opt/automacaoapi/.env
+ExecStart=/opt/automacaoapi/.venv/bin/python -m uvicorn src.api.contact_api:app --host 127.0.0.1 --port 8002
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGINT
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

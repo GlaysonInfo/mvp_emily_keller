@@ -226,6 +226,22 @@ p { margin: 0; }
   text-decoration: none;
   transform: translateY(-1px);
 }
+.btn-whatsapp {
+  background: #167D4A;
+  border-color: #167D4A;
+  color: #fff;
+}
+.btn-whatsapp:hover {
+  background: #11663C;
+  border-color: #11663C;
+  color: #fff;
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+.btn-block {
+  justify-content: center;
+  width: 100%;
+}
 
 /* ---------------------------------------------------------------------
    Hero — gradiente mesh, profissional e calmo
@@ -525,6 +541,12 @@ details p {
   background: var(--accent);
   color: var(--ink);
 }
+.cta-row-center {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 
 /* ---------------------------------------------------------------------
    Rodapé
@@ -665,6 +687,54 @@ form textarea:focus {
   outline: none;
   border-color: var(--navy-2);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--navy-2) 18%, transparent);
+}
+.form-feedback {
+  min-height: 1.5rem;
+  margin-top: 12px;
+  color: var(--navy-2);
+  font-size: .9rem;
+}
+.form-feedback-success {
+  color: var(--success);
+  font-weight: 600;
+}
+.form-feedback-error {
+  color: var(--critical);
+  font-weight: 600;
+}
+.form-honeypot {
+  position: absolute !important;
+  left: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+form button:disabled {
+  cursor: wait;
+  opacity: .7;
+  transform: none;
+}
+.contact-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 18px;
+  color: var(--muted);
+  font-size: .85rem;
+  text-transform: uppercase;
+}
+.contact-divider::before,
+.contact-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+.contact-direct {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: .85rem;
+  text-align: center;
 }
 
 /* ---------------------------------------------------------------------

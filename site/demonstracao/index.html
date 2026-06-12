@@ -29,7 +29,7 @@
       <div class="container">
         <div class="kicker">Demonstração guiada</div>
         <h1>Veja condição, lubrificação e inteligência no mesmo fluxo</h1>
-        <p class="sub">Mostramos cenários de equipamentos, saída de graxa, alertas, eficiência e recomendações em um ambiente isolado, sem expor dados de clientes.</p>
+        <p class="sub">Conheça cenários de monitoramento de equipamentos, lubrificação, alertas, eficiência e recomendações técnicas em um ambiente de demonstração seguro.</p>
       </div>
     </section>
 
@@ -46,18 +46,23 @@
 
     <section>
       <div class="container form-container">
-        <!-- TODO: trocar 'action' pelo endpoint do CRM (HubSpot/RD Station) ou webhook -->
-        <form class="card" method="post" action="#" onsubmit="alert('Configure o endpoint do CRM/webhook em action.'); return false;">
-          <h3>Seus dados</h3>
-          <p class="form-note">Retornamos em até 1 dia útil.</p>
-          <label>Nome<br><input name="nome" required></label>
-          <label>E-mail corporativo<br><input type="email" name="email" required></label>
-          <label>Empresa<br><input name="empresa"></label>
-          <label>Mensagem<br><textarea name="mensagem" rows="3"></textarea></label>
+        <form class="card contact-form" data-contact-form data-contact-type="Demonstração">
+          <h3>Agende uma demonstração</h3>
+          <p class="form-note">Apresente o cenário da operação. A solicitação será direcionada para suporte@meuprompt.net.</p>
+          <label>Nome<br><input name="nome" autocomplete="name" required></label>
+          <label>E-mail corporativo<br><input type="email" name="email" autocomplete="email" required></label>
+          <label>Empresa<br><input name="empresa" autocomplete="organization" required></label>
+          <label>Telefone<br><input type="tel" name="telefone" autocomplete="tel"></label>
+          <label>Desafio operacional<br><textarea name="mensagem" rows="4" placeholder="Informe os ativos, sensores, processo ou objetivo prioritário."></textarea></label>
+          <label class="form-honeypot" aria-hidden="true">Website<br><input name="website" tabindex="-1" autocomplete="off"></label>
           <label class="consent">
-            <input type="checkbox" required> Concordo com a <a href="/privacidade/">Política de Privacidade</a> (LGPD).
+            <input type="checkbox" name="consentimento" required> Concordo com a <a href="/privacidade/">Política de Privacidade</a> (LGPD).
           </label>
           <button class="btn btn-primary" type="submit">Agendar demonstração</button>
+          <p class="form-feedback" data-form-feedback aria-live="polite"></p>
+          <div class="contact-divider"><span>ou</span></div>
+          <a class="btn btn-whatsapp btn-block" href="https://wa.me/5531982673012?text=Ol%C3%A1%2C%20gostaria%20de%20agendar%20uma%20demonstra%C3%A7%C3%A3o%20da%20plataforma%20Sentinela%20Industrial." target="_blank" rel="noopener noreferrer">Falar pelo WhatsApp</a>
+          <p class="contact-direct">WhatsApp: <a href="https://wa.me/5531982673012" target="_blank" rel="noopener noreferrer">+55 31 98267-3012</a> · E-mail: <a href="mailto:suporte@meuprompt.net">suporte@meuprompt.net</a></p>
         </form>
       </div>
     </section>
@@ -66,5 +71,6 @@
   <footer class="site-footer">
     <div class="container"><p><a href="/">Sentinela Industrial</a> &middot; <a href="/contato/">Contato</a> &middot; <a href="/privacidade/">Privacidade</a> &middot; <a href="/cookies/">Cookies</a> &middot; <a href="/termos/">Termos</a></p></div>
   </footer>
+  <script src="/assets/contact.js" defer></script>
 </body>
 </html>
