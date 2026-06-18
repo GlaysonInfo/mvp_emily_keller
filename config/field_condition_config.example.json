@@ -55,6 +55,9 @@
         {"metric": "vibration_rms_mm_s", "tag": "motor_001.vibration_rms_mm_s", "unit": "mm/s", "required": true},
         {"metric": "vibration_peak_g", "tag": "motor_001.vibration_peak_g", "unit": "g", "required": false},
         {"metric": "temperature_c", "tag": "motor_001.temperature_c", "unit": "C", "required": true},
+        {"metric": "pressure_bar", "tag": "motor_001.pressure_bar", "unit": "bar", "required": false},
+        {"metric": "flow_rate_l_min", "tag": "motor_001.flow_rate_l_min", "unit": "L/min", "required": false},
+        {"metric": "level_percent", "tag": "motor_001.level_percent", "unit": "%", "required": false},
         {"metric": "ultrasound_db", "tag": "motor_001.ultrasound_db", "unit": "dB", "required": false},
         {"metric": "kurtosis", "tag": "motor_001.kurtosis", "unit": "index", "required": false},
         {"metric": "crest_factor", "tag": "motor_001.crest_factor", "unit": "index", "required": false},
@@ -73,6 +76,8 @@
         {"metric": "rpm", "tag": "compressor_001.rpm", "unit": "rpm", "required": false},
         {"metric": "vibration_rms_mm_s", "tag": "compressor_001.vibration_rms_mm_s", "unit": "mm/s", "required": true},
         {"metric": "temperature_c", "tag": "compressor_001.temperature_c", "unit": "C", "required": true},
+        {"metric": "pressure_bar", "tag": "compressor_001.pressure_bar", "unit": "bar", "required": false},
+        {"metric": "flow_rate_l_min", "tag": "compressor_001.flow_rate_l_min", "unit": "L/min", "required": false},
         {"metric": "ultrasound_db", "tag": "compressor_001.ultrasound_db", "unit": "dB", "required": false},
         {"metric": "health_score", "tag": "compressor_001.health_score", "unit": "score", "required": false},
         {"metric": "severity_score", "tag": "compressor_001.severity_score", "unit": "score", "required": false}

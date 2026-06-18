@@ -67,6 +67,8 @@ GATEWAY_PROTOCOL_OPTIONS = [
     "IO-Link",
     "Modbus TCP",
     "MQTT",
+    "Bluetooth LE (configuração local)",
+    "Bluetooth fabricante (configuração local)",
     "CSV",
     "Manual",
 ]

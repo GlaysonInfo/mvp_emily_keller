@@ -91,7 +91,7 @@ def test_sitemap_uses_current_lastmod_for_public_pages():
         for item in sitemap.findall("sm:url", namespace)
     }
 
-    assert all(entries[path] == "2026-06-12" for path in PUBLIC_PAGES)
+    assert all(entries[path] == "2026-06-18" for path in PUBLIC_PAGES)
 
 
 def test_access_page_is_noindex():
@@ -128,7 +128,9 @@ def test_access_page_starts_login_on_app_subdomain():
 def test_home_positions_operational_intelligence_and_efficiency():
     home_html = (SITE_ROOT / "index.html").read_text(encoding="utf-8")
 
-    assert "Monitoramento da planta + lubrificação eficiente = inteligência operacional" in home_html
+    assert "Comunicação industrial = inteligência operacional" in home_html
+    assert "pressão, vazão, temperatura, nível e vibração" in home_html
+    assert "paradas não programadas" in home_html
     assert "/monitoramento-de-equipamentos/" in home_html
     assert "/inteligencia-operacional/" in home_html
     assert "/eficiencia-industrial/" in home_html
@@ -218,10 +220,33 @@ def test_home_uses_market_ready_commercial_copy():
     }
 
     assert all(text not in home_html for text in forbidden_copy)
-    assert "correlação de dados para decisões de manutenção" in home_html
-    assert "soluções para confiabilidade e eficiência industrial" in home_html
+    assert "comunicação industrial = inteligência operacional" in home_html
+    assert "histórico operacional" in home_html
+    assert "sinais industriais" in home_html
     assert '"email": "suporte@meuprompt.net"' in home_html
     assert '"telephone": "+55-31-98267-3012"' in home_html
+
+
+def test_industrial_communication_docs_cover_client_https_and_bluetooth():
+    client_manual = Path("docs/manual_cliente_envio_https_sentinela.md").read_text(encoding="utf-8")
+    gateway_doc = Path("docs/configuracao_gateway_equipamentos.md").read_text(encoding="utf-8")
+    ingest_doc = Path("docs/especificacao_endpoint_condition_ingest.md").read_text(encoding="utf-8")
+    field_config = Path("config/field_condition_config.example.json").read_text(encoding="utf-8")
+
+    assert "https://www.raspberrypi.com/documentation/computers/getting-started.html" in client_manual
+    assert "https://www.raspberrypi.com/documentation/computers/configuration.html" in client_manual
+    assert "/condition/ingest" in client_manual
+    assert "CONDITION_INGEST_TOKEN" in client_manual
+    assert "Raspberry Pi" in client_manual
+
+    assert "Bluetooth LE (configuração local)" in gateway_doc
+    assert "Bluetooth fabricante (configuração local)" in gateway_doc
+
+    for metric in ("pressure_bar", "flow_rate_l_min", "level_percent", "level_m"):
+        assert metric in ingest_doc
+
+    for metric in ("pressure_bar", "flow_rate_l_min", "level_percent"):
+        assert metric in field_config
 
 
 def test_commercial_contact_channels_are_configured():

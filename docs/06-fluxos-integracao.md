@@ -76,6 +76,24 @@ sequenceDiagram
     Lambda->>EB: Publica evento
 ```
 
+### 4.1 Fluxo cliente para envio HTTPS
+
+Para implantação em campo, o caminho recomendado é:
+
+```text
+Sensor / transmissor / instrumento
+  -> switch, gateway ou rede industrial local
+  -> Raspberry Pi ou computador edge do cliente
+  -> Bridge Sentinela
+  -> HTTPS /condition/ingest
+  -> Sistema Sentinela na AWS
+```
+
+Use o passo a passo em
+`docs/manual_cliente_envio_https_sentinela.md` para configurar o lado cliente,
+incluindo rede, token, arquivo de campo, simulação de payload, envio real por
+HTTPS e serviço Linux.
+
 ## 5. Fluxo de diagnóstico
 
 ```mermaid

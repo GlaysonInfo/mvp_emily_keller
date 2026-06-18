@@ -43,8 +43,43 @@ No arquivo `config/field_condition_config.json`, ajuste:
 |---|---|
 | `simulated_json` | Demonstracao local com arquivo JSON |
 | `http_json` | Gateway/edge que exponha leitura por HTTP GET |
+| `Bluetooth LE (configuração local)` | Notebook Admin Sentinela pareia localmente para ler configuração/parâmetros do equipamento |
+| `Bluetooth fabricante (configuração local)` | Canal local proprietário, dependente de biblioteca, aplicativo ou SDK do fabricante |
 
 Para gateways Modbus, OPC UA ou MQTT, a recomendacao e usar uma bridge local que leia o protocolo industrial e exponha um JSON normalizado para este modulo.
+
+## Configuração local via Bluetooth
+
+Quando o equipamento de monitoramento do fabricante disponibilizar parâmetros
+por Bluetooth, o notebook do Admin Sentinela deve ser tratado como ferramenta de
+comissionamento local, não como canal permanente de telemetria.
+
+Fluxo recomendado:
+
+1. Admin Sentinela acessa a planta com notebook autorizado.
+2. Notebook pareia por Bluetooth com o equipamento do fabricante.
+3. Software, SDK ou adapter do fabricante lê configuração, canais, unidades,
+   limites e identificação do dispositivo.
+4. Admin valida os dados e registra no onboarding: ativo, sensor, gateway,
+   métricas internas, tags externas, faixa do instrumento e limites iniciais.
+5. A telemetria contínua segue pelo gateway/edge local e envio HTTPS para o
+   Sentinela.
+
+Itens mínimos a capturar:
+
+| Item | Exemplo |
+|---|---|
+| Identificação do equipamento | fabricante, modelo, série, firmware |
+| Canal físico | porta, endereço, UUID BLE, tag externa ou registrador |
+| Métrica interna | `pressure_bar`, `flow_rate_l_min`, `temperature_c`, `level_percent`, `vibration_rms_mm_s` |
+| Unidade | bar, L/min, C, %, mm/s |
+| Faixa do instrumento | 0 a 10 bar, 0 a 100 %, 0 a 25 mm/s |
+| Faixa nominal do processo | faixa esperada da operação real |
+| Credencial ou pareamento | referência segura, nunca senha em texto aberto |
+
+Essa etapa deve gerar auditoria de configuração. O uso de Bluetooth em produção
+deve respeitar política do cliente, distância física, autorização de pareamento
+e documentação do fabricante.
 
 ## Teste local de mapeamento
 

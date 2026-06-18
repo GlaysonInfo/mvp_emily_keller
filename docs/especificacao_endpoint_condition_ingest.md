@@ -83,6 +83,10 @@ bancada de demonstração.
 
 | Métrica | Unidade | Observação |
 |---|---:|---|
+| `pressure_bar` | bar | Pressão de processo, linha, bomba ou lubrificação |
+| `flow_rate_l_min` | L/min | Vazão medida ou calculada |
+| `level_percent` | % | Nível percentual em tanque, silo, reservatório ou processo |
+| `level_m` | m | Nível absoluto quando disponível |
 | `rpm` | rpm | Rotação do ativo |
 | `vibration_rms_mm_s` | mm/s | Vibração RMS |
 | `vibration_peak_g` | g | Pico de aceleração |
@@ -92,6 +96,11 @@ bancada de demonstração.
 | `crest_factor` | index | Fator de crista |
 | `health_score` | score | Saúde do ativo |
 | `severity_score` | score | Gravidade operacional |
+
+O endpoint aceita outras métricas desde que estejam cadastradas no mapa de
+sinais e nos parâmetros técnicos do ativo. Para implantação em campo, prefira
+nomes estáveis, unidades explícitas e tags rastreáveis até o sensor ou canal
+físico de origem.
 
 ## Persistência
 

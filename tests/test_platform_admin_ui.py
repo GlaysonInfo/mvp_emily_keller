@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 from src.dashboard.platform_admin_ui import (
     ASSISTED_PRODUCTION_CHECKS,
@@ -537,6 +538,13 @@ def test_sensor_form_context_links_asset_gateway_signal_and_parameter() -> None:
     assert context["source"]["protocol"] == "IO-Link"
     assert context["signal"]["external_tag"] == "motor.temperature"
     assert context["parameter"]["critical_min"] == 90
+
+
+def test_gateway_protocol_options_include_local_bluetooth_configuration() -> None:
+    source = Path("src/dashboard/platform_admin_ui.py").read_text(encoding="utf-8")
+
+    assert "Bluetooth LE (configuração local)" in source
+    assert "Bluetooth fabricante (configuração local)" in source
 
 
 def test_technical_history_rows_scope_and_summarize_revisions() -> None:
