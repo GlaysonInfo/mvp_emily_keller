@@ -671,6 +671,7 @@ def render_asset_detail(
     tenant_id: str,
     asset_id: str,
     history_repo: Any | None,
+    mode: str = "technical",
 ) -> None:
     metrics = latest_state.get("metrics", {})
     failure_mode = str(latest_state.get("failure_mode_simulated") or latest_state.get("mode") or "unknown")
@@ -679,6 +680,28 @@ def render_asset_detail(
     health_score = state_number(latest_state, "health_score")
     severity_score = resolve_severity_score(latest_state, metrics)
     operational_status = resolve_status_label(latest_state, failure_mode, health_score, severity_score)
+
+    if mode == "operator":
+        render_asset_gauges_echarts(latest_state, cols_per_row=3)
+
+        recommended_action = str(latest_state.get("recommended_action") or "").strip()
+        if not recommended_action:
+            recommended_action = next(
+                (
+                    str(alert.get("recommended_action") or "").strip()
+                    for alert in active_alerts
+                    if str(alert.get("recommended_action") or "").strip()
+                ),
+                "",
+            )
+
+        st.divider()
+        st.markdown("**Ação recomendada**")
+        if recommended_action:
+            st.info(recommended_action)
+        else:
+            st.success("ATIVO SAUDÁVEL")
+        return
 
     st.subheader("Estado atual do ativo")
     st.subheader(f"Status operacional: {operational_status}")
@@ -1250,8 +1273,10 @@ def main() -> None:
             render_aws_profile_error(exc)
             st.stop()
 
-        with st.sidebar:
-            render_demo_selector(repo, tenant_id=tenant_id, plant_id=plant_id, asset_id=asset_id)
+        show_demo_selector = identity is None or getattr(identity, "role", None) == "admin"
+        if show_demo_selector:
+            with st.sidebar:
+                render_demo_selector(repo, tenant_id=tenant_id, plant_id=plant_id, asset_id=asset_id)
 
         try:
             latest_state = repo.get_latest_state(tenant_id=tenant_id, asset_id=asset_id)
@@ -1282,6 +1307,7 @@ def main() -> None:
             tenant_id=tenant_id,
             asset_id=asset_id,
             history_repo=history_repo,
+            mode=mode,
         )
 
         if auto_refresh:

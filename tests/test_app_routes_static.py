@@ -163,6 +163,28 @@ def test_app_no_longer_uses_mvp_branding_in_visible_header() -> None:
     assert "MVP Monitoramento" not in source
 
 
+def test_operator_asset_detail_keeps_only_visual_panel_and_recommendation() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    detail_block = source.split("def render_asset_detail", 1)[1].split("\ndef main", 1)[0]
+    operator_block = detail_block.split('if mode == "operator":', 1)[1].split('st.subheader("Estado atual do ativo")', 1)[0]
+
+    assert 'render_asset_gauges_echarts(latest_state, cols_per_row=3)' in operator_block
+    assert 'st.markdown("**Ação recomendada**")' in operator_block
+    assert 'st.success("ATIVO SAUDÁVEL")' in operator_block
+    assert "render_alerts(active_alerts)" not in operator_block
+    assert "render_metric_grid(metrics)" not in operator_block
+    assert "render_operational_diagnosis(latest_state)" not in operator_block
+    assert "mode=mode" in source
+
+
+def test_asset_detail_demo_selector_is_hidden_from_authenticated_non_admin_users() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    detail_route = source.split('elif page == "Detalhe do Ativo":', 1)[1].split('if not latest_state:', 1)[0]
+
+    assert 'show_demo_selector = identity is None or getattr(identity, "role", None) == "admin"' in detail_route
+    assert 'if show_demo_selector:' in detail_route
+    assert "render_demo_selector(" in detail_route
+
 def test_page_target_overrides_sidebar_page_after_hmi_render() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
 
