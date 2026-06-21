@@ -1,0 +1,24 @@
+{
+  "ruleName": "sentinela_condition_raw_to_dynamodb",
+  "topicRulePayload": {
+    "sql": "SELECT *, topic() AS mqtt_topic, timestamp() AS iot_received_at FROM 'sentinela/+/+/+/telemetry'",
+    "awsIotSqlVersion": "2016-03-23",
+    "ruleDisabled": false,
+    "actions": [
+      {
+        "dynamoDBv2": {
+          "roleArn": "${IOT_RULE_DYNAMODB_ROLE_ARN}",
+          "putItem": {
+            "tableName": "${RAW_TELEMETRY_TABLE}"
+          }
+        }
+      }
+    ],
+    "errorAction": {
+      "cloudwatchLogs": {
+        "roleArn": "${IOT_RULE_LOG_ROLE_ARN}",
+        "logGroupName": "/aws/iot/sentinela/rule-errors"
+      }
+    }
+  }
+}

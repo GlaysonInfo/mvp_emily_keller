@@ -1,0 +1,72 @@
+{
+  "version": "1.0.0",
+  "client": {
+    "tenant_id": "cliente_real",
+    "company_name": "Cliente Real",
+    "timezone": "America/Sao_Paulo"
+  },
+  "plant": {
+    "plant_id": "indoor",
+    "plant_name": "Teste Indoor Ethernet-APL",
+    "area": "Comissionamento"
+  },
+  "gateway": {
+    "source_id": "greengrass_apl_gateway_01",
+    "name": "Gateway Greengrass Ethernet-APL 01",
+    "type": "AWS IoT Greengrass Core",
+    "manufacturer": "Multifabricante",
+    "model": "Industrial Gateway / Raspberry Pi",
+    "device_protocols": ["Ethernet-APL", "PROFINET", "Modbus TCP", "OPC UA", "HTTPS"],
+    "protocol": "http_json",
+    "endpoint": "http://127.0.0.1:8080/apl/read",
+    "sample_path": "src/edge/condition_bridge_field/sample_ethernet_apl_response.json",
+    "poll_interval_ms": 5000,
+    "read_timeout_sec": 5,
+    "default_device_ip": "192.168.10.110",
+    "authentication": {
+      "type": "bearer_env",
+      "token_env": "APL_ADAPTER_TOKEN"
+    },
+    "notes": "O adapter local le Ethernet-APL via protocolo do instrumento ou switch de campo e expoe JSON HTTP normalizado para o componente Greengrass."
+  },
+  "iot_core": {
+    "topic_template": "sentinela/{tenant_id}/{plant_id}/{asset_id}/telemetry",
+    "qos": "AT_LEAST_ONCE",
+    "spool_dir": "data/condition_bridge_spool/greengrass_apl"
+  },
+  "ingest_api": {
+    "endpoint": "https://sentinelaindustrial.com.br/condition/ingest",
+    "token_env": "CONDITION_INGEST_TOKEN",
+    "require_token": true,
+    "max_attempts": 3,
+    "backoff_sec": 1,
+    "spool_dir": "data/condition_bridge_spool/greengrass_apl_https_fallback"
+  },
+  "quality": {
+    "sample_rate_hz": 0.2,
+    "source": "greengrass_ethernet_apl_bridge"
+  },
+  "assets": [
+    {
+      "asset_id": "apl_process_sensor_01",
+      "asset_name": "Sensor Ethernet-APL 01",
+      "asset_type": "Instrumento de processo",
+      "area": "Teste indoor",
+      "criticality": "Alta",
+      "manufacturer": "Multifabricante",
+      "model": "Ethernet-APL",
+      "serial_number": "",
+      "enabled": true,
+      "signals": [
+        {"metric": "pressure_bar", "tag": "apl_process_sensor_01.pressure_bar", "unit": "bar", "required": false},
+        {"metric": "flow_rate_l_min", "tag": "apl_process_sensor_01.flow_rate_l_min", "unit": "L/min", "required": false},
+        {"metric": "temperature_c", "tag": "apl_process_sensor_01.temperature_c", "unit": "C", "required": false},
+        {"metric": "level_percent", "tag": "apl_process_sensor_01.level_percent", "unit": "%", "required": false},
+        {"metric": "vibration_rms_mm_s", "tag": "apl_process_sensor_01.vibration_rms_mm_s", "unit": "mm/s", "required": false},
+        {"metric": "measurement_reliability_percent", "tag": "apl_process_sensor_01.measurement_reliability_percent", "unit": "%", "required": false},
+        {"metric": "device_state", "tag": "apl_process_sensor_01.device_state", "unit": "state", "required": true},
+        {"metric": "apl_snr_db", "tag": "apl_process_sensor_01.apl_snr_db", "unit": "dB", "required": false}
+      ]
+    }
+  ]
+}

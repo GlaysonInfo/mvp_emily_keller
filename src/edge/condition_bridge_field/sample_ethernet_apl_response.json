@@ -1,0 +1,13 @@
+{
+  "timestamp_utc": "2026-06-21T13:00:00Z",
+  "apl_process_sensor_01": {
+    "pressure_bar": 4.8,
+    "flow_rate_l_min": 18.2,
+    "temperature_c": 41.5,
+    "level_percent": 62.0,
+    "vibration_rms_mm_s": 1.9,
+    "measurement_reliability_percent": 99.1,
+    "device_state": 0,
+    "apl_snr_db": 38.4
+  }
+}

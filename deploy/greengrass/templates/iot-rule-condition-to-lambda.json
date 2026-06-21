@@ -1,0 +1,21 @@
+{
+  "ruleName": "sentinela_condition_to_lambda",
+  "topicRulePayload": {
+    "sql": "SELECT *, topic(2) AS tenant_from_topic, topic(3) AS plant_from_topic, topic(4) AS asset_from_topic FROM 'sentinela/+/+/+/telemetry'",
+    "awsIotSqlVersion": "2016-03-23",
+    "ruleDisabled": false,
+    "actions": [
+      {
+        "lambda": {
+          "functionArn": "${CONDITION_NORMALIZER_LAMBDA_ARN}"
+        }
+      }
+    ],
+    "errorAction": {
+      "cloudwatchLogs": {
+        "roleArn": "${IOT_RULE_LOG_ROLE_ARN}",
+        "logGroupName": "/aws/iot/sentinela/rule-errors"
+      }
+    }
+  }
+}

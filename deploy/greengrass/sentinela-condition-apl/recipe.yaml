@@ -1,0 +1,21 @@
+RecipeFormatVersion: '2020-01-25'
+ComponentName: com.sentinela.ConditionAplBridge
+ComponentVersion: '1.0.0'
+ComponentDescription: Sentinela Industrial Ethernet-APL condition bridge for AWS IoT Core.
+ComponentPublisher: Sentinela Industrial
+ComponentConfiguration:
+  DefaultConfiguration:
+    conditionFieldConfigPath: '{artifacts:decompressedPath}/sentinela-condition-apl/config/ethernet_apl_greengrass_condition_config.json'
+Manifests:
+  - Platform:
+      os: linux
+    Lifecycle:
+      Install: |-
+        python3 -m pip install --user awsiotsdk
+      Run: |-
+        export PYTHONPATH="{artifacts:decompressedPath}/sentinela-condition-apl:{artifacts:decompressedPath}/sentinela-condition-apl/src"
+        export CONDITION_FIELD_CONFIG="{configuration:/conditionFieldConfigPath}"
+        python3 -m src.edge.condition_bridge_field.greengrass_iot_publisher
+    Artifacts:
+      - URI: s3://SENTINELA_GREENGRASS_ARTIFACT_BUCKET/components/com.sentinela.ConditionAplBridge/1.0.0/sentinela-condition-apl.zip
+        Unarchive: ZIP
