@@ -1288,8 +1288,27 @@ def main() -> None:
             render_client_error("Não foi possível carregar o detalhe do ativo.", exc)
             st.stop()
 
+        if not latest_state and mode == "operator":
+            try:
+                fallback_states = create_multiasset_repository_from_env().list_current_states(
+                    tenant_id=tenant_id,
+                    plant_id=plant_id,
+                )
+            except Exception:
+                fallback_states = []
+
+            fallback_state = next((state for state in fallback_states if state.get("asset_id")), None)
+            if fallback_state:
+                asset_id = str(fallback_state.get("asset_id"))
+                st.session_state[SELECTED_ASSET_ID_KEY] = asset_id
+                latest_state = repo.get_latest_state(tenant_id=tenant_id, asset_id=asset_id) or fallback_state
+                active_alerts = repo.get_active_alerts(tenant_id=tenant_id, asset_id=asset_id)
+
         if not latest_state:
-            st.warning("Nenhum estado atual encontrado no DynamoDB.")
+            if mode == "operator":
+                st.info("Nenhum dado atual recebido para os equipamentos monitorados desta planta.")
+            else:
+                st.warning("Nenhum estado atual encontrado para este ativo.")
             st.stop()
 
         active_alerts = alerts_for_state(latest_state, active_alerts)

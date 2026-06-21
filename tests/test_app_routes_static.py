@@ -177,6 +177,16 @@ def test_operator_asset_detail_keeps_only_visual_panel_and_recommendation() -> N
     assert "mode=mode" in source
 
 
+def test_operator_asset_detail_falls_back_when_selected_asset_has_no_condition_state() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    detail_route = source.split('elif page == "Detalhe do Ativo":', 1)[1].split('active_alerts = alerts_for_state', 1)[0]
+
+    assert 'if not latest_state and mode == "operator":' in detail_route
+    assert "create_multiasset_repository_from_env().list_current_states" in detail_route
+    assert "st.session_state[SELECTED_ASSET_ID_KEY] = asset_id" in detail_route
+    assert "Nenhum dado atual recebido para os equipamentos monitorados desta planta." in detail_route
+    assert "Nenhum estado atual encontrado no DynamoDB" not in source
+
 def test_asset_detail_demo_selector_is_hidden_from_authenticated_non_admin_users() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
     detail_route = source.split('elif page == "Detalhe do Ativo":', 1)[1].split('if not latest_state:', 1)[0]
