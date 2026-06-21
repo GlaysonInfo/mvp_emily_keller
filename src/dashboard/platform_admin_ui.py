@@ -1363,6 +1363,7 @@ def _render_technical_change_history(
     *,
     tenant_id: str,
     plant_id: str,
+    key_suffix: str = "default",
 ) -> None:
     history = _technical_history_for_context(
         operational_config,
@@ -1397,7 +1398,7 @@ def _render_technical_change_history(
                 f"{revisions_by_id[change_id].get('changed_at')} · "
                 f"{revisions_by_id[change_id].get('target')}"
             ),
-            key=f"technical_revision_{tenant_id}_{plant_id}",
+            key=f"technical_revision_{key_suffix}_{tenant_id}_{plant_id}",
         )
         selected = revisions_by_id[selected_id]
         st.caption(
@@ -2161,6 +2162,7 @@ def _render_real_asset_sensor_gateway_form(
         operational_config,
         tenant_id=tenant_id,
         plant_id=plant_id,
+        key_suffix="asset_registry",
     )
 
     service_labels = _service_options()
@@ -3023,6 +3025,7 @@ def _render_onboarding_tab(
             operational_config,
             tenant_id=tenant_id,
             plant_id=plant_id,
+            key_suffix="history_tab",
         )
         st.markdown("#### Próxima persistência para produção")
         _render_table(
