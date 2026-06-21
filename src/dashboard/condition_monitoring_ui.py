@@ -698,23 +698,38 @@ def _render_technician_view(
     tenant_id: str,
     history_repo: Any | None,
 ) -> dict[str, str] | None:
-    _render_technical_kpis(rows, active_alerts)
-    st.divider()
-    selected_asset_id = _render_technical_ranking(rows)
-    selected_row = _find_row(rows, selected_asset_id)
-    st.divider()
-    action = _render_technical_asset_detail(rows, selected_asset_id)
-    st.divider()
-    _render_technical_history_and_evidence(
-        row=selected_row,
-        alerts=active_alerts,
-        history_repo=history_repo,
-        tenant_id=tenant_id,
-    )
-    st.divider()
-    _render_technical_alert_context(active_alerts, selected_asset_id)
-    return action
+    selected_asset_id: str | None = None
+    selected_row: dict[str, Any] | None = None
+    action: dict[str, str] | None = None
 
+    tab_overview, tab_diagnosis, tab_history, tab_alerts = st.tabs(
+        ["Visão geral", "Diagnóstico do ativo", "Histórico e evidências", "Alertas correlacionados"]
+    )
+
+    with tab_overview:
+        _render_technical_kpis(rows, active_alerts)
+        st.divider()
+        selected_asset_id = _render_technical_ranking(rows)
+        selected_row = _find_row(rows, selected_asset_id)
+
+    selected_asset_id = selected_asset_id or st.session_state.get(SELECTED_ASSET_ID_KEY)
+    selected_row = selected_row or _find_row(rows, str(selected_asset_id) if selected_asset_id else None)
+
+    with tab_diagnosis:
+        action = _render_technical_asset_detail(rows, str(selected_asset_id) if selected_asset_id else None)
+
+    with tab_history:
+        _render_technical_history_and_evidence(
+            row=selected_row,
+            alerts=active_alerts,
+            history_repo=history_repo,
+            tenant_id=tenant_id,
+        )
+
+    with tab_alerts:
+        _render_technical_alert_context(active_alerts, str(selected_asset_id) if selected_asset_id else None)
+
+    return action
 
 def _render_actionable_alert_queue(alerts: list[dict[str, Any]]) -> dict[str, str] | None:
     st.subheader("Alertas e eventos em aberto")
@@ -894,12 +909,7 @@ def render_condition_monitoring_page(
     if mode == "operator":
         st.caption("Visão operacional para priorizar verificações de campo e registrar tratamento de alertas.")
     else:
-        st.caption("Diagnóstico técnico do serviço de condição: priorizar, abrir ativo e tratar eventos de campo.")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Cliente", tenant_id)
-        c2.metric("Planta", plant_id)
-        c3.metric("Ativos monitorados", str(len(rows)))
-        c4.metric("Modo atual", "Técnico" if mode == "technical" else "Operador")
+        st.caption("Diagnóstico técnico por ativo, com histórico, evidências e alertas em abas separadas.")
 
     if mode == "operator":
         return _render_operator_view(
@@ -913,15 +923,15 @@ def render_condition_monitoring_page(
 
     action = None
     if mode == "technical":
-        tab_technical, tab_operation, tab_assets = st.tabs(["Técnico", "Operação", "Ativos"])
-        with tab_technical:
+        tab_monitoring, tab_field, tab_assets = st.tabs(["Diagnóstico", "Operação de campo", "Inventário de ativos"])
+        with tab_monitoring:
             action = _render_technician_view(
                 rows=rows,
                 active_alerts=alerts,
                 tenant_id=tenant_id,
                 history_repo=history_repo,
             )
-        with tab_operation:
+        with tab_field:
             operator_action = _render_operator_view(
                 rows=rows,
                 active_alerts=alerts,

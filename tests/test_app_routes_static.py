@@ -166,7 +166,7 @@ def test_app_no_longer_uses_mvp_branding_in_visible_header() -> None:
 def test_operator_asset_detail_keeps_only_visual_panel_and_recommendation() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
     detail_block = source.split("def render_asset_detail", 1)[1].split("\ndef main", 1)[0]
-    operator_block = detail_block.split('if mode == "operator":', 1)[1].split('st.subheader("Estado atual do ativo")', 1)[0]
+    operator_block = detail_block.split('if mode == "operator":', 1)[1].split('st.subheader("Detalhe técnico do ativo")', 1)[0]
 
     assert 'render_asset_gauges_echarts(latest_state, cols_per_row=3)' in operator_block
     assert 'st.markdown("**Ação recomendada**")' in operator_block
@@ -176,6 +176,16 @@ def test_operator_asset_detail_keeps_only_visual_panel_and_recommendation() -> N
     assert "render_operational_diagnosis(latest_state)" not in operator_block
     assert "mode=mode" in source
 
+
+def test_technical_asset_detail_uses_tabs_without_demo_diagnosis() -> None:
+    source = APP_SOURCE.read_text(encoding="utf-8")
+    detail_block = source.split("def render_asset_detail", 1)[1].split("\ndef main", 1)[0]
+    technical_block = detail_block.split('st.subheader("Detalhe técnico do ativo")', 1)[1]
+
+    assert '["Painel visual", "Leituras atuais", "Diagnóstico", "Alertas"]' in technical_block
+    assert "render_technical_diagnosis(latest_state, active_alerts)" in technical_block
+    assert "render_operational_diagnosis(latest_state)" not in technical_block
+    assert 'st.subheader("Estado atual do ativo")' not in technical_block
 
 def test_operator_asset_detail_falls_back_when_selected_asset_has_no_condition_state() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")

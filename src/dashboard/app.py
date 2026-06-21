@@ -557,6 +557,30 @@ def render_operational_diagnosis(latest_state: dict[str, Any]) -> None:
     if expected_result:
         st.markdown(f"**Resultado esperado:** {expected_result}")
 
+def render_technical_diagnosis(latest_state: dict[str, Any], active_alerts: list[dict[str, Any]]) -> None:
+    diagnosis = str(latest_state.get("diagnosis") or latest_state.get("mode_label") or "").strip()
+    recommended_action = str(latest_state.get("recommended_action") or "").strip()
+    if not recommended_action:
+        recommended_action = next(
+            (
+                str(alert.get("recommended_action") or "").strip()
+                for alert in active_alerts
+                if str(alert.get("recommended_action") or "").strip()
+            ),
+            "",
+        )
+
+    if diagnosis:
+        st.markdown(f"**Hipótese técnica:** {diagnosis}")
+    else:
+        st.info("Sem hipótese técnica registrada para este ativo.")
+
+    st.markdown("**Ação recomendada**")
+    if recommended_action:
+        st.info(recommended_action)
+    else:
+        st.success("ATIVO SAUDÁVEL")
+
 
 def render_aws_profile_error(error: ProfileNotFound) -> None:
     profile = os.getenv("AWS_PROFILE", "")
@@ -703,37 +727,36 @@ def render_asset_detail(
             st.success("ATIVO SAUDÁVEL")
         return
 
-    st.subheader("Estado atual do ativo")
-    st.subheader(f"Status operacional: {operational_status}")
+    st.subheader("Detalhe técnico do ativo")
+    status_cols = st.columns(4)
+    status_cols[0].metric("Ativo", asset_id)
+    status_cols[1].metric("Status", operational_status)
+    status_cols[2].metric("Health", format_score(health_score))
+    status_cols[3].metric("Severity", format_score(severity_score))
 
-    col1, col2, col3, col4 = st.columns([1.2, 2.4, 1.2, 1.2])
+    tab_panel, tab_readings, tab_diagnosis, tab_alerts = st.tabs(
+        ["Painel visual", "Leituras atuais", "Diagnóstico", "Alertas"]
+    )
 
-    col1.metric("Ativo", asset_id)
-    col2.metric("Modo atual", mode_label(failure_mode))
-    col3.metric("Health Score", format_score(health_score))
-    col4.metric("Severity Score", format_score(severity_score))
+    with tab_panel:
+        render_asset_gauges_echarts(latest_state, cols_per_row=3)
+        if history_repo is not None:
+            render_history_button(
+                history_repo=history_repo,
+                tenant_id=tenant_id,
+                asset_id=asset_id,
+                timezone_str="America/Sao_Paulo",
+            )
 
-    st.caption(f"Fonte: `{source}` | Atualizado em: `{updated_at}`")
+    with tab_readings:
+        st.caption(f"Fonte: `{source}` | Atualizado em: `{updated_at}` | Modo: `{mode_label(failure_mode)}`")
+        render_metric_grid(metrics)
 
-    st.divider()
-    st.subheader("Métricas atuais")
-    render_metric_grid(metrics)
+    with tab_diagnosis:
+        render_technical_diagnosis(latest_state, active_alerts)
 
-    st.divider()
-    render_asset_gauges_echarts(latest_state, cols_per_row=3)
-
-    if history_repo is not None:
-        render_history_button(
-            history_repo=history_repo,
-            tenant_id=tenant_id,
-            asset_id=asset_id,
-            timezone_str="America/Sao_Paulo",
-        )
-
-    render_operational_diagnosis(latest_state)
-
-    st.divider()
-    render_alerts(active_alerts)
+    with tab_alerts:
+        render_alerts(active_alerts)
     return
 
 

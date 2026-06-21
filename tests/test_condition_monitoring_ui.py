@@ -138,9 +138,21 @@ def test_operator_view_uses_simple_tabs_instead_of_single_crowded_screen() -> No
     assert 'st.subheader("Registrar tratamento do alerta")' in source
     assert "Visão operacional para priorizar verificações de campo" in render_block
     assert 'if mode == "operator":' in render_block
-    assert 'c1.metric("Cliente", tenant_id)' in render_block
-    assert render_block.index('if mode == "operator":') < render_block.index('c1.metric("Cliente", tenant_id)')
+    assert 'c1.metric("Cliente", tenant_id)' not in render_block
+    assert 'Diagnóstico técnico por ativo, com histórico, evidências e alertas em abas separadas.' in render_block
 
+
+def test_technician_view_uses_diagnostic_workflow_tabs() -> None:
+    from pathlib import Path
+
+    source = Path(CONDITION_UI_SOURCE).read_text(encoding="utf-8")
+    technician_block = source.split("def _render_technician_view", 1)[1].split("\ndef _render_actionable_alert_queue", 1)[0]
+    render_block = source.split("def render_condition_monitoring_page", 1)[1].split("\ndef ", 1)[0]
+
+    assert '["Visão geral", "Diagnóstico do ativo", "Histórico e evidências", "Alertas correlacionados"]' in technician_block
+    assert '["Diagnóstico", "Operação de campo", "Inventário de ativos"]' in render_block
+    assert 'Diagnóstico técnico por ativo, com histórico, evidências e alertas em abas separadas.' in render_block
+    assert 'c1.metric("Cliente", tenant_id)' not in render_block
 
 def test_active_operator_alerts_prefers_repository_alerts_when_available() -> None:
     rows = operator_rows([{"asset_id": "attention", "status_label": "ATENCAO"}], [])
