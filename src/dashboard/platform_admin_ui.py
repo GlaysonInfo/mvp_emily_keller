@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from datetime import UTC, datetime
 from typing import Any
@@ -1063,6 +1064,253 @@ def _gateway_inventory_rows(
             }
         )
     return rows
+
+
+def _source_for_context(
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+    source_id: str,
+) -> dict[str, Any] | None:
+    for source in operational_config.get("data_sources") or []:
+        if str(source.get("source_id") or "") != source_id:
+            continue
+        source_tenant = str(source.get("tenant_id") or tenant_id)
+        source_plant = str(source.get("plant_id") or plant_id)
+        if source_tenant == tenant_id and source_plant == plant_id:
+            return dict(source)
+    return None
+
+
+def _bridge_protocol_for_source(source: dict[str, Any]) -> str:
+    protocol = str(source.get("protocol") or "").strip().lower()
+    if "simulated" in protocol or "simulado" in protocol:
+        return "simulated_json"
+    return "http_json"
+
+
+def _source_endpoint_for_bridge(source: dict[str, Any]) -> str:
+    endpoint = str(source.get("endpoint") or source.get("endpoint_url") or "").strip()
+    if endpoint:
+        return endpoint
+    return "http://127.0.0.1:9000/read"
+
+
+def _edge_assets_for_source(
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+    source_id: str,
+) -> list[dict[str, Any]]:
+    sensors = [
+        dict(sensor)
+        for sensor in operational_config.get("sensors") or []
+        if str(sensor.get("source_id") or "") == source_id
+    ]
+    signals_by_asset: dict[str, list[dict[str, Any]]] = {}
+    for sensor in sensors:
+        asset_id = str(sensor.get("asset_id") or "")
+        metric = str(sensor.get("metric") or "")
+        if not asset_id or not metric:
+            continue
+        signals_by_asset.setdefault(asset_id, []).append(
+            {
+                "metric": metric,
+                "tag": str(sensor.get("external_tag") or sensor.get("tag") or f"{asset_id}.{metric}"),
+                "unit": str(sensor.get("unit") or UNIT_BY_METRIC.get(metric, "")),
+                "required": bool(sensor.get("required", False)),
+            }
+        )
+
+    signal_map = operational_config.get("signal_map") or operational_config.get("asset_signal_map") or []
+    for signal in signal_map:
+        if source_id and str(signal.get("source_id") or source_id) != source_id:
+            continue
+        asset_id = str(signal.get("asset_id") or "")
+        metric = str(signal.get("metric") or "")
+        if not asset_id or not metric:
+            continue
+        existing = {item["metric"] for item in signals_by_asset.get(asset_id, [])}
+        if metric in existing:
+            continue
+        signals_by_asset.setdefault(asset_id, []).append(
+            {
+                "metric": metric,
+                "tag": str(signal.get("external_tag") or signal.get("tag") or f"{asset_id}.{metric}"),
+                "unit": str(signal.get("unit") or UNIT_BY_METRIC.get(metric, "")),
+                "required": bool(signal.get("required", False)),
+            }
+        )
+
+    assets = []
+    for asset in operational_config.get("assets") or []:
+        if str(asset.get("tenant_id") or tenant_id) != tenant_id:
+            continue
+        if str(asset.get("plant_id") or plant_id) != plant_id:
+            continue
+        if str(asset.get("source_id") or "") != source_id:
+            continue
+        asset_id = str(asset.get("asset_id") or "")
+        if not asset_id:
+            continue
+        assets.append(
+            {
+                "asset_id": asset_id,
+                "asset_name": asset.get("asset_name") or asset.get("name") or asset_id,
+                "asset_type": asset.get("asset_type") or asset.get("type") or "Ativo industrial",
+                "area": asset.get("area") or "-",
+                "criticality": asset.get("criticality") or "Média",
+                "enabled": bool(asset.get("enabled", True)),
+                "signals": signals_by_asset.get(asset_id, []),
+            }
+        )
+    return assets
+
+
+def _build_condition_edge_config(
+    data: dict[str, Any],
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+    source_id: str,
+) -> dict[str, Any]:
+    source = _source_for_context(
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+        source_id=source_id,
+    ) or {"source_id": source_id}
+    tenant = _tenant_for(data, tenant_id) or {}
+    plant = _plant_for(data, tenant_id, plant_id) or {}
+    native_protocol = str(source.get("protocol") or "HTTP/HTTPS API")
+
+    return {
+        "version": "1.0.0",
+        "aws": {
+            "region": "us-east-1",
+            "state_table": os.getenv("CONDITION_STATE_TABLE", "mvp_asset_state_dev"),
+            "history_table": os.getenv("CONDITION_HISTORY_TABLE", "condition_history"),
+            "alerts_table": os.getenv("CONDITION_ALERTS_TABLE", "condition_alerts"),
+        },
+        "client": {
+            "tenant_id": tenant_id,
+            "company_name": tenant.get("company_name") or tenant_id,
+            "timezone": tenant.get("timezone") or "America/Sao_Paulo",
+        },
+        "plant": {
+            "plant_id": plant_id,
+            "plant_name": plant.get("plant_name") or plant_id,
+            "area": plant.get("area") or plant.get("city") or "-",
+        },
+        "gateway": {
+            "source_id": source_id,
+            "name": source.get("source_name") or source_id,
+            "type": source.get("source_type") or "Edge Gateway",
+            "protocol": _bridge_protocol_for_source(source),
+            "native_protocol": native_protocol,
+            "endpoint": _source_endpoint_for_bridge(source),
+            "poll_interval_ms": int(source.get("poll_interval_ms") or 1000),
+            "read_timeout_sec": int(source.get("read_timeout_sec") or 5),
+            "authentication": {
+                "type": source.get("auth_type") or "none",
+                "token_env": source.get("gateway_token_env") or "",
+            },
+            "adapter_required": _bridge_protocol_for_source(source) == "http_json" and "http" not in native_protocol.lower(),
+        },
+        "ingest_api": {
+            "endpoint": "https://sentinelaindustrial.com.br/condition/ingest",
+            "token_env": "CONDITION_INGEST_TOKEN",
+            "require_token": True,
+            "max_attempts": 3,
+            "backoff_sec": 1,
+            "spool_dir": "data/condition_bridge_spool",
+        },
+        "quality": {
+            "sample_rate_hz": float(source.get("sample_rate_hz") or 1),
+            "source": "field_condition_bridge",
+        },
+        "assets": _edge_assets_for_source(
+            operational_config,
+            tenant_id=tenant_id,
+            plant_id=plant_id,
+            source_id=source_id,
+        ),
+    }
+
+
+def _build_edge_service_file(*, user: str = "pi") -> str:
+    return f"""[Unit]
+Description=Sentinela Condition Bridge - Cliente
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={user}
+Group={user}
+WorkingDirectory=/opt/automacaoapi
+Environment=PYTHONPATH=src:.
+Environment=CONDITION_FIELD_CONFIG=config/field_condition_config.json
+Environment=CONDITION_INGEST_TOKEN=cole_o_token_fornecido_pela_sentinela
+ExecStart=/opt/automacaoapi/.venv/bin/python -m src.edge.condition_bridge_field.bridge_runner
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+
+def _build_edge_test_commands() -> str:
+    return """cd /opt/automacaoapi
+source .venv/bin/activate
+
+curl https://sentinelaindustrial.com.br/condition/health
+
+PYTHONPATH=src:. CONDITION_FIELD_CONFIG=config/field_condition_config.json python scripts/simulate_condition_gateway_payload.py
+
+export CONDITION_INGEST_TOKEN="cole_o_token_fornecido_pela_sentinela"
+
+PYTHONPATH=src:. CONDITION_FIELD_CONFIG=config/field_condition_config.json CONDITION_BRIDGE_ONCE=1 python -m src.edge.condition_bridge_field.bridge_runner
+"""
+
+
+def _build_edge_provisioning_package(
+    data: dict[str, Any],
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+    source_id: str,
+) -> dict[str, str]:
+    edge_config = _build_condition_edge_config(
+        data,
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+        source_id=source_id,
+    )
+    checklist = """# Checklist de provisionamento do edge Sentinela
+
+- [ ] Cliente, planta, contrato e ativo liberados pelo Admin Sentinela.
+- [ ] Gateway/fonte cadastrado e vinculado aos ativos corretos.
+- [ ] Tags externas conferidas no gateway, switch, Raspberry Pi ou notebook edge.
+- [ ] Token CONDITION_INGEST_TOKEN recebido por canal seguro.
+- [ ] Saída HTTPS 443 liberada para sentinelaindustrial.com.br.
+- [ ] Simulação de payload executada.
+- [ ] Primeiro envio real para /condition/ingest validado.
+- [ ] Última comunicação visível no Admin Sentinela.
+- [ ] Alerta de teste gerado, reconhecido e tratado.
+"""
+    return {
+        "field_condition_config.json": json.dumps(edge_config, ensure_ascii=False, indent=2),
+        "sentinela-condition-bridge.service": _build_edge_service_file(),
+        "teste_envio_https.sh": _build_edge_test_commands(),
+        "checklist_provisionamento_edge.md": checklist,
+    }
 
 
 def _technical_history_for_context(
@@ -2440,6 +2688,112 @@ def _render_real_asset_sensor_gateway_form(
             st.rerun()
 
 
+def _render_edge_provisioning_panel(
+    data: dict[str, Any],
+    operational_config: dict[str, Any],
+    *,
+    tenant_id: str,
+    plant_id: str,
+) -> None:
+    st.markdown("#### Comunicação / Edge")
+    st.caption(
+        "Provisionamento do equipamento cliente que coleta dados da planta e envia telemetria por HTTPS ao Sentinela."
+    )
+
+    gateway_rows = _gateway_inventory_rows(operational_config, tenant_id=tenant_id, plant_id=plant_id)
+    if not gateway_rows:
+        st.info("Cadastre uma fonte de dados/gateway antes de gerar o pacote do edge.")
+        return
+
+    gateway_ids = [str(row.get("Gateway") or "") for row in gateway_rows if row.get("Gateway") and row.get("Gateway") != "-"]
+    if not gateway_ids:
+        st.info("Nenhum gateway com identificador técnico foi encontrado para esta planta.")
+        return
+
+    source_id = st.selectbox(
+        "Gateway/fonte para provisionar",
+        gateway_ids,
+        key="platform_edge_provision_source",
+    )
+    edge_config = _build_condition_edge_config(
+        data,
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+        source_id=source_id,
+    )
+    package = _build_edge_provisioning_package(
+        data,
+        operational_config,
+        tenant_id=tenant_id,
+        plant_id=plant_id,
+        source_id=source_id,
+    )
+
+    assets = list(edge_config.get("assets") or [])
+    signals_count = sum(len(asset.get("signals") or []) for asset in assets)
+    status_cols = st.columns(4)
+    status_cols[0].metric("Gateway", source_id)
+    status_cols[1].metric("Ativos no pacote", str(len(assets)))
+    status_cols[2].metric("Sinais mapeados", str(signals_count))
+    status_cols[3].metric("Destino", "/condition/ingest")
+
+    gateway = dict(edge_config.get("gateway") or {})
+    st.markdown("**Resumo da comunicação**")
+    _render_table(
+        [
+            {
+                "Item": "Protocolo nativo",
+                "Valor": gateway.get("native_protocol") or "-",
+                "Responsável": "Integrador / Técnico cliente",
+            },
+            {
+                "Item": "Adapter local",
+                "Valor": "Necessário" if gateway.get("adapter_required") else "Não necessário",
+                "Responsável": "Sentinela + Técnico cliente",
+            },
+            {
+                "Item": "Endpoint local lido pela bridge",
+                "Valor": gateway.get("endpoint") or "-",
+                "Responsável": "Técnico cliente",
+            },
+            {
+                "Item": "Token HTTPS Sentinela",
+                "Valor": "CONDITION_INGEST_TOKEN",
+                "Responsável": "Admin Sentinela",
+            },
+        ],
+        "Nenhum resumo de comunicação disponível.",
+    )
+    if gateway.get("adapter_required"):
+        st.warning(
+            "O protocolo nativo informado não é lido diretamente pela bridge. Configure um adapter local no Raspberry Pi/notebook para expor JSON HTTP em endpoint local."
+        )
+
+    st.markdown("**Arquivos do pacote de provisionamento**")
+    file_cols = st.columns(2)
+    items = list(package.items())
+    for index, (filename, content) in enumerate(items):
+        with file_cols[index % 2]:
+            st.download_button(
+                filename,
+                data=content,
+                file_name=filename,
+                mime="application/json" if filename.endswith(".json") else "text/plain",
+                use_container_width=True,
+                key=f"platform_edge_download_{filename}",
+            )
+
+    with st.expander("Visualizar field_condition_config.json", expanded=False):
+        st.code(package["field_condition_config.json"], language="json")
+    with st.expander("Comandos de teste no equipamento cliente", expanded=False):
+        st.code(package["teste_envio_https.sh"], language="bash")
+
+    st.info(
+        "Liberação de novos ativos e emissão de token permanecem sob controle do Admin Sentinela. O Técnico cliente executa instalação, leitura local e teste assistido."
+    )
+
+
 def _render_assisted_production_checklist(
     repo: PlatformAdminRepository,
     run: dict[str, Any],
@@ -2565,96 +2919,137 @@ def _render_onboarding_tab(
         {key: value for key, value in row.items() if key not in {"step_id", "done"}}
         for row in rows
     ]
-    _render_table(checklist_rows, "Nenhuma etapa de onboarding configurada.")
-
-    _render_onboarding_registration_forms(repo, data, tenant_id=tenant_id, plant_id=plant_id)
     contract = _contract_for(data, tenant_id, plant_id) or {}
-    _render_real_asset_sensor_gateway_form(
-        config_repo,
-        operational_config,
-        tenant_id=tenant_id,
-        plant_id=plant_id,
-        contract_services=list(contract.get("services") or []),
-    )
-    _render_assisted_production_checklist(repo, run, tenant_id=tenant_id, plant_id=plant_id)
 
-    st.markdown("#### Registro de comissionamento")
-    manual_steps = dict(run.get("manual_steps") or {})
-    status_options = ["Em andamento", "Aguardando cliente", "Pronto para liberação", "Liberado"]
-    with st.form("platform_onboarding_manual_form"):
-        commissioning = st.checkbox(
-            "Ingestão, baseline e alertas validados",
-            value=bool(manual_steps.get("commissioning")),
-        )
-        proposed_run = {
-            **run,
-            "manual_steps": {**manual_steps, "commissioning": commissioning, "release": False},
-        }
-        release_ready = onboarding_release_ready(proposed_run)
-        release = st.checkbox(
-            "Cliente liberado para operação assistida/produção",
-            value=bool(manual_steps.get("release")) if release_ready else False,
-            disabled=not release_ready,
-        )
-        if not release_ready:
-            st.caption("Liberação bloqueada: " + " ".join(release_blockers(proposed_run)))
-            status_options = [option for option in status_options if option != "Liberado"]
-        status = st.selectbox(
-            "Status do onboarding",
-            status_options,
-            index=_index(status_options, run.get("status"), 0),
-        )
-        notes = st.text_area("Notas internas", str(run.get("notes") or ""))
-
-        if st.form_submit_button("Salvar onboarding", type="primary"):
-            try:
-                repo.upsert_onboarding_run(
-                    {
-                        "tenant_id": tenant_id,
-                        "plant_id": plant_id,
-                        "status": status,
-                        "manual_steps": {
-                            "commissioning": commissioning,
-                            "release": release,
-                        },
-                        "assisted_checks": dict(run.get("assisted_checks") or {}),
-                        "assisted_context": dict(run.get("assisted_context") or {}),
-                        "notes": notes,
-                    }
-                )
-            except ValueError as exc:
-                st.error(str(exc))
-            else:
-                st.success("Onboarding salvo.")
-                st.rerun()
-
-    st.markdown("#### Próxima persistência para produção")
-    _render_table(
+    onboarding_tabs = st.tabs(
         [
-            {
-                "Tabela futura": "platform_tenants",
-                "Conteúdo": "Cliente, ambiente, status, plano contratado e metadados comerciais.",
-                "Origem atual": "platform_admin_store.json / DynamoDB futuro",
-            },
-            {
-                "Tabela futura": "platform_plants",
-                "Conteúdo": "Plantas, áreas, contexto operacional e vínculo com tenant.",
-                "Origem atual": "platform_admin_store.json / config operacional",
-            },
-            {
-                "Tabela futura": "platform_assets",
-                "Conteúdo": "Ativos, fontes, tags, sinais, parâmetros e criticidade por planta.",
-                "Origem atual": "config operacional versionada",
-            },
-            {
-                "Tabela futura": "platform_onboarding_runs",
-                "Conteúdo": "Checklist, evidências, aceite técnico, liberação e auditoria.",
-                "Origem atual": "onboarding_runs no store versionado",
-            },
-        ],
-        "Nenhum modelo de persistência definido.",
+            "Resumo",
+            "Cadastro",
+            "Ativos e sensores",
+            "Comunicação / Edge",
+            "Produção assistida",
+            "Liberação",
+            "Histórico",
+        ]
     )
 
+    with onboarding_tabs[0]:
+        st.markdown("#### Etapas de implantação")
+        st.caption("Visão executiva do que falta para liberar a operação do cliente.")
+        _render_table(checklist_rows, "Nenhuma etapa de onboarding configurada.")
+
+    with onboarding_tabs[1]:
+        st.markdown("#### Cadastro comercial e contratual")
+        st.caption("Cliente, planta e módulos contratados. Esta área define o que pode ser liberado operacionalmente.")
+        _render_onboarding_registration_forms(repo, data, tenant_id=tenant_id, plant_id=plant_id)
+
+    with onboarding_tabs[2]:
+        st.markdown("#### Cadastro técnico dos ativos")
+        st.caption("Ativos, sensores, sinais e limites iniciais. Não é uma tela de monitoramento operacional.")
+        _render_real_asset_sensor_gateway_form(
+            config_repo,
+            operational_config,
+            tenant_id=tenant_id,
+            plant_id=plant_id,
+            contract_services=list(contract.get("services") or []),
+        )
+
+    with onboarding_tabs[3]:
+        _render_edge_provisioning_panel(
+            data,
+            operational_config,
+            tenant_id=tenant_id,
+            plant_id=plant_id,
+        )
+
+    with onboarding_tabs[4]:
+        _render_assisted_production_checklist(repo, run, tenant_id=tenant_id, plant_id=plant_id)
+
+    with onboarding_tabs[5]:
+        st.markdown("#### Liberação operacional")
+        st.caption("A liberação é ato do Admin Sentinela e depende do checklist de produção assistida.")
+        manual_steps = dict(run.get("manual_steps") or {})
+        status_options = ["Em andamento", "Aguardando cliente", "Pronto para liberação", "Liberado"]
+        with st.form("platform_onboarding_manual_form"):
+            commissioning = st.checkbox(
+                "Ingestão, baseline e alertas validados",
+                value=bool(manual_steps.get("commissioning")),
+            )
+            proposed_run = {
+                **run,
+                "manual_steps": {**manual_steps, "commissioning": commissioning, "release": False},
+            }
+            release_ready = onboarding_release_ready(proposed_run)
+            release = st.checkbox(
+                "Cliente liberado para operação assistida/produção",
+                value=bool(manual_steps.get("release")) if release_ready else False,
+                disabled=not release_ready,
+            )
+            if not release_ready:
+                st.caption("Liberação bloqueada: " + " ".join(release_blockers(proposed_run)))
+                status_options = [option for option in status_options if option != "Liberado"]
+            status = st.selectbox(
+                "Status do onboarding",
+                status_options,
+                index=_index(status_options, run.get("status"), 0),
+            )
+            notes = st.text_area("Notas internas", str(run.get("notes") or ""))
+
+            if st.form_submit_button("Salvar onboarding", type="primary"):
+                try:
+                    repo.upsert_onboarding_run(
+                        {
+                            "tenant_id": tenant_id,
+                            "plant_id": plant_id,
+                            "status": status,
+                            "manual_steps": {
+                                "commissioning": commissioning,
+                                "release": release,
+                            },
+                            "assisted_checks": dict(run.get("assisted_checks") or {}),
+                            "assisted_context": dict(run.get("assisted_context") or {}),
+                            "notes": notes,
+                        }
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.success("Onboarding salvo.")
+                    st.rerun()
+
+    with onboarding_tabs[6]:
+        st.markdown("#### Histórico e persistência")
+        _render_technical_change_history(
+            operational_config,
+            tenant_id=tenant_id,
+            plant_id=plant_id,
+        )
+        st.markdown("#### Próxima persistência para produção")
+        _render_table(
+            [
+                {
+                    "Tabela futura": "platform_tenants",
+                    "Conteúdo": "Cliente, ambiente, status, plano contratado e metadados comerciais.",
+                    "Origem atual": "platform_admin_store.json / DynamoDB futuro",
+                },
+                {
+                    "Tabela futura": "platform_plants",
+                    "Conteúdo": "Plantas, áreas, contexto operacional e vínculo com tenant.",
+                    "Origem atual": "platform_admin_store.json / config operacional",
+                },
+                {
+                    "Tabela futura": "platform_assets",
+                    "Conteúdo": "Ativos, fontes, tags, sinais, parâmetros e criticidade por planta.",
+                    "Origem atual": "config operacional versionada",
+                },
+                {
+                    "Tabela futura": "platform_onboarding_runs",
+                    "Conteúdo": "Checklist, evidências, aceite técnico, liberação e auditoria.",
+                    "Origem atual": "onboarding_runs no store versionado",
+                },
+            ],
+            "Nenhum modelo de persistência definido.",
+        )
 
 def _render_support_tab() -> None:
     st.subheader("Suporte, demonstrações e acesso assistido")

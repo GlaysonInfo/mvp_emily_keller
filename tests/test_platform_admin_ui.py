@@ -11,6 +11,8 @@ from src.dashboard.platform_admin_ui import (
     _assisted_production_rows,
     _assisted_production_summary,
     _asset_inventory_rows,
+    _build_condition_edge_config,
+    _build_edge_provisioning_package,
     _contract_rows,
     _duplicate_sensor_draft,
     _gateway_inventory_rows,
@@ -440,6 +442,135 @@ def test_gateway_and_sensor_inventory_expose_technical_links() -> None:
     assert sensors[0]["Ponto de instalação"] == "Mancal lado acoplado"
     assert sensors[0]["Faixa do processo"] == "0 a 10 mm/s"
     assert sensors[0]["Faixa do instrumento"] == "0 a 25 mm/s"
+
+
+def test_condition_edge_config_is_generated_from_registered_gateway_assets_and_sensors() -> None:
+    data = _sample_platform_data()
+    operational_config = {
+        "assets": [
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "asset_id": "motor_001",
+                "asset_name": "Motor 001",
+                "asset_type": "Motor elétrico",
+                "area": "Linha 1",
+                "criticality": "Alta",
+                "source_id": "raspberrypi_edge_01",
+            }
+        ],
+        "data_sources": [
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "source_id": "raspberrypi_edge_01",
+                "source_name": "Raspberry Pi Edge 01",
+                "source_type": "Raspberry Pi / Edge",
+                "protocol": "Modbus TCP",
+                "endpoint": "http://127.0.0.1:9000/read",
+            }
+        ],
+        "sensors": [
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "sensor_id": "sensor_pressao_01",
+                "asset_id": "motor_001",
+                "source_id": "raspberrypi_edge_01",
+                "metric": "pressure_bar",
+                "external_tag": "motor_001.pressure_bar",
+                "unit": "bar",
+                "required": True,
+            }
+        ],
+    }
+
+    edge_config = _build_condition_edge_config(
+        data,
+        operational_config,
+        tenant_id="cliente_a",
+        plant_id="planta_1",
+        source_id="raspberrypi_edge_01",
+    )
+
+    assert edge_config["client"]["tenant_id"] == "cliente_a"
+    assert edge_config["plant"]["plant_id"] == "planta_1"
+    assert edge_config["gateway"]["source_id"] == "raspberrypi_edge_01"
+    assert edge_config["gateway"]["protocol"] == "http_json"
+    assert edge_config["gateway"]["native_protocol"] == "Modbus TCP"
+    assert edge_config["gateway"]["adapter_required"] is True
+    assert edge_config["ingest_api"]["endpoint"].endswith("/condition/ingest")
+    assert edge_config["ingest_api"]["token_env"] == "CONDITION_INGEST_TOKEN"
+    assert edge_config["assets"][0]["asset_id"] == "motor_001"
+    assert edge_config["assets"][0]["signals"] == [
+        {
+            "metric": "pressure_bar",
+            "tag": "motor_001.pressure_bar",
+            "unit": "bar",
+            "required": True,
+        }
+    ]
+
+
+def test_edge_provisioning_package_contains_client_files_and_install_commands() -> None:
+    data = _sample_platform_data()
+    operational_config = {
+        "assets": [
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "asset_id": "tanque_001",
+                "source_id": "edge_01",
+            }
+        ],
+        "data_sources": [
+            {
+                "tenant_id": "cliente_a",
+                "plant_id": "planta_1",
+                "source_id": "edge_01",
+                "protocol": "HTTP/HTTPS API",
+                "endpoint": "http://127.0.0.1:9000/read",
+            }
+        ],
+        "sensors": [
+            {
+                "asset_id": "tanque_001",
+                "source_id": "edge_01",
+                "metric": "level_percent",
+                "external_tag": "tank.level_percent",
+                "unit": "%",
+            }
+        ],
+    }
+
+    package = _build_edge_provisioning_package(
+        data,
+        operational_config,
+        tenant_id="cliente_a",
+        plant_id="planta_1",
+        source_id="edge_01",
+    )
+
+    assert set(package) == {
+        "field_condition_config.json",
+        "sentinela-condition-bridge.service",
+        "teste_envio_https.sh",
+        "checklist_provisionamento_edge.md",
+    }
+    assert '"tenant_id": "cliente_a"' in package["field_condition_config.json"]
+    assert "CONDITION_INGEST_TOKEN" in package["sentinela-condition-bridge.service"]
+    assert "CONDITION_BRIDGE_ONCE=1" in package["teste_envio_https.sh"]
+    assert "Saída HTTPS 443" in package["checklist_provisionamento_edge.md"]
+
+
+def test_onboarding_page_separates_registration_edge_validation_and_release_views() -> None:
+    source = Path(PLATFORM_ADMIN_UI_SOURCE).read_text(encoding="utf-8")
+
+    assert "Comunicação / Edge" in source
+    assert "Produção assistida" in source
+    assert "Liberação" in source
+    assert "_render_edge_provisioning_panel" in source
+    assert "platform_edge_download_" in source
 
 
 def test_duplicate_sensor_draft_generates_unique_identity_and_clears_serial() -> None:
