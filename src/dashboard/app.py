@@ -94,7 +94,7 @@ except ImportError:  # pragma: no cover - supports streamlit run from repository
 
 
 st.set_page_config(
-    page_title="MVP Monitoramento de Condição",
+    page_title="Sentinela Industrial",
     page_icon=":material/monitoring:",
     layout="wide",
 )
@@ -763,8 +763,8 @@ def main() -> None:
     render_global_styles()
     apply_hmi_style()
 
-    st.title("MVP Monitoramento de Condição")
-    st.caption("Bancada virtual OPC UA -> Bridge HTTPS -> AWS -> Diagnóstico")
+    st.title("Sentinela Industrial")
+    st.caption("Monitoramento de condição, comunicação industrial e inteligência operacional.")
     if os.getenv("DASHBOARD_DATA_MODE", "").strip().lower() in {"local", "demo", "offline"}:
         st.info("Modo local ativo: usando dados demo do projeto, sem chamadas ao DynamoDB.")
 

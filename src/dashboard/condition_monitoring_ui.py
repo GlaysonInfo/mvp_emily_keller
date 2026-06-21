@@ -421,7 +421,7 @@ def _find_row(rows: list[dict[str, Any]], asset_id: str | None) -> dict[str, Any
 
 
 def _render_asset_action_panel(rows: list[dict[str, Any]]) -> dict[str, str] | None:
-    st.subheader("Ação do operador")
+    st.subheader("Detalhe rápido do ativo")
     selected_asset_id = _selected_asset_id(rows)
     row = _find_row(rows, selected_asset_id)
     if row is None:
@@ -475,7 +475,7 @@ def _render_quick_alert_treatment(
     plant_id: str,
     operator_name: str,
 ) -> None:
-    st.subheader("Tratamento rápido do alerta")
+    st.subheader("Registrar tratamento do alerta")
     if not alerts:
         st.success("Sem alerta para reconhecer ou comentar.")
         return
@@ -817,25 +817,34 @@ def _render_operator_view(
     alerts_repo: Any | None,
     operator_name: str,
 ) -> dict[str, str] | None:
-    _render_operator_kpis(rows, active_alerts)
-    st.divider()
-
-    c1, c2 = st.columns([1.15, 1])
-    with c1:
-        _render_priority_cards(rows)
-    with c2:
-        action = _render_asset_action_panel(rows)
-
-    st.divider()
-    alert_action = _render_actionable_alert_queue(active_alerts)
-    _render_quick_alert_treatment(
-        alerts=active_alerts,
-        repo=alerts_repo,
-        tenant_id=tenant_id,
-        plant_id=plant_id,
-        operator_name=operator_name,
+    tab_priorities, tab_alerts, tab_asset, tab_treatment = st.tabs(
+        ["Prioridades", "Alertas", "Ativo", "Tratamento"]
     )
-    return action or alert_action
+    action: dict[str, str] | None = None
+
+    with tab_priorities:
+        _render_operator_kpis(rows, active_alerts)
+        st.divider()
+        _render_priority_cards(rows)
+
+    with tab_alerts:
+        alert_action = _render_actionable_alert_queue(active_alerts)
+        action = action or alert_action
+
+    with tab_asset:
+        asset_action = _render_asset_action_panel(rows)
+        action = action or asset_action
+
+    with tab_treatment:
+        _render_quick_alert_treatment(
+            alerts=active_alerts,
+            repo=alerts_repo,
+            tenant_id=tenant_id,
+            plant_id=plant_id,
+            operator_name=operator_name,
+        )
+
+    return action
 
 
 def _render_assets_view(rows: list[dict[str, Any]], assets: list[dict[str, Any]]) -> None:
@@ -881,14 +890,16 @@ def render_condition_monitoring_page(
     rows = operator_rows(current_states, assets)
     alerts = active_operator_alerts(rows, active_alerts)
 
-    st.header("Monitoramento de Equipamentos e Máquinas")
-    st.caption("Entrada operacional do serviço de condição: priorizar, abrir ativo e tratar eventos de campo.")
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Cliente", tenant_id)
-    c2.metric("Planta", plant_id)
-    c3.metric("Ativos monitorados", str(len(rows)))
-    c4.metric("Modo atual", "Técnico" if mode == "technical" else "Operador")
+    st.header("Monitoramento de Equipamentos")
+    if mode == "operator":
+        st.caption("Visão operacional para priorizar verificações de campo e registrar tratamento de alertas.")
+    else:
+        st.caption("Diagnóstico técnico do serviço de condição: priorizar, abrir ativo e tratar eventos de campo.")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Cliente", tenant_id)
+        c2.metric("Planta", plant_id)
+        c3.metric("Ativos monitorados", str(len(rows)))
+        c4.metric("Modo atual", "Técnico" if mode == "technical" else "Operador")
 
     if mode == "operator":
         return _render_operator_view(

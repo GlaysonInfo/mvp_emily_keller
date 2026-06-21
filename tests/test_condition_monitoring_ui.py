@@ -16,6 +16,9 @@ from src.dashboard.condition_monitoring_ui import (
 )
 
 
+CONDITION_UI_SOURCE = "src/dashboard/condition_monitoring_ui.py"
+
+
 class FakeAlertsRepository:
     def __init__(self) -> None:
         self.created: list[dict] = []
@@ -121,6 +124,22 @@ def test_operator_kpis_counts_field_queue_and_generated_alerts() -> None:
     assert kpis["field_queue"] == 2
     assert kpis["alerts_active"] == 2
     assert kpis["critical"] == 1
+
+
+def test_operator_view_uses_simple_tabs_instead_of_single_crowded_screen() -> None:
+    from pathlib import Path
+
+    source = Path(CONDITION_UI_SOURCE).read_text(encoding="utf-8")
+    operator_block = source.split("def _render_operator_view", 1)[1].split("\ndef _render_assets_view", 1)[0]
+    render_block = source.split("def render_condition_monitoring_page", 1)[1].split("\ndef ", 1)[0]
+
+    assert '["Prioridades", "Alertas", "Ativo", "Tratamento"]' in operator_block
+    assert 'st.subheader("Detalhe rápido do ativo")' in source
+    assert 'st.subheader("Registrar tratamento do alerta")' in source
+    assert "Visão operacional para priorizar verificações de campo" in render_block
+    assert 'if mode == "operator":' in render_block
+    assert 'c1.metric("Cliente", tenant_id)' in render_block
+    assert render_block.index('if mode == "operator":') < render_block.index('c1.metric("Cliente", tenant_id)')
 
 
 def test_active_operator_alerts_prefers_repository_alerts_when_available() -> None:
